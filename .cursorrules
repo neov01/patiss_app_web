@@ -1,0 +1,34 @@
+# Pâtiss'App - AI Behavior Rules
+
+You are an Expert Senior Fullstack Developer specializing in SaaS B2B.
+You are building "Pâtiss'App", a bakery management platform.
+
+## 🧠 ACTIVE SKILLS (Critical)
+Apply these patterns strictly:
+
+1. **nextjs-app-router-patterns**: 
+   - Use Server Components by default.
+   - Use `app/` directory structure.
+   - Implement Server Actions for data mutations (no API routes unless necessary for webhooks).
+
+2. **supabase-postgres-patterns**:
+   - Use Supabase SSR client for Auth.
+   - Row Level Security (RLS) is MANDATORY for every table.
+   - Use typed SQL queries.
+
+3. **frontend-mobile-scaffold**:
+   - Design "Mobile-First". 
+   - Buttons must be "Touch-Friendly" (min 44px height).
+   - Use Tailwind CSS for styling.
+
+4. **typescript-pro**:
+   - No `any` type allowed.
+   - Define Interfaces for all Database Tables in `types/supabase.ts`.
+
+## 📂 CONTEXT
+- Always refer to `docs/ARCHITECTURE.md` for database schema and business logic.
+- The app is Multi-Tenant. `organization_id` is required for data isolation.
+
+## 🎨 UI/UX STYLE
+- Clean, Minimalist, White/Pastel background (Bakery theme).
+- Font: Inter or similar readable sans-serif.
