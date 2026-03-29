@@ -12,7 +12,10 @@ const resend = new Resend(process.env.RESEND_API_KEY!)
 // This endpoint can be called:
 // 1. By Vercel Cron at 21:00 (with CRON_SECRET header)
 // 2. Manually from the "CLÔTURER LA JOURNÉE" button (with a session ID)
-export async function POST(req: NextRequest) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SessionResult = Record<string, any>
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
     const authHeader = req.headers.get('authorization')
     const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
 
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
     })
 }
 
-async function closeSingleSession(sessionId: string, closedBy: string | null, preloadedSession?: any) {
+async function closeSingleSession(sessionId: string, closedBy: string | null, preloadedSession?: SessionResult): Promise<SessionResult> {
     // Fetch session + org details
     let session = preloadedSession
     if (!session) {
@@ -63,9 +66,10 @@ async function closeSingleSession(sessionId: string, closedBy: string | null, pr
         if (error || !data) return { sessionId, success: false, error: error?.message }
         session = data
     }
+    if (!session) return { sessionId, success: false, error: 'Session not found' }
 
-    const org = session.organizations as any
-    const orgId = session.organization_id
+    const org = (session as SessionResult).organizations as SessionResult
+    const orgId = (session as SessionResult).organization_id
     const today = new Date()
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
 
