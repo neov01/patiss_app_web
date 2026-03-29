@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
         if (!body.session_id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
-        return await closeSingleSession(body.session_id, body.closed_by)
+        const result = await closeSingleSession(body.session_id, body.closed_by)
+        return NextResponse.json(result)
     }
 
     // CRON path: find ALL open sessions across ALL organizations and close them
