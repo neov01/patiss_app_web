@@ -2,12 +2,20 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { ensureActiveSubscription } from '@/lib/utils/subscription'
 
 export async function createInventoryLog(formData: {
     ingredient_id: string
     quantity_change: number
     reason: 'production' | 'waste' | 'purchase' | 'adjustment'
 }) {
+    // Bloquer si l'abonnement est expiré
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Non authentifié' }
@@ -38,6 +46,13 @@ export async function createIngredient(formData: {
     alert_threshold: number
     image_url?: string | null
 }) {
+    // Bloquer si l'abonnement est expiré
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Non authentifié' }
@@ -67,6 +82,13 @@ export async function updateIngredient(id: string, formData: {
     alert_threshold: number
     image_url?: string | null
 }) {
+    // Bloquer si l'abonnement est expiré
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
     const supabase = await createClient()
     const { error } = await supabase.from('ingredients').update({
         name: formData.name,
@@ -81,6 +103,13 @@ export async function updateIngredient(id: string, formData: {
 }
 
 export async function deleteIngredient(id: string) {
+    // Bloquer si l'abonnement est expiré
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
     const supabase = await createClient()
     const { error } = await supabase.from('ingredients').delete().eq('id', id)
     if (error) return { error: error.message }

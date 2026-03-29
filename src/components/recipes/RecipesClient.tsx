@@ -157,7 +157,7 @@ function RecipeModal({ mode, recipe, ingredients, onClose }: { mode: 'create' | 
     )
 }
 
-export default function RecipesClient({ recipes, ingredients }: { recipes: Recipe[]; ingredients: Ingredient[] }) {
+export default function RecipesClient({ recipes, ingredients, currency }: { recipes: Recipe[]; ingredients: Ingredient[]; currency: string }) {
     const [showCreate, setShowCreate] = useState(false)
     const [editId, setEditId] = useState<string | null>(null)
     const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -200,9 +200,9 @@ export default function RecipesClient({ recipes, ingredients }: { recipes: Recip
                                         <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>{recipe.name}</div>
                                         {recipe.description && <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '8px' }}>{recipe.description}</div>}
                                         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                                            <span style={{ fontWeight: 600 }}>Vente : {recipe.sale_price.toLocaleString('fr-FR')} FCFA</span>
-                                            <span style={{ color: 'var(--color-muted)' }}>Food-Cost : {foodCost.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA</span>
-                                            <span style={{ fontWeight: 700, color: marginColor }}>Marge : {margin.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA ({marginPct}%)</span>
+                                            <span style={{ fontWeight: 600 }}>Vente : {recipe.sale_price.toLocaleString('fr-FR')} {currency}</span>
+                                            <span style={{ color: 'var(--color-muted)' }}>Food-Cost : {foodCost.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} {currency}</span>
+                                            <span style={{ fontWeight: 700, color: marginColor }}>Marge : {margin.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} {currency} ({marginPct}%)</span>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
@@ -228,7 +228,7 @@ export default function RecipesClient({ recipes, ingredients }: { recipes: Recip
                                                     <td style={{ padding: '6px 0' }}>{ri.ingredients?.name ?? '—'}</td>
                                                     <td style={{ textAlign: 'right', padding: '6px 0' }}>{ri.quantity_required} {ri.ingredients?.unit}</td>
                                                     <td style={{ textAlign: 'right', padding: '6px 0', color: 'var(--color-muted)' }}>
-                                                        {(ri.quantity_required * (ri.ingredients?.cost_per_unit ?? 0)).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FCFA
+                                                        {(ri.quantity_required * (ri.ingredients?.cost_per_unit ?? 0)).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} {currency}
                                                     </td>
                                                 </tr>
                                             ))}</tbody>

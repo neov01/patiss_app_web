@@ -32,20 +32,32 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const { pathname } = request.nextUrl
+    const isKioskSession = request.cookies.has('kiosk_user_id')
 
-    // Redirige vers login si tentative d'accès au dashboard sans session
-    if (!user && pathname.startsWith('/dashboard')) {
+    // Redirige vers login si tentative d'accès au dashboard sans session (sauf si session Kiosque active)
+    if (!user && !isKioskSession && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = '/login'
         redirectUrl.searchParams.set('redirectedFrom', pathname)
         return NextResponse.redirect(redirectUrl)
     }
 
-    // Redirige vers dashboard si déjà connecté et qu'on accède à /login
+    // Redirige vers dashboard ou admin si déjà connecté et qu'on accède à /login
     if (user && pathname === '/login') {
+        const { data: profile } = await supabase.from('profiles').select('role_slug').eq('id', user.id).single()
         const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = '/dashboard'
+        redirectUrl.pathname = profile?.role_slug === 'super_admin' ? '/admin' : '/dashboard'
         return NextResponse.redirect(redirectUrl)
+    }
+
+    // Optional: Prevent non-admins from hitting /admin
+    if (user && pathname.startsWith('/admin')) {
+        const { data: profile } = await supabase.from('profiles').select('role_slug').eq('id', user.id).single()
+        if (profile?.role_slug !== 'super_admin') {
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/dashboard'
+            return NextResponse.redirect(redirectUrl)
+        }
     }
 
     return supabaseResponse

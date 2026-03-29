@@ -13,7 +13,9 @@ import {
     suspendOrganization,
     reactivateOrganization,
     resetEmployeePin,
-    createOrganizationWithGerant
+    createOrganizationWithGerant,
+    generateKioskCode,
+    deleteOrganization
 } from '@/lib/actions/admin'
 import TouchInput from '@/components/ui/TouchInput'
 
@@ -22,6 +24,7 @@ interface Org {
     id: string
     name: string
     currency_symbol: string
+    kiosk_code: string | null
     subscription_end_date: string | null
     member_count: number
 }
@@ -88,6 +91,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     const [pinResetTarget, setPinResetTarget] = useState<string | null>(null)
     const [newPin, setNewPin] = useState('')
     const [confirmSuspend, setConfirmSuspend] = useState(false)
+    const [confirmDelete, setConfirmDelete] = useState(false)
 
     // Creation Form State
     const [newOrgForm, setNewOrgForm] = useState({
@@ -165,6 +169,15 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
         })
     }
 
+    const handleGenerateKioskCode = (orgId: string) => {
+        startTransition(async () => {
+            const res = await generateKioskCode(orgId)
+            if (res.error) { toast.error(res.error); return }
+            setOrgs(prev => prev.map(o => o.id === orgId ? { ...o, kiosk_code: res.code || null } : o))
+            toast.success('Code Boutique généré avec succès 🎉')
+        })
+    }
+
     const handleQuickRenew = (months: number) => {
         setSubForm(f => ({ ...f, subscription_end_date: addMonths(f.subscription_end_date, months) }))
     }
@@ -221,6 +234,18 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             if (res.error) { toast.error(res.error); return }
             setProfiles(prev => prev.map(p => p.organization_id === selectedOrg.id ? { ...p, is_active: true } : p))
             toast.success('Pâtisserie réactivée ✓')
+        })
+    }
+
+    const handleDeleteOrg = () => {
+        if (!selectedOrg) return
+        startTransition(async () => {
+            const res = await deleteOrganization(selectedOrg.id)
+            if (res.error) { toast.error(res.error); return }
+            toast.success('Pâtisserie supprimée définitivement.')
+            setSelectedOrgId('')
+            setOrgs(prev => prev.filter(o => o.id !== selectedOrg.id))
+            setConfirmDelete(false)
         })
     }
 
@@ -355,6 +380,26 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         </div>
                                     </Field>
 
+                                    <Field label="Code Boutique (Accès Kiosque)">
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                            <div style={{
+                                                flex: 1, height: '44px', background: '#FDFCFB', border: '1.5px solid #EAEAEA',
+                                                borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '0 14px',
+                                                fontSize: '1.1rem', fontWeight: 800, color: selectedOrg.kiosk_code ? '#D97757' : 'var(--color-muted)',
+                                                letterSpacing: '0.1em'
+                                            }}>
+                                                {selectedOrg.kiosk_code || 'NON DÉFINI'}
+                                            </div>
+                                            <button 
+                                                onClick={() => handleGenerateKioskCode(selectedOrg.id)}
+                                                disabled={isPending}
+                                                className="btn-secondary"
+                                            >
+                                                <RefreshCw size={16} /> Regénérer
+                                            </button>
+                                        </div>
+                                    </Field>
+
                                     <div style={{ background: '#FDFCFB', padding: '20px', borderRadius: '20px', border: '1px solid #FEF3EC' }}>
                                         <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97757', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prolonger l&apos;abonnement</p>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -472,8 +517,34 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         </div>
                                     )}
                                 </div>
+
+                                <div style={{ marginTop: '32px', padding: '24px', borderRadius: '24px', border: '2px solid #D94F3840', background: 'white' }}>
+                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: '#D94F38', margin: '0 0 12px' }}>
+                                        <ShieldAlert size={24} /> Suppression Définitive
+                                    </h3>
+                                    <p style={{ fontSize: '0.95rem', color: '#2D1B0E', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
+                                        Cette action est <strong>IRRÉVERSIBLE</strong>. Elle supprimera l&apos;organisation <strong>{selectedOrg.name}</strong>, tous ses profils utilisateurs, ses ventes, ses produits et ses stocks.
+                                    </p>
+
+                                    {!confirmDelete ? (
+                                        <button onClick={() => setConfirmDelete(true)} className="btn-ghost" style={{ width: '100%', color: '#D94F38', border: '2px solid #D94F3840', fontWeight: 800, height: '52px' }}>
+                                            SUPPRIMER DÉFINITIVEMENT CETTE PÂTISSERIE
+                                        </button>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            <p style={{ fontWeight: 800, color: '#D94F38', textAlign: 'center' }}>⚠️ Êtes-vous ABSOLUMENT sûr ? Cette action ne peut pas être annulée.</p>
+                                            <div style={{ display: 'flex', gap: '12px' }}>
+                                                <button onClick={() => setConfirmDelete(false)} className="btn-ghost" style={{ flex: 1 }}>Annuler</button>
+                                                <button onClick={handleDeleteOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, background: '#D94F38', color: 'white', fontWeight: 800 }}>
+                                                    {isPending ? <Loader2 size={18} className="animate-spin" /> : 'CONFIRMER LA SUPPRESSION'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
+                        <div style={{ height: '100px' }} /> {/* Extra scroll room */}
                     </div>
                 </div>
             )}
@@ -481,7 +552,9 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             {/* ─── Create Organization Modal ─────────────────────────────────── */}
             {isCreateModalOpen && (
                 <div className="modal-overlay" onClick={() => setIsCreateModalOpen(false)}>
-                    <div className="modal-content animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', padding: 0, overflow: 'hidden' }}>
+                    <div className="modal-content animate-scaleIn" onClick={e => e.stopPropagation()} 
+                         style={{ maxWidth: '600px', padding: 0, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        
                         <div style={{ padding: '32px', borderBottom: '1px solid #EEE' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#2D1B0E' }}>Nouvelle Pâtisserie</h2>
@@ -490,41 +563,43 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                             <p style={{ fontSize: '0.9rem', color: 'var(--color-muted)', margin: 0 }}>L&apos;organisation et son premier Gérant seront créés simultanément.</p>
                         </div>
 
-                        <div style={{ padding: '32px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>1. Informations Pâtisserie</p>
-                            </div>
-                            <Field label="Nom de l'enseigne">
-                                <input className="input" placeholder="ex: Boulangerie Moderne" value={newOrgForm.org_name} onChange={e => setNewOrgForm(f => ({ ...f, org_name: e.target.value }))} />
-                            </Field>
-                            <Field label="Devise">
-                                <input className="input" value={newOrgForm.currency_symbol} onChange={e => setNewOrgForm(f => ({ ...f, currency_symbol: e.target.value }))} />
-                            </Field>
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <Field label="Fin d'abonnement (Optionnel)">
-                                    <input type="date" className="input" value={newOrgForm.subscription_end_date} onChange={e => setNewOrgForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                        <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>1. Informations Pâtisserie</p>
+                                </div>
+                                <Field label="Nom de l'enseigne">
+                                    <input className="input" placeholder="ex: Boulangerie Moderne" value={newOrgForm.org_name} onChange={e => setNewOrgForm(f => ({ ...f, org_name: e.target.value }))} />
                                 </Field>
-                            </div>
+                                <Field label="Devise">
+                                    <input className="input" value={newOrgForm.currency_symbol} onChange={e => setNewOrgForm(f => ({ ...f, currency_symbol: e.target.value }))} />
+                                </Field>
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <Field label="Fin d'abonnement (Optionnel)">
+                                        <input type="date" className="input" value={newOrgForm.subscription_end_date} onChange={e => setNewOrgForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                                    </Field>
+                                </div>
 
-                            <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>2. Compte Gérant</p>
-                            </div>
-                            <Field label="Nom Complet du Gérant">
-                                <input className="input" placeholder="Prénom Nom" value={newOrgForm.gerant_full_name} onChange={e => setNewOrgForm(f => ({ ...f, gerant_full_name: e.target.value }))} />
-                            </Field>
-                            <Field label="Email de Connexion">
-                                <input className="input" type="email" placeholder="gerant@patisserie.com" value={newOrgForm.gerant_email} onChange={e => setNewOrgForm(f => ({ ...f, gerant_email: e.target.value }))} />
-                            </Field>
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <Field label="Code PIN (4 chiffres)">
-                                    <TouchInput
-                                        value={newOrgForm.gerant_pin}
-                                        onChange={val => setNewOrgForm(f => ({ ...f, gerant_pin: val }))}
-                                        maxLength={4}
-                                        placeholder="ex: 1234"
-                                        title="Définir le PIN Gérant"
-                                    />
+                                <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>2. Compte Gérant</p>
+                                </div>
+                                <Field label="Nom Complet du Gérant">
+                                    <input className="input" placeholder="Prénom Nom" value={newOrgForm.gerant_full_name} onChange={e => setNewOrgForm(f => ({ ...f, gerant_full_name: e.target.value }))} />
                                 </Field>
+                                <Field label="Email de Connexion">
+                                    <input className="input" type="email" placeholder="gerant@patisserie.com" value={newOrgForm.gerant_email} onChange={e => setNewOrgForm(f => ({ ...f, gerant_email: e.target.value }))} />
+                                </Field>
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <Field label="Code PIN (4 chiffres)">
+                                        <TouchInput
+                                            value={newOrgForm.gerant_pin}
+                                            onChange={val => setNewOrgForm(f => ({ ...f, gerant_pin: val }))}
+                                            maxLength={4}
+                                            placeholder="ex: 1234"
+                                            title="Définir le PIN Gérant"
+                                        />
+                                    </Field>
+                                </div>
                             </div>
                         </div>
 
@@ -556,8 +631,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     animation: scaleIn 0.3s cubic-bezier(.22, .68, 0, 1.2);
                 }
                 @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
                 @keyframes scaleIn {
                     from { transform: scale(0.95); opacity: 0; }

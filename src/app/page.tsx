@@ -6,7 +6,12 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (user) {
-    redirect('/dashboard')
+    const { data: profile } = await supabase.from('profiles').select('role_slug').eq('id', user.id).single()
+    if (profile?.role_slug === 'super_admin') {
+      redirect('/admin')
+    } else {
+      redirect('/dashboard')
+    }
   } else {
     redirect('/login')
   }

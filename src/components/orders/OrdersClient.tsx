@@ -32,7 +32,7 @@ const STATUS_LABELS: Record<string, { label: string; next: string; color: string
     cancelled: { label: '✖ Annulée', next: 'cancelled', color: '#FEE2E2' },
 }
 
-export default function OrdersClient({ orders, recipes }: { orders: OrderWithItems[]; recipes: Recipe[] }) {
+export default function OrdersClient({ orders, recipes, currency }: { orders: OrderWithItems[]; recipes: Recipe[]; currency: string }) {
     const [showModal, setShowModal] = useState(false)
     const [isPending, start] = useTransition()
     const [statusFilter, setFilter] = useState('all')
@@ -165,11 +165,11 @@ export default function OrdersClient({ orders, recipes }: { orders: OrderWithIte
                                     </div>
                                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                                         <div style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '4px' }}>
-                                            {order.total_amount.toLocaleString('fr-FR')} FCFA
+                                            {order.total_amount.toLocaleString('fr-FR')} {currency}
                                         </div>
                                         {order.deposit_amount > 0 && (
                                             <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
-                                                Acompte : {order.deposit_amount.toLocaleString('fr-FR')} FCFA
+                                                Acompte : {order.deposit_amount.toLocaleString('fr-FR')} {currency}
                                             </div>
                                         )}
                                         <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
@@ -231,7 +231,7 @@ export default function OrdersClient({ orders, recipes }: { orders: OrderWithIte
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="label">Acompte (FCFA)</label>
+                                    <label className="label">Acompte ({currency})</label>
                                     <TouchInput
                                         value={form.deposit_amount.toString()}
                                         onChange={val => setForm(f => ({ ...f, deposit_amount: parseInt(val) || 0 }))}
@@ -254,7 +254,7 @@ export default function OrdersClient({ orders, recipes }: { orders: OrderWithIte
                                 <div>
                                     <label className="label">Solde</label>
                                     <div className="input" style={{ background: 'var(--color-cream)', color: balance <= 0 ? '#4C9E6A' : 'var(--color-text)', display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                                        {balance.toLocaleString('fr-FR')} FCFA
+                                        {balance.toLocaleString('fr-FR')} {currency}
                                     </div>
                                 </div>
                             </div>
@@ -289,7 +289,7 @@ export default function OrdersClient({ orders, recipes }: { orders: OrderWithIte
                                         <button key={r.id} type="button" onClick={() => addRecipe(r)}
                                             className="btn-secondary"
                                             style={{ fontSize: '0.8rem', padding: '4px 12px', minHeight: '36px' }}>
-                                            + {r.name} ({r.sale_price.toLocaleString('fr-FR')} FCFA)
+                                            + {r.name} ({r.sale_price.toLocaleString('fr-FR')} {currency})
                                         </button>
                                     ))}
                                 </div>
@@ -306,14 +306,14 @@ export default function OrdersClient({ orders, recipes }: { orders: OrderWithIte
                                                         title="Modifier quantité"
                                                         style={{ width: '80px', textAlign: 'center', minHeight: '34px', padding: '0 8px' }}
                                                     />
-                                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>× {item.unit_price.toLocaleString('fr-FR')} FCFA</span>
+                                                    <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>× {item.unit_price.toLocaleString('fr-FR')} {currency}</span>
                                                     <button type="button" onClick={() => setOrderItems(items => items.filter((_, idx) => idx !== i))} className="btn-ghost" style={{ minHeight: '30px', padding: '0 6px', color: '#D94F38' }}><X size={14} /></button>
                                                 </div>
                                             </div>
                                         ))}
                                         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
                                             <span>Total produits</span>
-                                            <span>{computedTotal.toLocaleString('fr-FR')} FCFA</span>
+                                            <span>{computedTotal.toLocaleString('fr-FR')} {currency}</span>
                                         </div>
                                     </div>
                                 )}

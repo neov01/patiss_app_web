@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
     LayoutDashboard, ShoppingBag, BookOpen, Package,
-    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock
+    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logoutKiosk } from '@/lib/actions/auth'
@@ -14,8 +14,8 @@ import type { Profile } from '@/types/supabase'
 
 interface Props {
     profile: Profile
+    adminProfile?: Profile | null
     organization: { name: string; currency_symbol: string } | null
-    kioskProfile?: { full_name: string; theme_color: string | null; role_slug: string } | null
 }
 
 const navItems = [
@@ -30,7 +30,7 @@ const navItems = [
     { href: '/admin', label: 'Admin', icon: LayoutDashboard, roles: ['super_admin'] },
 ]
 
-export default function DashboardSidebar({ profile, organization }: Props) {
+export default function DashboardSidebar({ profile, adminProfile, organization }: Props) {
     const pathname = usePathname()
     const router = useRouter()
     const [open, setOpen] = useState(false)
@@ -38,18 +38,24 @@ export default function DashboardSidebar({ profile, organization }: Props) {
     const filtered = navItems.filter(n => n.roles.includes(profile.role_slug))
 
     async function handleLogout() {
-        const supabase = createClient()
-        // Si on est en mode kiosque, on retire juste le cookie sans déconnecter la session gerant
-        const kioskCookie = document.cookie.includes('kiosk_user_id=')
-        if (kioskCookie) {
-            await logoutKiosk()
-            router.push('/kiosk')
+        // Check client-side if we are in a Kiosk session
+        const isKioskSession = document.cookie.includes('kiosk_user_id=');
+
+        if (isKioskSession) {
+            // If it's a Kiosk user, only clear the kiosk session and go back to the kiosk screen.
+            await logoutKiosk();
+            toast.info("Session kiosque terminée.");
+            router.push('/kiosk');
         } else {
-            await supabase.auth.signOut()
-            toast.success('Déconnexion réussie')
-            router.push('/login')
+            // If it's a manager/admin, perform a full sign out.
+            const supabase = createClient();
+            // CRITICAL: Also ensure the kiosk cookie is manually cleared as a safeguard.
+            await logoutKiosk();
+            await supabase.auth.signOut();
+            toast.success('Déconnexion réussie.');
+            router.push('/login');
         }
-        router.refresh()
+        router.refresh();
     }
 
     const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -85,7 +91,42 @@ export default function DashboardSidebar({ profile, organization }: Props) {
                         </Link>
                     )
                 })}
+
+                {profile.role_slug === 'gerant' && profile.organization_id && (
+                    <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+                        <Link href={`/kiosk?orgId=${profile.organization_id}`}
+                            className="sidebar-link"
+                            style={{ background: '#FEF3EC', color: '#D97757', fontWeight: 800 }}
+                            onClick={() => setOpen(false)}
+                        >
+                            <Store size={18} strokeWidth={2} />
+                            Ouvrir le Kiosque
+                        </Link>
+                    </div>
+                )}
             </div>
+
+            {/* Escape Hatch Banner if Impersonating */}
+            {adminProfile && adminProfile.id !== profile.id && (
+                <div style={{
+                    margin: '12px 8px', padding: '12px', background: '#FEF3EC',
+                    border: '1.5px solid #FDE8DB', borderRadius: '16px',
+                }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#D97757', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Lock size={12} /> MODE KIOSQUE
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            width: '100%', padding: '8px', background: 'white', border: '1.5px solid #FDE8DB',
+                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700, color: '#2D1B0E',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                        }}
+                    >
+                        Retour Admin
+                    </button>
+                </div>
+            )}
 
             {/* Profile + Logout */}
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>

@@ -34,8 +34,8 @@ export default function LoginPage() {
         }
 
         toast.success('Connexion réussie !')
-        router.push('/dashboard')
-        router.refresh()
+        // Use a hard redirect to the home page so the layout correctly refetches roles and clears any old client-side layout states
+        window.location.href = '/'
     }
 
     return (

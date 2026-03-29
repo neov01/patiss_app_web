@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
 
 export async function createEmployee(data: {
     full_name: string
@@ -25,10 +26,12 @@ export async function createEmployee(data: {
         return { error: 'Permission refusée' }
     }
 
+    const hashedPin = await bcrypt.hash(data.pin_code, 10)
+
     const { error } = await supabase.from('profiles').insert({
         full_name: data.full_name,
         role_slug: data.role_slug,
-        pin_code: data.pin_code,
+        pin_code: hashedPin,
         theme_color: data.theme_color || null,
         auto_lock_seconds: data.auto_lock_seconds ?? 60,
         organization_id: data.organization_id,
@@ -52,7 +55,12 @@ export async function updateEmployee(id: string, data: {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Non authentifié' }
 
-    const { error } = await supabase.from('profiles').update(data).eq('id', id)
+    let updateData = { ...data }
+    if (data.pin_code) {
+        updateData.pin_code = await bcrypt.hash(data.pin_code, 10)
+    }
+
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/equipe')
     return { success: true }

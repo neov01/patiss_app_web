@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
 
 export async function updateUserRole({ userId, role_slug, is_active }: {
   userId: string
@@ -76,6 +77,8 @@ export async function createOrganizationWithGerant(data: {
     return { error: 'Impossible de récupérer l\'ID de l\'utilisateur' };
   }
 
+  const hashedPin = await bcrypt.hash(data.gerant_pin, 10)
+
   // 3. Create/Update the gérant profile linked to this org
   const { error: profileErr } = await supabase
     .from('profiles')
@@ -84,7 +87,7 @@ export async function createOrganizationWithGerant(data: {
       full_name: data.gerant_full_name,
       role_slug: 'gerant',
       organization_id: org.id,
-      pin_code: data.gerant_pin,
+      pin_code: hashedPin,
       is_active: true,
       auto_lock_seconds: 120,
     })
@@ -121,11 +124,57 @@ export async function reactivateOrganization(orgId: string) {
 
 export async function resetEmployeePin(profileId: string, newPin: string) {
   const supabase = await createClient()
+  const hashedPin = await bcrypt.hash(newPin, 10)
   const { error } = await supabase
     .from('profiles')
-    .update({ pin_code: newPin })
+    .update({ pin_code: hashedPin })
     .eq('id', profileId)
   if (error) return { error: error.message }
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export async function generateKioskCode(orgId: string) {
+  const supabase = await createClient()
+  
+  // 1. Get the organization name
+  const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).single()
+  if (!org) return { error: 'Organisation introuvable' }
+
+  // 2. Generate the code (4 letters from name + 4 random digits)
+  const letters = org.name.replace(/[^a-zA-Z]/g, '').toUpperCase().substring(0, 4).padEnd(4, 'X')
+  const digits = Math.floor(1000 + Math.random() * 9000).toString()
+  const code = `${letters}${digits}`
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ kiosk_code: code })
+    .eq('id', orgId)
+    
+  if (error) return { error: error.message }
+  revalidatePath('/admin')
+  return { success: true, code }
+}
+
+export async function deleteOrganization(orgId: string) {
+  const supabase = await createClient()
+  
+  // 1. Delete profiles linked to this org
+  const { error: profileErr } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('organization_id', orgId)
+    
+  if (profileErr) return { error: profileErr.message }
+
+  // 2. Delete the org
+  const { error: orgErr } = await supabase
+    .from('organizations')
+    .delete()
+    .eq('id', orgId)
+    
+  if (orgErr) return { error: orgErr.message }
+  
   revalidatePath('/admin')
   return { success: true }
 }

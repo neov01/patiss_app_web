@@ -213,6 +213,7 @@ export type Database = {
                     created_at: string | null
                     currency_symbol: string
                     id: string
+                    kiosk_code: string | null
                     name: string
                     subscription_end_date: string | null
                 }
@@ -220,6 +221,7 @@ export type Database = {
                     created_at?: string | null
                     currency_symbol?: string
                     id?: string
+                    kiosk_code?: string | null
                     name: string
                     subscription_end_date?: string | null
                 }
@@ -227,6 +229,7 @@ export type Database = {
                     created_at?: string | null
                     currency_symbol?: string
                     id?: string
+                    kiosk_code?: string | null
                     name?: string
                     subscription_end_date?: string | null
                 }
@@ -353,6 +356,73 @@ export type Database = {
                     },
                 ]
             }
+            sales_sessions: {
+                Row: {
+                    closed_at: string | null
+                    closed_by: string | null
+                    created_at: string
+                    id: string
+                    metrics_snapshot: Json | null
+                    opened_at: string
+                    opened_by: string | null
+                    organization_id: string
+                    status: string
+                    total_cash: number
+                    total_mobile_money: number
+                    total_orders: number
+                }
+                Insert: {
+                    closed_at?: string | null
+                    closed_by?: string | null
+                    created_at?: string
+                    id?: string
+                    metrics_snapshot?: Json | null
+                    opened_at?: string
+                    opened_by?: string | null
+                    organization_id: string
+                    status: string
+                    total_cash?: number
+                    total_mobile_money?: number
+                    total_orders?: number
+                }
+                Update: {
+                    closed_at?: string | null
+                    closed_by?: string | null
+                    created_at?: string
+                    id?: string
+                    metrics_snapshot?: Json | null
+                    opened_at?: string
+                    opened_by?: string | null
+                    organization_id?: string
+                    status?: string
+                    total_cash?: number
+                    total_mobile_money?: number
+                    total_orders?: number
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "sales_sessions_closed_by_fkey"
+                        columns: ["closed_by"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "sales_sessions_opened_by_fkey"
+                        columns: ["opened_by"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "sales_sessions_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
         }
         Views: {
             [_ in never]: never
@@ -462,6 +532,7 @@ export type RecipeIngredient = Tables<'recipe_ingredients'>
 export type Order = Tables<'orders'>
 export type OrderItem = Tables<'order_items'>
 export type InventoryLog = Tables<'inventory_logs'>
+export type SalesSession = Tables<'sales_sessions'>
 
 export type RoleSlug = 'super_admin' | 'gerant' | 'vendeur' | 'patissier'
 export type OrderStatus = 'pending' | 'production' | 'ready' | 'completed' | 'cancelled'

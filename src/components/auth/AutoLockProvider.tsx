@@ -19,18 +19,22 @@ export default function AutoLockProvider({ children, autoLockSeconds, themeColor
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     const handleLock = useCallback(async () => {
-        const isKiosk = document.cookie.includes('kiosk_user_id=')
+        // Check if it's a kiosk session by looking for the cookie client-side
+        const isKiosk = document.cookie.includes('kiosk_user_id=');
+
         if (isKiosk) {
-            await logoutKiosk()
-            toast('Session verrouillée — retour au kiosque')
-            router.push('/kiosk')
+            // Correct behavior: End kiosk session and return to kiosk screen
+            await logoutKiosk();
+            toast.info('Session verrouillée par inactivité.');
+            router.push('/kiosk');
         } else {
-            const supabase = createClient()
-            await supabase.auth.signOut()
-            toast('Session expirée')
-            router.push('/login')
+            // Fallback for admin sessions (though auto-lock is disabled for them)
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            toast.warning('Session administrateur expirée.');
+            router.push('/login');
         }
-    }, [router])
+    }, [router]);
 
     const resetTimer = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current)
