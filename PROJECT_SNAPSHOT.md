@@ -23,7 +23,7 @@
 
 ### Structure du projet (Mise à jour)
 ```
-patiss-app/
+patiss_app_web/
 ├── lib/
 │   ├── actions/
 │   │   ├── sessions.ts            # Server Actions : getOpenSession, toggleSession (Open/Close)

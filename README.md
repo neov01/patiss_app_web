@@ -1,3 +1,9 @@
+# Pâtiss'App Web
+
+Nouveau dépôt : [https://github.com/neov01/patiss_app_web](https://github.com/neov01/patiss_app_web)
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
