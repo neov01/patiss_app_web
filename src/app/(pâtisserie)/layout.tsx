@@ -63,6 +63,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             themeColor={(displayProfile as any).theme_color}
             userId={displayProfile.id}
             role={displayProfile.role_slug}
+            organizationId={displayProfile.organization_id!}
+            isKiosk={!!kioskUserId}
         >
             <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--color-bg)' }}>
                 {isExpired && (
@@ -86,6 +88,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     profile={displayProfile}
                     adminProfile={adminProfile}
                     organization={displayProfile.organizations as { name: string; currency_symbol: string }}
+                    isKiosk={!!kioskUserId}
                 />
                 <main style={{ 
                     flex: 1, 

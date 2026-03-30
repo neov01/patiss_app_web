@@ -16,6 +16,7 @@ interface Props {
     profile: Profile
     adminProfile?: Profile | null
     organization: { name: string; currency_symbol: string } | null
+    isKiosk: boolean
 }
 
 const navItems = [
@@ -30,7 +31,7 @@ const navItems = [
     { href: '/admin', label: 'Admin', icon: LayoutDashboard, roles: ['super_admin'] },
 ]
 
-export default function DashboardSidebar({ profile, adminProfile, organization }: Props) {
+export default function DashboardSidebar({ profile, adminProfile, organization, isKiosk }: Props) {
     const pathname = usePathname()
     const router = useRouter()
     const [open, setOpen] = useState(false)
@@ -38,14 +39,11 @@ export default function DashboardSidebar({ profile, adminProfile, organization }
     const filtered = navItems.filter(n => n.roles.includes(profile.role_slug))
 
     async function handleLogout() {
-        // Check client-side if we are in a Kiosk session
-        const isKioskSession = document.cookie.includes('kiosk_user_id=');
-
-        if (isKioskSession) {
-            // If it's a Kiosk user, only clear the kiosk session and go back to the kiosk screen.
+        if (isKiosk) {
+            // If it's a Kiosk user, only clear the kiosk session and go back to the kiosk selection screen for THIS org.
             await logoutKiosk();
             toast.info("Session kiosque terminée.");
-            router.push('/kiosk');
+            router.push(`/kiosk?orgId=${profile.organization_id}`);
         } else {
             // If it's a manager/admin, perform a full sign out.
             const supabase = createClient();

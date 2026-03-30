@@ -12,21 +12,20 @@ interface Props {
     themeColor: string | null
     userId: string
     role: string
+    organizationId: string
+    isKiosk: boolean
 }
 
-export default function AutoLockProvider({ children, autoLockSeconds, themeColor, userId, role }: Props) {
+export default function AutoLockProvider({ children, autoLockSeconds, themeColor, userId, role, organizationId, isKiosk }: Props) {
     const router = useRouter()
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     const handleLock = useCallback(async () => {
-        // Check if it's a kiosk session by looking for the cookie client-side
-        const isKiosk = document.cookie.includes('kiosk_user_id=');
-
         if (isKiosk) {
-            // Correct behavior: End kiosk session and return to kiosk screen
+            // Correct behavior: End kiosk session and return to kiosk screen with the correct orgId
             await logoutKiosk();
             toast.info('Session verrouillée par inactivité.');
-            router.push('/kiosk');
+            router.push(`/kiosk?orgId=${organizationId}`);
         } else {
             // Fallback for admin sessions (though auto-lock is disabled for them)
             const supabase = createClient();
@@ -34,13 +33,13 @@ export default function AutoLockProvider({ children, autoLockSeconds, themeColor
             toast.warning('Session administrateur expirée.');
             router.push('/login');
         }
-    }, [router]);
+    }, [router, organizationId, isKiosk]);
 
     const resetTimer = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
-        // No auto-lock for admin and gerant roles
-        if (role === 'admin' || role === 'gerant') return
+        // No auto-lock for super_admin and gerant roles
+        if (role === 'super_admin' || role === 'gerant') return
 
         if (autoLockSeconds > 0) {
             timeoutRef.current = setTimeout(handleLock, autoLockSeconds * 1000)
