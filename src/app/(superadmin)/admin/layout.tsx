@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role_slug, is_active')
+        .select('role_slug, is_active, organization_id')
         .eq('id', user.id)
         .single()
 
@@ -35,6 +35,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                     role={profile.role_slug}
                     autoLockSeconds={1800} // 30 mins, though ignored for super_admin natively
                     themeColor="#9333EA" // Purple for super admin
+                    organizationId={profile.organization_id || ''}
+                    isKiosk={false}
                 >
                     <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                         <div className="max-w-7xl mx-auto w-full">
