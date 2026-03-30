@@ -7,10 +7,18 @@ import { CakeSlice, Delete, Loader2, Store } from 'lucide-react'
 import type { Profile } from '@/types/supabase'
 import { loginWithPin, verifyKioskCode, getKioskProfiles } from '@/lib/actions/auth'
 
+import { createClient } from '@/lib/supabase/client'
+
 function KioskContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     
+    async function handleGerantLogin() {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        router.push('/login');
+    }
+
     const [kioskOrgId, setKioskOrgId] = useState<string | null>(null)
     const [boutiqueCode, setBoutiqueCode] = useState('')
     const [verifyingCode, setVerifyingCode] = useState(false)
@@ -113,9 +121,21 @@ function KioskContent() {
                         {!kioskOrgId ? 'Configuration' : !selected ? 'Sélectionnez votre profil' : 'Identification'}
                     </p>
                 </div>
-                <a href="/login" style={{ marginLeft: 'auto', color: '#9C8070', fontSize: '0.8rem', textDecoration: 'none' }}>
+                <button 
+                    onClick={handleGerantLogin}
+                    style={{ 
+                        marginLeft: 'auto', 
+                        color: '#9C8070', 
+                        fontSize: '0.8rem', 
+                        textDecoration: 'none',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0
+                    }}
+                >
                     Connexion Gérant →
-                </a>
+                </button>
             </div>
 
             {/* ÉTAPE 1: Code Boutique */}

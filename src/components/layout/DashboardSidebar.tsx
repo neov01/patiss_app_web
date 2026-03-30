@@ -92,14 +92,26 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
 
                 {profile.role_slug === 'gerant' && profile.organization_id && (
                     <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-                        <Link href={`/kiosk?orgId=${profile.organization_id}`}
+                        <button
+                            onClick={async () => {
+                                const supabase = createClient();
+                                await supabase.auth.signOut();
+                                router.push(`/kiosk?orgId=${profile.organization_id}`);
+                            }}
                             className="sidebar-link"
-                            style={{ background: '#FEF3EC', color: '#D97757', fontWeight: 800 }}
-                            onClick={() => setOpen(false)}
+                            style={{ 
+                                width: '100%',
+                                background: '#FEF3EC', 
+                                color: '#D97757', 
+                                fontWeight: 800,
+                                border: 'none',
+                                cursor: 'pointer',
+                                textAlign: 'left'
+                            }}
                         >
                             <Store size={18} strokeWidth={2} />
                             Ouvrir le Kiosque
-                        </Link>
+                        </button>
                     </div>
                 )}
             </div>
