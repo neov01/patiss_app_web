@@ -18,7 +18,9 @@
 | Email | Resend | 6.9.2 — **Actif (Rapports journaliers)** |
 | Sécurité | bcryptjs | 3.0.3 — **Hachage des codes PIN** |
 | Notifications | Sonner (toasts) | 2.0.7 |
-| Icônes | Lucide React | 0.575.0 |
+| Icons | Lucide React | 0.575.0 |
+| Date Handling | date-fns | 4.1.0 |
+| Forms | React Hook Form + Zod | Latest |
 | TypeScript | Strict | v5+ |
 
 ### Structure du projet (Mise à jour)
@@ -29,6 +31,7 @@ patiss_app_web/
 │   │   ├── sessions.ts            # Server Actions : getOpenSession, toggleSession (Open/Close)
 │   │   ├── admin.ts               # Server Actions : CRUD orgs, rôles, codes boutique
 │   │   ├── auth.ts                # Server Actions : loginWithPin (hashed), logoutKiosk
+│   │   ├── employees.ts           # **NOUVEAU** : CRUD employés, paie, upload avatar
 │   │   └── ...                    # Autres actions métier (orders, inventory, recipes)
 ├── middleware.ts                   # Auth guard + redirection + session Kiosque support
 ├── vercel.json                    # Configuration Cron : clôture auto à 21h00 UTC
@@ -54,8 +57,9 @@ patiss_app_web/
 | Table | Rôle | Nouveautés |
 |---|---|---|
 | `organizations` | Tenants SaaS | `kiosk_code` (8 chars générés) |
-| `profiles` | Utilisateurs | `pin_code` (désormais haché via bcrypt) |
-| `sales_sessions` | **NOUVEAU** | Suivi ouverture/clôture, `total_cash`, `total_mobile_money`, `metrics_snapshot` (JSON) |
+| `profiles` | Utilisateurs | `pin_code` (haché), RH fields (`phone`, `contract_type`, `base_salary`, `avatar_url`) |
+| `sales_sessions` | Sessions Vente | Suivi ouverture/clôture, `total_cash`, `total_mobile_money`, `metrics_snapshot` |
+| `employee_pay_events` | **NOUVEAU** | Suivi des primes et retenues par employé et par mois |
 | `orders` | Commandes | `payment_method` (especes, mobile_money, mixte), `mobile_money_amount` |
 
 **Relations & Sécurité :**
@@ -89,8 +93,12 @@ patiss_app_web/
 | **Accès "Manager" libre** | Le gérant peut accéder aux Recettes/Stocks même si la caisse est fermée (verrouillage intelligent). |
 | **Rapport de Clôture** | Calcul auto du CA (Espèces vs Mobile Money) + Alertes de stock + Email Premium envoyé. |
 | **Clôture Automatique** | Sécurité par Cron job à 21h00 si le gérant a oublié de fermer manuellement. |
-| **Gestion Multi-Methodes** | Support des paiements mixtes (partie espèces, partie mobile money). |
-| **Super Admin Rebuilt** | Gestion fluidifiée des organisations, génération des codes boutique, suppression d'orgs. |
+| **Gestion Multi-Méthodes** | Support des paiements mixtes (partie espèces, partie mobile money). |
+| **Mon Équipe (RH)** | **NOUVEAU** : Gestion complète des employés, contrats, salaires et photos. |
+| **Gestion de Paie** | **NOUVEAU** : Système de primes/retenues avec calcul auto du net à payer. |
+| **Fiches de Paie** | **NOUVEAU** : Génération de fiches mensuelles dynamiques et imprimables. |
+| **Super Admin SaaS** | Refonte complète : Dashboard global, Recherche, Support (Prise de main), et Gestion des Licences. |
+| **Support Technique** | Réinitialisation de PIN assistée et Création directe d'utilisateurs par le Super Admin. |
 
 ---
 
@@ -100,6 +108,8 @@ patiss_app_web/
 - **Pagination** : Toujours pas implémentée sur les listes (commandes, recettes).
 - **Domaine Privé Resend** : À valider pour passer de `onboarding@resend.dev` à une adresse pro.
 - **Vérification RLS** : Faire un audit final des politiques de sécurité table par table.
+- **Gating par Tier** : Appliquer le verrouillage des fonctionnalités (ex: IA uniquement pour le tier Premium+IA, Inventaire bloqué en Basic).
+- **Migration Production** : Appliquer la migration `20260401020000_extend_organizations_admin.sql` sur la base de production.
 
 ### Décisions de design prises
 - **Verrouillage UI** : Application d'un filtre `grayscale(0.8)` et `pointer-events: none` sur les zones restreintes pour une expérience visuelle "caisse fermée" impactante.
@@ -130,3 +140,8 @@ L'application est désormais robuste, sécurisée et prête pour une utilisation
 | `src/components/auth/AutoLockProvider.tsx` | Auto-verrouillage par inactivité (configurable par utilisateur) |
 | `src/components/ui/NumPad.tsx` | Clavier numérique tactile pour écrans tablettes |
 | `src/app/api/ai/route.ts` | Endpoint API pour le Comptable IA (Gemini) |
+| `src/components/admin/AdminClient.tsx` | **Interface Super Admin** (Fleet management, Support, Licences) |
+| `lib/actions/admin.ts` | Server Actions administratives (Impersonation, CRUD Orgs) |
+| `src/components/equipe/*` | **Nouveau Module RH** (EmployeeCard, Modal, PayEvent, PayslipDrawer) |
+| `lib/actions/employees.ts` | Server Actions RH (CRUD, Paie, Avatar) |
+| `src/lib/schemas/employee.schema.ts` | Validation Zod pour le module RH |

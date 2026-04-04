@@ -24,10 +24,10 @@ export default async function ProductionPlan({
             pickup_date,
             order_items (
                 quantity,
-                recipes (
+                products (
                     id,
                     name,
-                    recipe_ingredients (
+                    product_ingredients (
                         quantity_required,
                         ingredients (
                             id,
@@ -55,7 +55,7 @@ export default async function ProductionPlan({
     }
 
     // Agréger les recettes à préparer
-    const recipesToMake: Record<string, { name: string, quantity: number }> = {}
+    const productsToMake: Record<string, { name: string, quantity: number }> = {}
     
     // Agréger les ingrédients nécessaires
     const aggregatedIngredients: Record<string, { 
@@ -67,17 +67,17 @@ export default async function ProductionPlan({
 
     orders.forEach(order => {
         order.order_items.forEach((item: any) => {
-            const recipe = item.recipes
-            if (!recipe) return
+            const product = item.products
+            if (!product) return
 
             // Agréger la recette
-            if (!recipesToMake[recipe.id]) {
-                recipesToMake[recipe.id] = { name: recipe.name, quantity: 0 }
+            if (!productsToMake[product.id]) {
+                productsToMake[product.id] = { name: product.name, quantity: 0 }
             }
-            recipesToMake[recipe.id].quantity += item.quantity
+            productsToMake[product.id].quantity += item.quantity
 
             // Agréger les ingrédients
-            recipe.recipe_ingredients.forEach((ri: any) => {
+            product.product_ingredients.forEach((ri: any) => {
                 const ingredient = ri.ingredients
                 if (!ingredient) return
 
@@ -96,7 +96,7 @@ export default async function ProductionPlan({
         })
     })
 
-    const recipeList = Object.values(recipesToMake).sort((a, b) => b.quantity - a.quantity)
+    const productList = Object.values(productsToMake).sort((a, b) => b.quantity - a.quantity)
     const ingredientList = Object.values(aggregatedIngredients).sort((a, b) => b.totalRequired - a.totalRequired)
 
     return (
@@ -113,8 +113,8 @@ export default async function ProductionPlan({
                         Recettes à préparer
                     </h3>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {recipeList.map((r, idx) => (
-                            <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: idx < recipeList.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                        {productList.map((r, idx) => (
+                            <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: idx < productList.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                                 <span style={{ fontWeight: 500 }}>{r.name}</span>
                                 <span style={{ background: '#D1FAE5', color: '#065F46', padding: '4px 10px', borderRadius: '20px', fontSize: '0.875rem', fontWeight: 700 }}>
                                     x {r.quantity}

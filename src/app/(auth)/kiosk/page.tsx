@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { CakeSlice, Delete, Loader2, Store } from 'lucide-react'
 import type { Profile } from '@/types/supabase'
-import { loginWithPin, verifyKioskCode, getKioskProfiles } from '@/lib/actions/auth'
+import { loginWithPin, verifyKioskCode, getKioskProfiles, logoutKiosk } from '@/lib/actions/auth'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -15,6 +15,7 @@ function KioskContent() {
     
     async function handleGerantLogin() {
         const supabase = createClient();
+        await logoutKiosk();
         await supabase.auth.signOut();
         router.push('/login');
     }

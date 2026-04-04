@@ -6,6 +6,7 @@ import AutoLockProvider from '@/components/auth/AutoLockProvider'
 import { checkSubscriptionStatus } from '@/lib/utils/subscription'
 import { getOpenSession } from '@/lib/actions/sessions'
 import SessionMaster from '@/components/layout/SessionMaster'
+import RealtimeSync from '@/components/shared/RealtimeSync'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
@@ -67,6 +68,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             isKiosk={!!kioskUserId}
         >
             <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--color-bg)' }}>
+                <RealtimeSync organizationId={displayProfile.organization_id!} />
                 {isExpired && (
                     <div style={{
                         position: 'fixed',

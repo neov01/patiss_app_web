@@ -112,26 +112,32 @@ export type Database = {
             order_items: {
                 Row: {
                     created_at: string | null
+                    from_inventory: boolean
                     id: string
+                    name: string | null
                     order_id: string
                     quantity: number
-                    recipe_id: string
+                    recipe_id: string | null
                     unit_price: number
                 }
                 Insert: {
                     created_at?: string | null
+                    from_inventory?: boolean
                     id?: string
+                    name?: string | null
                     order_id: string
                     quantity: number
-                    recipe_id: string
+                    recipe_id?: string | null
                     unit_price: number
                 }
                 Update: {
                     created_at?: string | null
+                    from_inventory?: boolean
                     id?: string
+                    name?: string | null
                     order_id?: string
                     quantity?: number
-                    recipe_id?: string
+                    recipe_id?: string | null
                     unit_price?: number
                 }
                 Relationships: [
@@ -153,42 +159,69 @@ export type Database = {
             }
             orders: {
                 Row: {
+                    balance: number
                     created_at: string | null
                     created_by: string | null
                     custom_image_url: string | null
                     customer_contact: string | null
                     customer_name: string
+                    customization_notes: string | null
+                    delivery_address: string | null
+                    delivery_fee: number
                     deposit_amount: number
                     id: string
+                    order_channel: string | null
+                    order_number: string
                     organization_id: string
                     pickup_date: string
+                    priority: string
+                    reception_type: string
                     status: string
+                    subtotal: number
                     total_amount: number
                 }
                 Insert: {
+                    balance?: number
                     created_at?: string | null
                     created_by?: string | null
                     custom_image_url?: string | null
                     customer_contact?: string | null
                     customer_name: string
+                    customization_notes?: string | null
+                    delivery_address?: string | null
+                    delivery_fee?: number
                     deposit_amount?: number
                     id?: string
+                    order_channel?: string | null
+                    order_number?: string
                     organization_id: string
                     pickup_date: string
+                    priority?: string
+                    reception_type?: string
                     status?: string
+                    subtotal?: number
                     total_amount: number
                 }
                 Update: {
+                    balance?: number
                     created_at?: string | null
                     created_by?: string | null
                     custom_image_url?: string | null
                     customer_contact?: string | null
                     customer_name?: string
+                    customization_notes?: string | null
+                    delivery_address?: string | null
+                    delivery_fee?: number
                     deposit_amount?: number
                     id?: string
+                    order_channel?: string | null
+                    order_number?: string
                     organization_id?: string
                     pickup_date?: string
+                    priority?: string
+                    reception_type?: string
                     status?: string
+                    subtotal?: number
                     total_amount?: number
                 }
                 Relationships: [
@@ -216,6 +249,10 @@ export type Database = {
                     kiosk_code: string | null
                     name: string
                     subscription_end_date: string | null
+                    tier: string
+                    max_users: number
+                    contact_email: string | null
+                    contact_phone: string | null
                 }
                 Insert: {
                     created_at?: string | null
@@ -224,6 +261,10 @@ export type Database = {
                     kiosk_code?: string | null
                     name: string
                     subscription_end_date?: string | null
+                    tier?: string
+                    max_users?: number
+                    contact_email?: string | null
+                    contact_phone?: string | null
                 }
                 Update: {
                     created_at?: string | null
@@ -232,6 +273,10 @@ export type Database = {
                     kiosk_code?: string | null
                     name?: string
                     subscription_end_date?: string | null
+                    tier?: string
+                    max_users?: number
+                    contact_email?: string | null
+                    contact_phone?: string | null
                 }
                 Relationships: []
             }
@@ -320,31 +365,40 @@ export type Database = {
             }
             recipes: {
                 Row: {
+                    category: string | null
                     created_at: string | null
                     description: string | null
                     id: string
                     image_url: string | null
+                    is_active: boolean
                     name: string
                     organization_id: string
                     sale_price: number
+                    stock_qty: number
                 }
                 Insert: {
+                    category?: string | null
                     created_at?: string | null
                     description?: string | null
                     id?: string
                     image_url?: string | null
+                    is_active?: boolean
                     name: string
                     organization_id: string
                     sale_price: number
+                    stock_qty?: number
                 }
                 Update: {
+                    category?: string | null
                     created_at?: string | null
                     description?: string | null
                     id?: string
                     image_url?: string | null
+                    is_active?: boolean
                     name?: string
                     organization_id?: string
                     sale_price?: number
+                    stock_qty?: number
                 }
                 Relationships: [
                     {
@@ -416,6 +470,104 @@ export type Database = {
                     },
                     {
                         foreignKeyName: "sales_sessions_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            transaction_items: {
+                Row: {
+                    id: string
+                    name: string
+                    quantity: number
+                    recipe_id: string | null
+                    subtotal: number
+                    transaction_id: string
+                    unit_price: number
+                }
+                Insert: {
+                    id?: string
+                    name: string
+                    quantity?: number
+                    recipe_id?: string | null
+                    transaction_id: string
+                    unit_price: number
+                }
+                Update: {
+                    id?: string
+                    name?: string
+                    quantity?: number
+                    recipe_id?: string | null
+                    transaction_id?: string
+                    unit_price?: number
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "transaction_items_recipe_id_fkey"
+                        columns: ["recipe_id"]
+                        isOneToOne: false
+                        referencedRelation: "recipes"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "transaction_items_transaction_id_fkey"
+                        columns: ["transaction_id"]
+                        isOneToOne: false
+                        referencedRelation: "transactions"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            transactions: {
+                Row: {
+                    amount: number
+                    client_name: string
+                    created_at: string | null
+                    created_by: string | null
+                    id: string
+                    order_id: string | null
+                    organization_id: string
+                    payment_method: string
+                }
+                Insert: {
+                    amount: number
+                    client_name?: string
+                    created_at?: string | null
+                    created_by?: string | null
+                    id?: string
+                    order_id?: string | null
+                    organization_id: string
+                    payment_method: string
+                }
+                Update: {
+                    amount?: number
+                    client_name?: string
+                    created_at?: string | null
+                    created_by?: string | null
+                    id?: string
+                    order_id?: string | null
+                    organization_id?: string
+                    payment_method?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "transactions_created_by_fkey"
+                        columns: ["created_by"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "transactions_order_id_fkey"
+                        columns: ["order_id"]
+                        isOneToOne: false
+                        referencedRelation: "orders"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "transactions_organization_id_fkey"
                         columns: ["organization_id"]
                         isOneToOne: false
                         referencedRelation: "organizations"
@@ -533,6 +685,8 @@ export type Order = Tables<'orders'>
 export type OrderItem = Tables<'order_items'>
 export type InventoryLog = Tables<'inventory_logs'>
 export type SalesSession = Tables<'sales_sessions'>
+export type Transaction = Tables<'transactions'>
+export type TransactionItem = Tables<'transaction_items'>
 
 export type RoleSlug = 'super_admin' | 'gerant' | 'vendeur' | 'patissier'
 export type OrderStatus = 'pending' | 'production' | 'ready' | 'completed' | 'cancelled'

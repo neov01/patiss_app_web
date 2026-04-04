@@ -5,37 +5,37 @@ import { createVitrineSale } from '@/lib/actions/orders'
 import { toast } from 'sonner'
 import { Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react'
 
-type Recipe = {
+type Product = {
     id: string
     name: string
-    sale_price: number
+    selling_price: number
 }
 
-export default function VitrineSalesClient({ recipes, currency }: { recipes: Recipe[], currency: string }) {
-    const [cart, setCart] = useState<{ recipe: Recipe, quantity: number }[]>([])
+export default function VitrineSalesClient({ products, currency }: { products: Product[], currency: string }) {
+    const [cart, setCart] = useState<{ product: Product, quantity: number }[]>([])
     const [loading, setLoading] = useState(false)
 
-    const addToCart = (recipe: Recipe) => {
+    const addToCart = (product: Product) => {
         setCart(prev => {
-            const existing = prev.find(item => item.recipe.id === recipe.id)
+            const existing = prev.find(item => item.product.id === product.id)
             if (existing) {
-                return prev.map(item => item.recipe.id === recipe.id ? { ...item, quantity: item.quantity + 1 } : item)
+                return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
             }
-            return [...prev, { recipe, quantity: 1 }]
+            return [...prev, { product, quantity: 1 }]
         })
     }
 
-    const removeFromCart = (recipeId: string) => {
+    const removeFromCart = (productId: string) => {
         setCart(prev => {
-            const existing = prev.find(item => item.recipe.id === recipeId)
+            const existing = prev.find(item => item.product.id === productId)
             if (existing && existing.quantity > 1) {
-                return prev.map(item => item.recipe.id === recipeId ? { ...item, quantity: item.quantity - 1 } : item)
+                return prev.map(item => item.product.id === productId ? { ...item, quantity: item.quantity - 1 } : item)
             }
-            return prev.filter(item => item.recipe.id !== recipeId)
+            return prev.filter(item => item.product.id !== productId)
         })
     }
 
-    const totalAmount = cart.reduce((sum, item) => sum + (item.recipe.sale_price * item.quantity), 0)
+    const totalAmount = cart.reduce((sum, item) => sum + (item.product.selling_price * item.quantity), 0)
 
     const handleCheckout = async () => {
         if (cart.length === 0) return
@@ -44,9 +44,9 @@ export default function VitrineSalesClient({ recipes, currency }: { recipes: Rec
         const res = await createVitrineSale({
             total_amount: totalAmount,
             items: cart.map(item => ({
-                recipe_id: item.recipe.id,
+                product_id: item.product.id,
                 quantity: item.quantity,
-                unit_price: item.recipe.sale_price
+                unit_price: item.product.selling_price
             }))
         })
         setLoading(false)
@@ -64,14 +64,14 @@ export default function VitrineSalesClient({ recipes, currency }: { recipes: Rec
             {/* Grille de produits */}
             <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px' }}>Vente Rapide (Vitrine)</h2>
-                {recipes.length === 0 ? (
+                {products.length === 0 ? (
                     <p style={{ color: '#6b7280' }}>Aucune recette disponible.</p>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
-                        {recipes.map(recipe => (
+                        {products.map(product => (
                             <button
-                                key={recipe.id}
-                                onClick={() => addToCart(recipe)}
+                                key={product.id}
+                                onClick={() => addToCart(product)}
                                 style={{
                                     background: '#fff',
                                     border: '1px solid #e5e7eb',
@@ -89,8 +89,8 @@ export default function VitrineSalesClient({ recipes, currency }: { recipes: Rec
                                 onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                             >
-                                <div style={{ fontWeight: 600, color: '#374151' }}>{recipe.name}</div>
-                                <div style={{ color: '#2563EB', fontWeight: 700 }}>{recipe.sale_price.toLocaleString('fr-FR')} {currency}</div>
+                                <div style={{ fontWeight: 600, color: '#374151' }}>{product.name}</div>
+                                <div style={{ color: '#2563EB', fontWeight: 700 }}>{product.selling_price.toLocaleString('fr-FR')} {currency}</div>
                             </button>
                         ))}
                     </div>
@@ -110,23 +110,23 @@ export default function VitrineSalesClient({ recipes, currency }: { recipes: Rec
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {cart.map(item => (
-                                <div key={item.recipe.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
-                                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.recipe.name}</div>
+                                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.product.name}</div>
                                         <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                            {item.recipe.sale_price} {currency} / u
+                                            {item.product.selling_price} {currency} / u
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <button 
-                                            onClick={() => removeFromCart(item.recipe.id)}
+                                            onClick={() => removeFromCart(item.product.id)}
                                             style={{ width: '28px', height: '28px', borderRadius: '14px', border: 'none', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         >
                                             <Minus size={14} />
                                         </button>
                                         <span style={{ fontWeight: 600, width: '20px', textAlign: 'center' }}>{item.quantity}</span>
                                         <button 
-                                            onClick={() => addToCart(item.recipe)}
+                                            onClick={() => addToCart(item.product)}
                                             style={{ width: '28px', height: '28px', borderRadius: '14px', border: 'none', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         >
                                             <Plus size={14} />

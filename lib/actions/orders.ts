@@ -11,7 +11,17 @@ export async function createOrder(formData: {
     deposit_amount: number
     total_amount: number
     custom_image_url?: string
-    items: { recipe_id: string; quantity: number; unit_price: number }[]
+    order_number: string
+    priority: string
+    reception_type: string
+    delivery_address?: string
+    order_channel?: string
+    subtotal: number
+    delivery_fee: number
+    balance: number
+    customization_notes?: string
+    status: string
+    items: { product_id?: string; name: string; quantity: number; unit_price: number; subtotal?: number; from_inventory: boolean }[]
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -29,21 +39,37 @@ export async function createOrder(formData: {
 
     const { data: order, error } = await supabase.from('orders').insert({
         organization_id: profile.organization_id,
+        order_number: formData.order_number,
         customer_name: formData.customer_name,
         customer_contact: formData.customer_contact,
         pickup_date: formData.pickup_date,
         total_amount: formData.total_amount,
         deposit_amount: formData.deposit_amount,
         custom_image_url: formData.custom_image_url,
+        priority: formData.priority,
+        reception_type: formData.reception_type,
+        delivery_address: formData.delivery_address,
+        order_channel: formData.order_channel,
+        subtotal: formData.subtotal,
+        delivery_fee: formData.delivery_fee,
+        balance: formData.balance,
+        customization_notes: formData.customization_notes,
         created_by: user.id,
-        status: 'pending',
+        status: formData.status || 'pending',
     }).select().single()
 
     if (error) return { error: error.message }
 
-    if (formData.items.length > 0) {
+    if (formData.items && formData.items.length > 0) {
         await supabase.from('order_items').insert(
-            formData.items.map(i => ({ order_id: order.id, ...i }))
+            formData.items.map(i => ({ 
+                order_id: order.id, 
+                product_id: i.product_id || null,
+                name: i.name,
+                quantity: i.quantity,
+                unit_price: i.unit_price,
+                from_inventory: i.from_inventory
+             })) as any
         )
     }
 
@@ -84,7 +110,7 @@ export async function deleteOrder(orderId: string) {
 
 export async function createVitrineSale(formData: {
     total_amount: number
-    items: { recipe_id: string; quantity: number; unit_price: number }[]
+    items: { product_id: string; quantity: number; unit_price: number }[]
 }) {
     // Bloquer si l'abonnement est expiré
     try {

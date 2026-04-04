@@ -12,13 +12,12 @@ export default async function CommandesPage() {
 
     const { data: orders } = await supabase
         .from('orders')
-        .select('*, order_items(*, recipes(name))')
+        .select('*, order_items(*, products(name))')
         .eq('organization_id', profile?.organization_id!)
         .order('pickup_date', { ascending: true })
 
-    const { data: recipes } = await supabase
-        .from('recipes')
-        .select('id, name, sale_price')
+    const { data: products } = await (supabase.from as any)('products')
+        .select('id, name, selling_price')
         .eq('organization_id', profile?.organization_id!)
         .order('name')
 
@@ -32,7 +31,7 @@ export default async function CommandesPage() {
                     </p>
                 </div>
             </div>
-            <OrdersClient orders={orders ?? []} recipes={recipes ?? []} currency={currency} />
+            <OrdersClient orders={(orders as any) ?? []} products={products ?? []} currency={currency} />
         </div>
     )
 }

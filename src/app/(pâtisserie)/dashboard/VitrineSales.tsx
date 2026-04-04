@@ -11,13 +11,12 @@ export default async function VitrineSales({
     const supabase = await createClient()
 
     // On récupère toutes les recettes de l'organisation
-    const { data: recipes } = await supabase
-        .from('recipes')
-        .select('id, name, sale_price')
+    const { data: products } = await (supabase.from as any)('products')
+        .select('id, name, selling_price')
         .eq('organization_id', organizationId)
         .order('name', { ascending: true })
 
     return (
-        <VitrineSalesClient recipes={recipes || []} currency={currency} />
+        <VitrineSalesClient products={products || []} currency={currency} />
     )
 }

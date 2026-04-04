@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, CakeSlice, Loader2 } from 'lucide-react'
+import { logoutKiosk } from '@/lib/actions/auth'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -21,6 +22,9 @@ export default function LoginPage() {
         const authPassword = password.length === 4 && /^\d+$/.test(password)
             ? password.padEnd(6, '0')
             : password
+
+        // Clear any leftover kiosk session to prevent profile override
+        await logoutKiosk()
 
         const { error } = await supabase.auth.signInWithPassword({
             email,

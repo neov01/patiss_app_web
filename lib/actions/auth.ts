@@ -38,7 +38,12 @@ export async function loginWithPin(profileId: string, pin: string) {
 
 export async function logoutKiosk() {
     const cookieStore = await cookies()
-    cookieStore.delete('kiosk_user_id')
+    // Explicitly delete with all common options to ensure removal
+    cookieStore.set('kiosk_user_id', '', {
+        path: '/',
+        maxAge: 0,
+        expires: new Date(0),
+    })
     return { success: true }
 }
 
