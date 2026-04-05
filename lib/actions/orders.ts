@@ -21,6 +21,7 @@ export async function createOrder(formData: {
     balance: number
     customization_notes?: string
     status: string
+    deposit_payment_method?: string
     items: { product_id?: string; name: string; quantity: number; unit_price: number; subtotal?: number; from_inventory: boolean }[]
 }) {
     // Bloquer si l'abonnement est expiré
@@ -36,6 +37,13 @@ export async function createOrder(formData: {
 
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
     if (!profile?.organization_id) return { error: 'Organisation introuvable' }
+
+    // Déterminer le statut de paiement initial
+    const paymentStatus = formData.deposit_amount >= formData.total_amount
+        ? 'SOLDEE'
+        : formData.deposit_amount > 0
+            ? 'PARTIEL'
+            : 'EN_ATTENTE'
 
     const { data: order, error } = await supabase.from('orders').insert({
         organization_id: profile.organization_id,
@@ -56,6 +64,7 @@ export async function createOrder(formData: {
         customization_notes: formData.customization_notes,
         created_by: user.id,
         status: formData.status || 'pending',
+        payment_status: paymentStatus,
     }).select().single()
 
     if (error) return { error: error.message }
@@ -71,6 +80,20 @@ export async function createOrder(formData: {
                 from_inventory: i.from_inventory
              })) as any
         )
+    }
+
+    // Enregistrer l'acompte comme transaction avec label ACOMPTE
+    if (formData.deposit_amount > 0) {
+        const labelType = formData.deposit_amount >= formData.total_amount ? 'SOLDE' : 'ACOMPTE'
+        await supabase.from('transactions').insert({
+            organization_id: profile.organization_id,
+            order_id: order.id,
+            client_name: formData.customer_name,
+            amount: formData.deposit_amount,
+            payment_method: formData.deposit_payment_method || 'Espèces',
+            label_type: labelType,
+            created_by: user.id
+        })
     }
 
     revalidatePath('/commandes')

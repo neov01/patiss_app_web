@@ -35,6 +35,9 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         const orgId = profile.organization_id
 
         // 1. Transaction d'encaissement principale
+        // Déterminer le label : SOLDE si lié à une commande, VENTE_DIRECTE sinon
+        const labelType = payload.order_id ? 'SOLDE' : 'VENTE_DIRECTE'
+
         const { data: transaction, error: txError } = await supabase
             .from('transactions')
             .insert({
@@ -43,6 +46,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
                 client_name: payload.client_name,
                 amount: payload.amount,
                 payment_method: payload.payment_method,
+                label_type: labelType,
                 created_by: user.id
             })
             .select('id')
@@ -75,7 +79,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         if (payload.order_id) {
             const { error: orderError } = await supabase
                 .from('orders')
-                .update({ status: 'completed' })
+                .update({ status: 'completed', payment_status: 'SOLDEE', balance: 0 })
                 .eq('id', payload.order_id)
 
             if (orderError) console.error("Erreur mise à jour commande:", orderError)
@@ -84,8 +88,8 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         // 4. Décrémenter les stocks des produits
         for (const item of payload.items) {
             if (item.product_id) {
-                // Utilisation de la fonction RPC créée dans la migration
-                const { error: stockError } = await supabase.rpc('decrement_stock' as any, {
+                // Utilisation de la fonction RPC créée pour le nouveau catalogue
+                const { error: stockError } = await supabase.rpc('decrement_product_stock' as any, {
                     p_product_id: item.product_id,
                     p_qty: item.quantity
                 })
@@ -96,6 +100,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         revalidatePath('/caisse')
         revalidatePath('/dashboard')
+        revalidatePath('/catalogue')
 
         return { success: true }
     } catch (e: any) {

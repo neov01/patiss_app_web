@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Bot, Send, Loader2, Sparkles } from 'lucide-react'
 
 interface Props {
@@ -12,15 +12,6 @@ export default function AIAssistant({ currency, organizationId }: Props) {
     const [question, setQuestion] = useState('')
     const [response, setResponse] = useState('')
     const [loading, setLoading] = useState(false)
-    const [autoLoaded, setAutoLoaded] = useState(false)
-
-    useEffect(() => {
-        if (!autoLoaded) {
-            setAutoLoaded(true)
-            askAI('Donne-moi un bref résumé de la situation financière du jour.')
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
 
     async function askAI(q?: string) {
         const prompt = q ?? question
@@ -71,13 +62,31 @@ export default function AIAssistant({ currency, organizationId }: Props) {
                         <span>Analyse en cours…</span>
                     </div>
                 ) : response ? (
-                    <p style={{ margin: 0 }}>{response}</p>
+                    <div 
+                        dangerouslySetInnerHTML={{ __html: response }} 
+                        className="ai-response"
+                        style={{ margin: 0 }}
+                    />
                 ) : (
                     <p style={{ margin: 0, color: 'var(--color-muted)', fontStyle: 'italic' }}>
-                        L&apos;assistant analyse vos données…
+                        Posez une question pour obtenir une analyse de vos données financières.
                     </p>
                 )}
             </div>
+
+            <style jsx>{`
+                .ai-response :global(ul) {
+                    margin: 8px 0;
+                    padding-left: 20px;
+                }
+                .ai-response :global(li) {
+                    margin-bottom: 4px;
+                }
+                .ai-response :global(b) {
+                    color: #2D1B0E;
+                    font-weight: 700;
+                }
+            `}</style>
 
             {/* Input question */}
             <div style={{ display: 'flex', gap: '8px' }}>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet } from 'lucide-react'
+import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2 } from 'lucide-react'
 import { updateOrderStatus, deleteOrder } from '../../../lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
@@ -38,11 +38,11 @@ export default function OrdersClient({ orders, products, currency }: { orders: O
     const [showModal, setShowModal] = useState(false)
     const [isPending, start] = useTransition()
     const [statusFilter, setFilter] = useState('all')
+    const [orderToDelete, setOrderToDelete] = useState<{id: string, name: string} | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
     const router = useRouter()
 
     const filtered = statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter)
-
-
 
     async function handleStatusChange(orderId: string, status: string) {
         const nextStatus: Record<string, string> = { pending: 'production', production: 'ready', ready: 'completed' }
@@ -54,12 +54,26 @@ export default function OrdersClient({ orders, products, currency }: { orders: O
         })
     }
 
-    async function handleDelete(orderId: string) {
-        if (!confirm('Supprimer cette commande ?')) return
+    const handleDelete = async () => {
+        if (!orderToDelete) return
+        
+        const { id } = orderToDelete
+        setDeletingId(id)
+        setOrderToDelete(null)
+        
         start(async () => {
-            const result = await deleteOrder(orderId)
-            if ('error' in result && result.error) toast.error(result.error)
-            else toast.success('Commande supprimée')
+            try {
+                const result = await deleteOrder(id)
+                if ('error' in result && result.error) {
+                    toast.error(result.error)
+                } else {
+                    toast.success('Commande supprimée')
+                }
+            } catch (err) {
+                toast.error("Erreur lors de la suppression")
+            } finally {
+                setDeletingId(null)
+            }
         })
     }
 
@@ -93,8 +107,15 @@ export default function OrdersClient({ orders, products, currency }: { orders: O
                         const s = STATUS_LABELS[order.status] ?? STATUS_LABELS.pending
                         const pickupDate = new Date(order.pickup_date)
                         const isToday = pickupDate.toDateString() === new Date().toDateString()
+                        const isDeleting = deletingId === order.id
+
                         return (
-                            <div key={order.id} className="card" style={{ border: `1.5px solid ${s.color === '#FEF3C7' ? '#FEF3C7' : 'var(--color-border)'}` }}>
+                            <div key={order.id} className="card" 
+                                style={{ 
+                                    border: `1.5px solid ${s.color === '#FEF3C7' ? '#FEF3C7' : 'var(--color-border)'}`,
+                                    opacity: isDeleting ? 0.5 : 1,
+                                    transition: 'opacity 0.2s'
+                                }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
                                     <div style={{ flex: 1 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -131,23 +152,36 @@ export default function OrdersClient({ orders, products, currency }: { orders: O
                                         )}
                                         <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'flex-end' }}>
                                             {order.status === 'ready' ? (
-                                                <button onClick={() => router.push(`/caisse?order=${order.id}`)}
-                                                    className="btn-primary" disabled={isPending}
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        router.push(`/caisse?order=${order.id}`)
+                                                    }}
+                                                    className="btn-primary" disabled={isPending || isDeleting}
                                                     style={{ fontSize: '0.85rem', padding: '0 16px', minHeight: '36px', background: '#D97757', borderColor: '#D97757' }}>
                                                     Encaisser
                                                 </button>
                                             ) : (
                                                 order.status !== 'completed' && order.status !== 'cancelled' && (
-                                                    <button onClick={() => handleStatusChange(order.id, order.status)}
-                                                        className="btn-primary" disabled={isPending}
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleStatusChange(order.id, order.status)
+                                                        }}
+                                                        className="btn-primary" disabled={isPending || isDeleting}
                                                         style={{ fontSize: '0.8rem', padding: '0 12px', minHeight: '36px' }}>
                                                         → {STATUS_LABELS[STATUS_LABELS[order.status]?.next]?.label ?? 'Avancer'}
                                                     </button>
                                                 )
                                             )}
-                                            <button onClick={() => handleDelete(order.id)} className="btn-ghost" disabled={isPending}
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setOrderToDelete({ id: order.id, name: order.customer_name })
+                                                }} 
+                                                className="btn-ghost" disabled={isPending || isDeleting}
                                                 style={{ color: '#D94F38', minHeight: '36px', padding: '0 10px' }}>
-                                                <Trash2 size={16} />
+                                                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                                             </button>
                                         </div>
                                     </div>
@@ -165,6 +199,43 @@ export default function OrdersClient({ orders, products, currency }: { orders: O
                 products={products} 
                 currency={currency} 
             />
+
+            {/* Modal de Confirmation de Suppression */}
+            {orderToDelete && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div 
+                        style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(45,27,14,0.6)', backdropFilter: 'blur(4px)' }} 
+                        onClick={() => setOrderToDelete(null)}
+                    />
+                    <div className="animate-scale-in" style={{
+                        position: 'relative', width: '100%', maxWidth: '400px', background: 'white', 
+                        borderRadius: '24px', padding: '32px', textAlign: 'center',
+                        boxShadow: '0 20px 60px rgba(45,27,14,0.15)'
+                    }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#D94F38' }}>
+                            <Trash2 size={32} />
+                        </div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2D1B0E', marginBottom: '12px' }}>Supprimer la commande ?</h3>
+                        <p style={{ color: '#9C8070', marginBottom: '32px', lineHeight: 1.5 }}>
+                            Êtes-vous sûr de vouloir supprimer la commande de <strong>{orderToDelete.name}</strong> ? Cette action supprimera également les articles associés.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button 
+                                onClick={() => setOrderToDelete(null)}
+                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #FDE8DB', background: 'white', color: '#9C8070', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                onClick={handleDelete}
+                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#D94F38', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                Supprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

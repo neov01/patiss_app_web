@@ -2,10 +2,12 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ShoppingBag, Calendar, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search } from 'lucide-react'
+import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search } from 'lucide-react'
 import { createOrder } from '../../../lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import TouchInput from '@/components/ui/TouchInput'
+import DatePicker from '@/components/ui/DatePicker'
+import TimeDigiPad from '@/components/ui/TimeDigiPad'
 
 interface Product { id: string; name: string; selling_price: number }
 
@@ -52,7 +54,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     const [clientName, setClientName] = useState('')
     const [clientPhone, setClientPhone] = useState('')
     const [receptionType, setReceptionType] = useState<'retrait' | 'livraison'>('retrait')
-    const [pickupDeliveryDate, setPickupDeliveryDate] = useState('')
+    const [pickupDate, setPickupDate] = useState<Date | null>(null)
+    const [pickupTime, setPickupTime] = useState('')
     const [deliveryAddress, setDeliveryAddress] = useState('')
     const [orderChannel, setOrderChannel] = useState('Sur place')
     
@@ -66,6 +69,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     // Financials
     const [deliveryFee, setDeliveryFee] = useState(0)
     const [deposit, setDeposit] = useState(0)
+    const [depositPaymentMethod, setDepositPaymentMethod] = useState('Espèces')
 
     // Search Inventory
     const [searchQuery, setSearchQuery] = useState('')
@@ -163,7 +167,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         setClientName('')
         setClientPhone('')
         setReceptionType('retrait')
-        setPickupDeliveryDate('')
+        setPickupDate(null)
+        setPickupTime('')
         setDeliveryAddress('')
         setOrderChannel('Sur place')
         setOrderItems([])
@@ -171,6 +176,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         setImageFile(null)
         setDeliveryFee(0)
         setDeposit(0)
+        setDepositPaymentMethod('Espèces')
     }
 
     function handleClose() {
@@ -178,9 +184,22 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         onClose()
     }
 
+    // Combine date + time into ISO datetime string
+    const pickupDeliveryDate = (() => {
+        if (!pickupDate) return ''
+        const d = new Date(pickupDate)
+        if (pickupTime) {
+            const [hh, mm] = pickupTime.split(':')
+            d.setHours(parseInt(hh), parseInt(mm), 0, 0)
+        }
+        // Format as 'YYYY-MM-DDTHH:MM' for datetime-local compat
+        const pad = (n: number) => n.toString().padStart(2, '0')
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    })()
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
-        if (!clientName.trim() || !clientPhone.trim() || !pickupDeliveryDate || orderItems.length === 0) {
+        if (!clientName.trim() || !clientPhone.trim() || !pickupDate || orderItems.length === 0) {
             toast.error('Veuillez remplir tous les champs obligatoires et ajouter au moins un produit.')
             return
         }
@@ -230,6 +249,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 balance,
                 customization_notes: customizationNotes,
                 custom_image_url: customImageUrl,
+                deposit_payment_method: deposit > 0 ? depositPaymentMethod : undefined,
                 items: orderItems
             })
 
@@ -332,8 +352,20 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                             <div>
                                 <label className="label">{receptionType === 'retrait' ? 'Date de retrait *' : 'Date de livraison *'}</label>
-                                <input type="datetime-local" className="input" value={pickupDeliveryDate}
-                                    onChange={e => setPickupDeliveryDate(e.target.value)} required />
+                                <DatePicker
+                                    value={pickupDate}
+                                    onChange={setPickupDate}
+                                    placeholder="Sélectionner une date"
+                                    minDate={new Date()}
+                                />
+                            </div>
+                            <div>
+                                <label className="label">Heure</label>
+                                <TimeDigiPad
+                                    value={pickupTime}
+                                    onChange={setPickupTime}
+                                    placeholder="Sélectionner l'heure"
+                                />
                             </div>
 
                             {receptionType === 'livraison' && (
@@ -442,6 +474,33 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                         <TouchInput value={deposit.toString()} onChange={v => setDeposit(parseFloat(v) || 0)} style={{ height: '32px', padding: '4px 8px', textAlign: 'right' }} />
                                     </div>
                                 </div>
+                                {deposit > 0 && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Paiement acompte</span>
+                                        <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+                                            {['Espèces', 'Mobile Money', 'Carte Bancaire'].map(method => (
+                                                <button
+                                                    key={method}
+                                                    type="button"
+                                                    onClick={() => setDepositPaymentMethod(method)}
+                                                    style={{
+                                                        padding: '5px 10px',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 700,
+                                                        borderRadius: '6px',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        background: depositPaymentMethod === method ? '#d4a87a' : 'transparent',
+                                                        color: depositPaymentMethod === method ? 'white' : 'var(--color-muted)',
+                                                    }}
+                                                >
+                                                    {method === 'Espèces' ? '💵' : method === 'Mobile Money' ? '📱' : '💳'} {method}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', color: '#d4a87a' }}>
                                     <span>Solde restant</span>
@@ -456,7 +515,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                     <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '10px', background: 'var(--color-background)', position: 'sticky', bottom: 0 }}>
                         <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
                         <button type="submit" className="btn-primary" 
-                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDeliveryDate} 
+                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate} 
                             style={{ flex: 2, background: '#d4a87a', color: 'white' }}>
                             {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
                             {isPending ? 'Création...' : 'Créer la commande'}

@@ -37,6 +37,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
   const [activeCategory, setActiveCategory] = useState('Tous')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
 
   const filteredProducts = (products || []).filter(p => {
     const matchesSearch = p.name?.toLowerCase().includes(search.toLowerCase())
@@ -44,10 +45,13 @@ export default function CatalogueClient({ products, currency, availableIngredien
     return matchesSearch && matchesCategory
   })
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Voulez-vous vraiment supprimer "${name}" du catalogue ?`)) return
+  const handleDelete = async () => {
+    if (!productToDelete) return
     
+    const { id } = productToDelete
     setDeletingId(id)
+    setProductToDelete(null)
+    
     try {
       const res = await deleteProduct(id)
       if (res.success) {
@@ -153,13 +157,23 @@ export default function CatalogueClient({ products, currency, availableIngredien
                 {/* Actions (Edit / Delete) */}
                 <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
                   <button 
-                    onClick={() => setEditingProduct(product)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setEditingProduct(product)
+                    }}
                     style={{ background: 'var(--color-cream)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)' }}
                   >
                     <Edit size={16} />
                   </button>
                   <button 
-                    onClick={() => handleDelete(product.id, product.name)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setProductToDelete({ id: product.id, name: product.name })
+                    }}
                     disabled={isDeleting}
                     style={{ background: '#FEF2F2', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#D94F38' }}
                   >
@@ -225,6 +239,42 @@ export default function CatalogueClient({ products, currency, availableIngredien
           window.location.reload()
         }}
       />
+      {/* Modal de Confirmation de Suppression */}
+      {productToDelete && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div 
+            style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(45,27,14,0.6)', backdropFilter: 'blur(4px)' }} 
+            onClick={() => setProductToDelete(null)}
+          />
+          <div className="animate-scale-in" style={{
+            position: 'relative', width: '100%', maxWidth: '400px', background: 'white', 
+            borderRadius: '24px', padding: '32px', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(45,27,14,0.15)'
+          }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#D94F38' }}>
+              <Trash2 size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2D1B0E', marginBottom: '12px' }}>Supprimer le produit ?</h3>
+            <p style={{ color: '#9C8070', marginBottom: '32px', lineHeight: 1.5 }}>
+              Êtes-vous sûr de vouloir supprimer <strong>{productToDelete.name}</strong> ? Cette action est irréversible.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => setProductToDelete(null)}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #FDE8DB', background: 'white', color: '#9C8070', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleDelete}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#D94F38', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -235,7 +235,10 @@ export default function CaisseClient({
                     <div>
                         <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#2D1B0E' }}>Caisse — Vente</h1>
                         <p style={{ margin: '4px 0 0', color: '#9C8070', fontSize: '0.9rem' }}>
-                            {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })} • {profileName}
+                            {(() => {
+                                const today = new Date();
+                                return !isNaN(today.getTime()) ? format(today, 'EEEE d MMMM yyyy', { locale: fr }) : '';
+                            })()} • {profileName}
                         </p>
                     </div>
                     
@@ -299,7 +302,7 @@ export default function CaisseClient({
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                         <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '1.05rem' }}>{order.customer_name}</div>
                                         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#C4836A' }}>
-                                            {format(date, 'HH:mm')}
+                                            {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
                                     <div style={{ fontSize: '0.8rem', color: '#9C8070', marginBottom: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -338,7 +341,7 @@ export default function CaisseClient({
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{order.customer_name}</div>
                                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>
-                                            {format(date, 'HH:mm')}
+                                            {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
                                     <div style={{ fontSize: '0.75rem', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -402,7 +405,10 @@ export default function CaisseClient({
                                 <div>
                                     <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>{t.client_name}</div>
                                     <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
-                                        {format(new Date(t.created_at), 'HH:mm')} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} · {t.payment_method}
+                                        {(() => {
+                                            const date = new Date(t.created_at);
+                                            return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
+                                        })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} · {t.payment_method}
                                     </div>
                                 </div>
                                 <div style={{ fontWeight: 700, color: t.is_order ? '#10B981' : '#2D1B0E' }}>
