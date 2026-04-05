@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { Plus, Edit2, X, Loader2, Image as ImageIcon } from 'lucide-react'
+import { Plus, Edit2, X, Loader2 } from 'lucide-react'
 import TouchInput from '@/components/ui/TouchInput'
 import { createIngredient, updateIngredient } from '@/lib/actions/inventory'
 import type { Ingredient } from '@/types/supabase'
@@ -22,37 +22,13 @@ export default function IngredientModal({ mode, ingredient }: Props) {
         cost_per_unit: ingredient?.cost_per_unit ?? 0,
         alert_threshold: ingredient?.alert_threshold ?? 5,
     })
-    const [imageFile, setImageFile] = useState<File | null>(null)
-    const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(ingredient?.image_url ?? null)
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         start(async () => {
-            let imageUrl = currentImageUrl ?? null
-
-            if (imageFile) {
-                try {
-                    const supabase = createSupabaseClient()
-                    const ext = imageFile.name.split('.').pop() || 'jpg'
-                    const filePath = `ingredients/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-                    const { error: uploadError } = await supabase.storage.from('ingredient-images').upload(filePath, imageFile)
-                    if (!uploadError) {
-                        const { data } = supabase.storage.from('ingredient-images').getPublicUrl(filePath)
-                        imageUrl = data.publicUrl ?? null
-                        setCurrentImageUrl(imageUrl)
-                    } else {
-                        toast.error('Upload de la photo ingrédient impossible. Il sera enregistré sans image.')
-                    }
-                } catch {
-                    toast.error('Erreur de connexion au stockage. L\'ingrédient sera enregistré sans image.')
-                }
-            }
-
-            const payload = { ...form, image_url: imageUrl }
             const result = mode === 'create'
-                ? await createIngredient(payload)
-                : await updateIngredient(ingredient!.id, payload)
+                ? await createIngredient(form)
+                : await updateIngredient(ingredient!.id, form)
 
             if ('error' in result && result.error) {
                 toast.error(result.error)
@@ -61,8 +37,6 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                 setOpen(false)
                 if (mode === 'create') {
                     setForm({ name: '', unit: 'kg', cost_per_unit: 0, alert_threshold: 5 })
-                    setImageFile(null)
-                    setCurrentImageUrl(null)
                 }
             }
         })
@@ -120,31 +94,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                                     title="Seuil d'alerte"
                                 />
                             </div>
-                            <div>
-                                <label className="label">Photo de l&apos;ingrédient (optionnel)</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    <label className="btn-secondary" style={{ cursor: 'pointer', minHeight: '36px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                        <ImageIcon size={16} />
-                                        <span>Choisir une image</span>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            style={{ display: 'none' }}
-                                            onChange={e => setImageFile(e.target.files?.[0] ?? null)}
-                                        />
-                                    </label>
-                                    {imageFile && (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                                            {imageFile.name}
-                                        </span>
-                                    )}
-                                    {!imageFile && currentImageUrl && (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                                            Image existante
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+
                             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                                 <button type="button" onClick={() => setOpen(false)} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
                                 <button type="submit" className="btn-primary" disabled={isPending} style={{ flex: 1 }}>

@@ -44,7 +44,6 @@ export async function createIngredient(formData: {
     unit: string
     cost_per_unit: number
     alert_threshold: number
-    image_url?: string | null
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -66,7 +65,6 @@ export async function createIngredient(formData: {
         unit: formData.unit,
         cost_per_unit: formData.cost_per_unit,
         alert_threshold: formData.alert_threshold,
-        image_url: formData.image_url ?? null,
     }).select().single()
 
     if (error) return { error: error.message }
@@ -80,7 +78,6 @@ export async function updateIngredient(id: string, formData: {
     unit: string
     cost_per_unit: number
     alert_threshold: number
-    image_url?: string | null
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -95,7 +92,6 @@ export async function updateIngredient(id: string, formData: {
         unit: formData.unit,
         cost_per_unit: formData.cost_per_unit,
         alert_threshold: formData.alert_threshold,
-        image_url: formData.image_url ?? null,
     }).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/ingredients')
