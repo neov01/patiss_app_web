@@ -135,7 +135,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                 <div style={{ padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
                   <span style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>Salaire de base</span>
                   <span style={{ fontWeight: 800, fontSize: '1rem', color: '#2D1B0E' }}>
-                    {data.baseSalary.toLocaleString('fr-FR')} {currency}
+                    {Number(data.baseSalary).toLocaleString('fr-FR')} {currency}
                   </span>
                 </div>
 
@@ -183,7 +183,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                 <div style={{ padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#2D1B0E' }}>
                   <span style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net à payer</span>
                   <span style={{ fontWeight: 900, color: '#FDE8DB', fontSize: '1.25rem' }}>
-                    {data.net.toLocaleString('fr-FR')} {currency}
+                    {Number(data.net).toLocaleString('fr-FR')} {currency}
                   </span>
                 </div>
               </div>

@@ -21,6 +21,8 @@ import {
 } from '@/lib/actions/admin'
 
 import TouchInput from '@/components/ui/TouchInput'
+import DatePicker from '@/components/ui/DatePicker'
+import TouchSelect from '@/components/ui/TouchSelect'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Org {
@@ -88,6 +90,15 @@ const ROLE_BADGE: Record<string, { icon: string; color: string; bg: string }> = 
     patissier: { icon: '👨‍🍳', color: '#4C9E6A', bg: '#E8F5EE' },
 }
 
+const CURRENCY_OPTIONS = [
+    { value: 'FCFA', label: 'Franc CFA (FCFA)', icon: '🌍' },
+    { value: '€', label: 'Euro (€)', icon: '🇪🇺' },
+    { value: '$', label: 'Dollar US ($)', icon: '🇺🇸' },
+    { value: '£', label: 'Livre Sterling (£)', icon: '🇬🇧' },
+    { value: 'GNF', label: 'Franc Guinéen (GNF)', icon: '🇬🇳' },
+    { value: 'GHS', label: 'Cedi Ghanéen (GHS)', icon: '🇬🇭' }
+]
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: Props) {
     const [orgs, setOrgs] = useState<Org[]>(initialOrgs)
@@ -106,7 +117,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     // Creation Form State
     const [newOrgForm, setNewOrgForm] = useState({
         org_name: '',
-        currency_symbol: 'FCFA',
+        currency_symbol: '',
         subscription_end_date: '',
         gerant_full_name: '',
         gerant_email: '',
@@ -512,11 +523,22 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         <input className="input" value={subForm.name} onChange={e => setSubForm(f => ({ ...f, name: e.target.value }))} />
                                     </Field>
                                     <Field label="Symbole Monétaire">
-                                        <input className="input" value={subForm.currency_symbol} onChange={e => setSubForm(f => ({ ...f, currency_symbol: e.target.value }))} maxLength={10} />
+                                        <TouchSelect 
+                                            value={subForm.currency_symbol} 
+                                            onChange={val => setSubForm(f => ({ ...f, currency_symbol: val }))}
+                                            options={CURRENCY_OPTIONS}
+                                            placeholder="Choisir une devise"
+                                            title="Devises"
+                                        />
                                     </Field>
                                     <Field label="Expiration de la Licence">
                                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                            <input type="date" className="input" value={subForm.subscription_end_date} onChange={e => setSubForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                                            <DatePicker 
+                                                value={subForm.subscription_end_date ? new Date(subForm.subscription_end_date) : null}
+                                                onChange={(date: Date) => setSubForm(f => ({ ...f, subscription_end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                                                placeholder="Sélectionner une date"
+                                                direction="up"
+                                            />
                                             {subForm.subscription_end_date && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4C9E6A' }}>{formatDate(subForm.subscription_end_date)}</span>}
                                         </div>
                                     </Field>
@@ -550,7 +572,13 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             </select>
                                         </Field>
                                         <Field label="Limite Utilisateurs">
-                                            <input type="number" className="input" value={subForm.max_users} onChange={e => setSubForm(f => ({ ...f, max_users: parseInt(e.target.value) }))} />
+                                            <TouchInput
+                                                value={subForm.max_users.toString()}
+                                                onChange={val => setSubForm(f => ({ ...f, max_users: parseInt(val) || 1 }))}
+                                                allowDecimal={false}
+                                                title="Limite utilisateurs"
+                                                style={{ fontSize: '0.9rem', minHeight: '32px' }}
+                                            />
                                         </Field>
                                     </div>
 
@@ -559,7 +587,13 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             <input className="input" placeholder="exemple@mail.com" value={subForm.contact_email} onChange={e => setSubForm(f => ({ ...f, contact_email: e.target.value }))} />
                                         </Field>
                                         <Field label="Tél Contact Propriétaire">
-                                            <input className="input" placeholder="+225 ..." value={subForm.contact_phone} onChange={e => setSubForm(f => ({ ...f, contact_phone: e.target.value }))} />
+                                            <TouchInput 
+                                                value={subForm.contact_phone || ''} 
+                                                onChange={val => setSubForm(f => ({ ...f, contact_phone: val }))}
+                                                isPhone={true}
+                                                placeholder="+225 ..."
+                                                title="Téléphone Propriétaire"
+                                            />
                                         </Field>
                                     </div>
 
@@ -805,12 +839,23 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 <Field label="Nom de l'enseigne">
                                     <input className="input" placeholder="ex: Boulangerie Moderne" value={newOrgForm.org_name} onChange={e => setNewOrgForm(f => ({ ...f, org_name: e.target.value }))} />
                                 </Field>
-                                <Field label="Devise">
-                                    <input className="input" value={newOrgForm.currency_symbol} onChange={e => setNewOrgForm(f => ({ ...f, currency_symbol: e.target.value }))} />
+                                <Field label="Devise (Symbol)">
+                                    <TouchSelect 
+                                        value={newOrgForm.currency_symbol} 
+                                        onChange={val => setNewOrgForm(f => ({ ...f, currency_symbol: val }))}
+                                        options={CURRENCY_OPTIONS}
+                                        placeholder="Choisir une devise"
+                                        title="Devises"
+                                    />
                                 </Field>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <Field label="Fin d'abonnement (Optionnel)">
-                                        <input type="date" className="input" value={newOrgForm.subscription_end_date} onChange={e => setNewOrgForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                                        <DatePicker 
+                                            value={newOrgForm.subscription_end_date ? new Date(newOrgForm.subscription_end_date) : null}
+                                            onChange={(date: Date) => setNewOrgForm(f => ({ ...f, subscription_end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                                            placeholder="Sélectionner une date"
+                                            direction="up"
+                                        />
                                     </Field>
                                 </div>
 

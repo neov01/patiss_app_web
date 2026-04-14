@@ -82,17 +82,24 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                             </div>
                             <div>
                                 <label className="label">Quantité ({reasonInfo.positive ? '+' : '-'})</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))} className="btn-secondary" style={{ width: '44px', padding: 0 }}><Minus size={16} /></button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF8F3', borderRadius: '12px', border: '1.5px solid var(--color-border)', overflow: 'hidden' }}>
+                                    <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))} 
+                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderRight: '1.5px solid var(--color-border)' }}>
+                                        <Minus size={20} />
+                                    </button>
                                     <TouchInput
                                         value={quantity.toString()}
                                         onChange={val => setQuantity(parseFloat(val) || 0)}
                                         allowDecimal={true}
                                         placeholder="0.0"
                                         title="Quantité"
-                                        style={{ textAlign: 'center', fontSize: '1.2rem', fontWeight: 700, flex: 1 }}
+                                        hideIcon={true}
+                                        style={{ border: 'none', background: 'transparent', textAlign: 'center', fontSize: '1.2rem', fontWeight: 700, flex: 1, minHeight: '44px', borderRadius: 0 }}
                                     />
-                                    <button type="button" onClick={() => setQuantity(quantity + 1)} className="btn-secondary" style={{ width: '44px', padding: 0 }}><Plus size={16} /></button>
+                                    <button type="button" onClick={() => setQuantity(quantity + 1)} 
+                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderLeft: '1.5px solid var(--color-border)' }}>
+                                        <Plus size={20} />
+                                    </button>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '10px' }}>

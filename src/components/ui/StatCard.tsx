@@ -12,15 +12,18 @@ interface StatCardProps {
     onClick?: () => void
     loading?: boolean
     accent?: string
+    style?: React.CSSProperties
+    className?: string
 }
 
 export default function StatCard({
     title, value, subtitle, trend, trendLabel,
     icon: Icon, iconColor = '#C4836A', onClick, loading, accent = '#E8B4A0',
+    style, className,
 }: StatCardProps) {
     if (loading) {
         return (
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className={`card ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '12px', ...style }}>
                 <div className="skeleton" style={{ height: '14px', width: '60%' }} />
                 <div className="skeleton" style={{ height: '32px', width: '80%' }} />
                 <div className="skeleton" style={{ height: '12px', width: '40%' }} />
@@ -33,9 +36,9 @@ export default function StatCard({
 
     return (
         <div
-            className={`card${onClick ? ' card-clickable' : ''}`}
+            className={`card ${onClick ? 'card-clickable' : ''} ${className || ''}`}
             onClick={onClick}
-            style={{ cursor: onClick ? 'pointer' : 'default' }}
+            style={{ cursor: onClick ? 'pointer' : 'default', ...style }}
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

@@ -18,7 +18,7 @@ export default async function EquipePage() {
     }
 
     const orgId = profile.organization_id!
-    const currency = (profile?.organizations as any)?.currency_symbol ?? 'FCFA'
+    const currency = (profile?.organizations as any)?.currency_symbol ?? ''
 
     // Fetch enrichi : tous les champs RH
     const { data: employees } = await (supabase.from as any)('profiles')
@@ -37,7 +37,6 @@ export default async function EquipePage() {
         `)
         .eq('organization_id', orgId)
         .in('role_slug', ['vendeur', 'patissier', 'gerant'])
-        .eq('is_active', true)
         .order('full_name')
 
     return (

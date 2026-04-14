@@ -2,12 +2,17 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { useForm, useFieldArray, useWatch } from 'react-hook-form'
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema, ProductFormValues } from '@/lib/schemas/product'
 import { createProduct } from '@/lib/actions/products'
-import { Trash2, Calculator, Loader2, X, Search } from 'lucide-react'
+import { Trash2, Loader2, X, Search, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import TouchInput from '@/components/ui/TouchInput'
+import TouchSelect from '@/components/ui/TouchSelect'
+import { compressImage } from '@/lib/utils/image-compression'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import ImageCropper from '@/components/ui/ImageCropper'
 
 interface ProductModalProps {
   open: boolean
@@ -36,8 +41,10 @@ interface ProductModalProps {
 export default function ProductModal({ open, onClose, availableIngredients, existingProducts = [], productToEdit, onSuccess }: ProductModalProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showDigicode, setShowDigicode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -63,8 +70,32 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
         composition: productToEdit.composition || [],
         updateMode: 'set'
       })
+      // Pre-fill existing image preview
+      if (productToEdit.image_url) setImagePreview(productToEdit.image_url)
     }
   }, [productToEdit, open, reset])
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImageToCrop(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    const file = new File([croppedBlob], 'product-image.webp', { type: 'image/webp' })
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(croppedBlob))
+    setImageToCrop(null)
+  }
+
+  const handleCropCancel = () => {
+    setImageToCrop(null)
+  }
 
   const { fields, append, remove } = useFieldArray({ control, name: "composition" })
   const [type, sellingPrice, purchaseCost, composition, trackStock, productId] = useWatch({
@@ -82,9 +113,6 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
   const cost = type === 'revente' ? (purchaseCost ?? 0) : foodCost
   const marge = (sellingPrice ?? 0) - cost
   const rentabilite = sellingPrice > 0 ? (marge / sellingPrice) * 100 : 0
-
-  const handleDigit = (n: number) => setValue('sellingPrice', (sellingPrice || 0) * 10 + n)
-  const handleBackspace = () => setValue('sellingPrice', Math.floor((sellingPrice || 0) / 10))
 
   const filteredExisting = useMemo(() => {
     if (searchQuery.length < 2) return []
@@ -113,7 +141,34 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
   const handleFormSubmit = async (data: ProductFormValues) => {
     setIsSubmitting(true)
     try {
-      const res = await createProduct(data)
+      let finalImageUrl: string | null | undefined
+
+      if (imageFile) {
+        try {
+          const compressed = await compressImage(imageFile, { maxWidth: 800, quality: 0.75 })
+          const supabase = createSupabaseClient()
+          const filePath = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+          const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, compressed, { contentType: 'image/webp', upsert: true })
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(filePath)
+            finalImageUrl = urlData.publicUrl
+          } else {
+            toast.error('Upload de la photo échoué — produit enregistré sans image.')
+          }
+        } catch {
+          // continue without image
+        }
+      } else if (imagePreview && productToEdit?.image_url) {
+        // Keep existing image if no new file was selected
+        finalImageUrl = productToEdit.image_url
+      } else if (productToEdit?.image_url && !imagePreview) {
+        // User explicitly removed the photo → clear it in DB
+        finalImageUrl = null
+      }
+
+      const res = await createProduct(data, finalImageUrl)
       if (res.success) { 
         toast.success(res.message || "Opération réussie !"); 
         onSuccess?.(); 
@@ -172,78 +227,128 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
         {/* Scrollable Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           
-          {/* Recherche de produit existant */}
-          {!productId && !productToEdit && (
-            <div style={{ marginBottom: '24px', borderBottom: '1px dashed var(--color-border)', paddingBottom: '24px' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-rose-dark)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Rechercher dans le catalogue</label>
+          {/* Barre de Recherche Intelligente */}
+          {!productToEdit && (
+            <div style={{ marginBottom: '24px', position: 'relative' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-rose-dark)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
+                {productId ? 'Produit sélectionné' : 'Identification du produit'}
+              </label>
               <div style={{ position: 'relative' }}>
                 <input 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ex: Croissant..."
+                  {...register('name')}
+                  value={productId ? watch('name') : searchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (!productId) {
+                      setSearchQuery(val)
+                      setValue('name', val)
+                    }
+                  }}
+                  placeholder="Nom du produit (existants ou nouveau...)"
+                  readOnly={!!productId}
                   style={{ 
-                    width: '100%', padding: '12px 12px 12px 40px', borderRadius: '12px', border: '1.5px solid var(--color-rose-dark)', 
-                    background: '#FFF5F5', fontSize: '0.9rem', fontWeight: 700, outline: 'none' 
+                    width: '100%', padding: '16px 16px 16px 44px', borderRadius: '16px', 
+                    border: errors.name ? '1.5px solid #D94F38' : (productId ? '2px solid var(--color-rose-dark)' : '1.5px solid var(--color-border)'), 
+                    background: productId ? '#FFF5F5' : 'var(--color-cream)', fontSize: '1rem', fontWeight: 700, outline: 'none',
+                    transition: 'all 0.2s'
                   }} 
                 />
-                <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-rose-dark)' }} />
+                {productId ? (
+                   <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '1.2rem' }}>💎</div>
+                ) : (
+                  <Search size={20} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-rose-dark)' }} />
+                )}
+                
+                {productId && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                        reset({ id: undefined, name: '', currentStock: 0, type: 'maison', trackStock: false, sellingPrice: 0 })
+                        setSearchQuery('')
+                    }}
+                    style={{ 
+                      position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                      fontSize: '0.7rem', color: 'var(--color-rose-dark)', border: 'none', background: 'white', 
+                      cursor: 'pointer', fontWeight: 800, padding: '4px 8px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    ANNULER
+                  </button>
+                )}
               </div>
               
-              {filteredExisting.length > 0 && (
-                <div style={{ marginTop: '8px', border: '1px solid var(--color-border)', borderRadius: '12px', background: '#fff', overflow: 'hidden' }}>
+              {/* Résultats de recherche instantanés */}
+              {!productId && filteredExisting.length > 0 && (
+                <div style={{ 
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: '4px',
+                  border: '1.px solid var(--color-border)', borderRadius: '16px', background: '#fff', 
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)', overflow: 'hidden', animation: 'fadeInDown 0.2s ease'
+                }}>
+                  <div style={{ padding: '8px 16px', background: '#F9FAFB', borderBottom: '1px solid #f0f0f0', fontSize: '0.65rem', fontWeight: 800, color: 'var(--color-muted)' }}>PRODUITS EXISTANTS</div>
                   {filteredExisting.map(p => (
                     <div 
                       key={p.id} 
                       onClick={() => selectExistingProduct(p)}
-                      style={{ padding: '12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      style={{ padding: '14px 16px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                       onMouseEnter={(e: any) => e.currentTarget.style.background = 'var(--color-cream)'}
                       onMouseLeave={(e: any) => e.currentTarget.style.background = '#fff'}
                     >
-                      <span style={{ fontWeight: 700 }}>{p.name}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{p.category}</span>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{p.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>{p.category}</div>
+                      </div>
+                      <div style={{ background: 'var(--color-rose-dark)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 900 }}>SÉLECTIONNER</div>
                     </div>
                   ))}
                 </div>
               )}
+
+              {errors.name && <span style={{ fontSize: '0.7rem', color: '#D94F38', fontWeight: 600, marginTop: '4px', display: 'block' }}>{errors.name.message}</span>}
             </div>
           )}
 
           <form id="product-form" onSubmit={handleSubmit(handleFormSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {/* Nom */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Identification</label>
-              <input 
-                {...register('name')} 
-                placeholder="Nom du produit (ex: Croissant Pur Beurre)" 
-                readOnly={!!productId && !productToEdit}
-                style={{ 
-                  width: '100%', padding: '16px', borderRadius: '16px', border: errors.name ? '1.5px solid #D94F38' : '1.5px solid var(--color-border)', 
-                  background: (productId && !productToEdit) ? '#F3F4F6' : 'var(--color-cream)', fontSize: '1rem', fontWeight: 700, outline: 'none' 
-                }} 
-              />
-              {errors.name && <span style={{ fontSize: '0.7rem', color: '#D94F38', fontWeight: 600 }}>{errors.name.message}</span>}
-              {productId && !productToEdit && <button type="button" onClick={() => reset({ id: undefined, name: '', currentStock: 0 })} style={{ alignSelf: 'flex-start', fontSize: '0.7rem', color: 'var(--color-rose-dark)', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800 }}>Changer de produit / Nouveau</button>}
-            </div>
+            {/* Si on est en mode édition, on affiche juste le nom en lecture seule stylisé */}
+            {productToEdit && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Identification</label>
+                <input 
+                  {...register('name')} 
+                  readOnly
+                  style={{ 
+                    width: '100%', padding: '16px', borderRadius: '16px', border: '1.5px solid var(--color-border)', 
+                    background: '#F3F4F6', fontSize: '1rem', fontWeight: 700, outline: 'none' 
+                  }} 
+                />
+              </div>
+            )}
 
             {/* Category Select */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Catégorie de vente</label>
-              <select 
-                {...register('category')} 
-                disabled={!!productId && !productToEdit}
-                style={{ 
-                  width: '100%', padding: '16px', borderRadius: '16px', border: '1.5px solid var(--color-border)', 
-                  background: (productId && !productToEdit) ? '#F3F4F6' : 'var(--color-cream)', fontSize: '0.95rem', fontWeight: 700, outline: 'none' 
-                }}
-              >
-                <option value="">Sélectionner une catégorie...</option>
-                <option value="Gâteaux">🎂 Gâteaux</option>
-                <option value="Viennoiseries">🥐 Viennoiseries</option>
-                <option value="Petits fours">🍪 Petits fours</option>
-                <option value="Boissons">🧃 Boissons</option>
-                <option value="Autres">📦 Autres</option>
-              </select>
+              <Controller
+                control={control}
+                name="category"
+                render={({ field }) => (
+                  <TouchSelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={[
+                      { value: 'Gâteaux', label: '🎂 Gâteaux' },
+                      { value: 'Viennoiseries', label: '🥐 Viennoiseries' },
+                      { value: 'Petits fours', label: '🍪 Petits fours' },
+                      { value: 'Boissons', label: '🧃 Boissons' },
+                      { value: 'Autres', label: '📦 Autres' },
+                    ]}
+                    title="Catégorie de vente"
+                    placeholder="Sélectionner une catégorie..."
+                    style={{ 
+                      background: (productId && !productToEdit) ? '#F3F4F6' : 'var(--color-cream)',
+                    }}
+                  />
+                )}
+              />
               {errors.category && <span style={{ fontSize: '0.7rem', color: '#D94F38', fontWeight: 600 }}>{errors.category.message}</span>}
             </div>
 
@@ -280,33 +385,27 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
               </div>
             </div>
 
-            {/* Prix de Vente */}
             <div style={{ position: 'relative' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Prix de vente</label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  readOnly 
-                  value={sellingPrice || ''} 
-                  placeholder="0"
-                  onClick={() => (!productId || productToEdit) && setShowDigicode(!showDigicode)}
-                  style={{ 
-                    width: '100%', padding: '20px 20px 20px 52px', borderRadius: '16px', border: errors.sellingPrice ? '1.5px solid #D94F38' : '1.5px solid var(--color-border)', 
-                    background: (productId && !productToEdit) ? '#F3F4F6' : 'var(--color-cream)', fontSize: '1.75rem', fontWeight: 900, textAlign: 'right', cursor: (productId && !productToEdit) ? 'default' : 'pointer' 
-                  }} 
-                />
-                <Calculator size={24} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-rose-dark)' }} />
-              </div>
+              <Controller
+                control={control}
+                name="sellingPrice"
+                render={({ field }) => (
+                  <TouchInput
+                    value={field.value?.toString() || '0'}
+                    onChange={(val) => field.onChange(parseFloat(val) || 0)}
+                    allowDecimal={true}
+                    title="Prix de vente"
+                    placeholder="0.00"
+                    style={{ 
+                        background: (productId && !productToEdit) ? '#F3F4F6' : 'var(--color-cream)',
+                        fontSize: '1.5rem',
+                        fontWeight: 900
+                    }}
+                  />
+                )}
+              />
               {errors.sellingPrice && <span style={{ fontSize: '0.7rem', color: '#D94F38', fontWeight: 600, marginTop: '4px', display: 'block' }}>{errors.sellingPrice.message}</span>}
-              
-              {(!productId || productToEdit) && showDigicode && (
-                <div style={{ marginTop: '12px', background: '#F3F4F6', padding: '12px', borderRadius: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {[1,2,3,4,5,6,7,8,9,0].map(n => (
-                    <button key={n} type="button" onClick={() => handleDigit(n)} style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: 'none', fontSize: '1.15rem', fontWeight: 800 }}>{n}</button>
-                  ))}
-                  <button type="button" onClick={handleBackspace} style={{ background: '#FEE2E2', color: '#D94F38', padding: '16px', borderRadius: '12px', border: 'none', fontSize: '1.15rem', fontWeight: 800 }}>⌫</button>
-                  <button type="button" onClick={() => setShowDigicode(false)} style={{ background: 'var(--color-rose-dark)', color: '#fff', padding: '16px', borderRadius: '12px', border: 'none', fontSize: '1rem', fontWeight: 800 }}>OK</button>
-                </div>
-              )}
             </div>
 
             {/* Suivi Stock et Quantité */}
@@ -346,20 +445,74 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                   <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>
                     {productToEdit ? 'Stock Actuel (Réajustement)' : (productId ? 'Quantité Additionnelle Produite' : 'Quantité en stock initial / Fait Maison')}
                   </label>
-                  <input 
-                    type="number" 
-                    {...register('currentStock', { valueAsNumber: true })} 
-                    placeholder="0" 
-                    style={{ 
-                      width: '100%', padding: '16px', borderRadius: '16px', border: errors.currentStock ? '1.5px solid #D94F38' : '1.5px solid var(--color-border)', 
-                      background: 'var(--color-cream)', fontSize: '1rem', fontWeight: 700, outline: 'none' 
-                    }} 
+                  <Controller
+                    control={control}
+                    name="currentStock"
+                    render={({ field }) => (
+                      <TouchInput
+                        value={field.value?.toString() || '0'}
+                        onChange={(val) => field.onChange(parseFloat(val) || 0)}
+                        allowDecimal={true}
+                        title="Stock actuel"
+                        placeholder="0.0"
+                      />
+                    )}
                   />
                   {errors.currentStock && <span style={{ fontSize: '0.7rem', color: '#D94F38', fontWeight: 600 }}>{errors.currentStock.message}</span>}
                   {productId && !productToEdit && <p style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 500, margin: 0 }}>Cette quantité sera ajoutée au stock existant dans le catalogue.</p>}
                 </div>
               )}
             </div>
+
+            {/* === PHOTO DU PRODUIT === */}
+            {(!productId || productToEdit) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>
+                  Photo du produit (optionnel)
+                </label>
+                <label style={{ cursor: 'pointer', display: 'block' }}>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
+                  {imagePreview ? (
+                    <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', aspectRatio: '4/3' }}>
+                      <img 
+                        src={imagePreview} 
+                        alt="Prévisualisation" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <div style={{
+                        position: 'absolute', bottom: '10px', right: '10px',
+                        background: 'rgba(0,0,0,0.55)', color: 'white',
+                        borderRadius: '10px', padding: '5px 12px',
+                        fontSize: '0.72rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', gap: '5px'
+                      }}>
+                        <ImageIcon size={13} /> Changer la photo
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      border: '2px dashed var(--color-border)',
+                      borderRadius: '16px',
+                      padding: '28px 16px',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                      background: 'var(--color-cream)',
+                      color: 'var(--color-muted)',
+                      transition: 'all 0.2s'
+                    }}>
+                      <ImageIcon size={32} style={{ opacity: 0.4 }} />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Ajouter une photo du produit</span>
+                      <span style={{ fontSize: '0.7rem' }}>JPG, PNG, WebP — Sera compressée automatiquement</span>
+                    </div>
+                  )}
+                </label>
+                {imagePreview && (
+                  <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
+                    style={{ alignSelf: 'flex-start', fontSize: '0.7rem', color: '#D94F38', border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800 }}>
+                    Supprimer la photo
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Fait Maison : Ingrédients (Optionnel) */}
             {(!productId || productToEdit) && type === 'maison' && (
@@ -378,11 +531,19 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                           <option key={ing.id} value={ing.id}>{ing.name}</option>
                         ))}
                       </select>
-                      <input 
-                        type="number" 
-                        {...register(`composition.${index}.quantity`, { valueAsNumber: true })} 
-                        placeholder="Gr" 
-                        style={{ width: '80px', padding: '12px', borderRadius: '12px', border: '1.5px solid var(--color-border)', textAlign: 'center', fontWeight: 700 }}
+                      <Controller
+                        control={control}
+                        name={`composition.${index}.quantity`}
+                        render={({ field }) => (
+                          <TouchInput
+                            value={field.value?.toString() || '0'}
+                            onChange={(val) => field.onChange(parseFloat(val) || 0)}
+                            allowDecimal={true}
+                            title="Quantité ingrédient"
+                            placeholder="Gr"
+                            style={{ width: '100px' }}
+                          />
+                        )}
                       />
                       <button 
                         type="button" 
@@ -425,6 +586,15 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
           </button>
         </div>
       </div>
+      {/* Image Cropper */}
+      {imageToCrop && (
+        <ImageCropper
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspect={4/3}
+        />
+      )}
     </div>,
     document.body
   )

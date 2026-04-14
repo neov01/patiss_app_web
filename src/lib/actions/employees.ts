@@ -5,6 +5,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { EmployeeFormValues, PayEventFormValues } from '@/lib/schemas/employee.schema'
+import bcrypt from 'bcryptjs'
 
 // ─────────────────────────────────────────────────
 // Helpers
@@ -32,6 +33,8 @@ export async function createEmployee(data: EmployeeFormValues & { organization_i
   if (!orgId) return { success: false, error: 'Non authentifié' }
 
   try {
+    const hashedPin = data.pinCode ? await bcrypt.hash(data.pinCode, 10) : null
+    
     // Hash du PIN via Supabase Edge Function ou simple bcrypt côté server
     // Pour simplifier : on stocke le hash via la logique existante
     const { data: emp, error } = await (supabase.from as any)('profiles')
@@ -39,7 +42,7 @@ export async function createEmployee(data: EmployeeFormValues & { organization_i
         organization_id: orgId,
         full_name:       data.fullName,
         role_slug:       data.role,
-        pin_code:        data.pinCode || null,
+        pin_code:        hashedPin,
         theme_color:     data.identityColor,
         auto_lock_seconds: data.autoLockSeconds,
         phone:           data.phone || null,
@@ -79,7 +82,10 @@ export async function updateEmployee(id: string, data: Partial<EmployeeFormValue
     if (data.contractType    !== undefined) patch.contract_type     = data.contractType
     if (data.baseSalary      !== undefined) patch.base_salary       = data.baseSalary
     if (data.avatarUrl       !== undefined) patch.avatar_url        = data.avatarUrl || null
-    if (data.pinCode && data.pinCode.length === 4) patch.pin_code   = data.pinCode
+    
+    if (data.pinCode && data.pinCode.length === 4) {
+      patch.pin_code = await bcrypt.hash(data.pinCode, 10)
+    }
 
     const { error } = await (supabase.from as any)('profiles')
       .update(patch)
@@ -104,6 +110,27 @@ export async function deleteEmployee(id: string) {
   try {
     const { error } = await (supabase.from as any)('profiles')
       .update({ is_active: false })
+      .eq('id', id)
+
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/mon-equipe')
+    return { success: true }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Erreur inconnue'
+    return { success: false, error: msg }
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 4. Réactiver un employé
+// ─────────────────────────────────────────────────
+export async function reactivateEmployee(id: string) {
+  const supabase = await createClient()
+
+  try {
+    const { error } = await (supabase.from as any)('profiles')
+      .update({ is_active: true })
       .eq('id', id)
 
     if (error) throw new Error(error.message)

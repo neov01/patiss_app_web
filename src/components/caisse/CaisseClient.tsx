@@ -22,6 +22,9 @@ import { createClient } from '@/lib/supabase/client'
 import CatalogueModal from './CatalogueModal'
 import DashboardNewOrderButton from '@/components/dashboard/DashboardNewOrderButton'
 import { encaisserTransaction } from '@/lib/actions/caisse'
+import TouchInput from '@/components/ui/TouchInput'
+import { useOffline } from '@/components/providers/OfflineProvider'
+import { getCachedReadyOrders } from '@/lib/offline/db'
 
 type CaisseProps = {
     organizationId: string
@@ -68,7 +71,7 @@ export default function CaisseClient({
     const [activeClient, setActiveClient] = useState<string | null>(null)
     const [acompte, setAcompte] = useState(0)
     
-    const [modePayment, setModePayment] = useState('especes')
+    const [activePayments, setActivePayments] = useState<Record<string, number>>({ especes: 0 })
     const [montantRemisStr, setMontantRemisStr] = useState('')
     
     const [modalCatalogueOpen, setModalCatalogueOpen] = useState(false)
@@ -76,6 +79,36 @@ export default function CaisseClient({
     const [isSubmitting, setIsSubmitting] = useState(false)
     
     const [readyOrders, setReadyOrders] = useState(initialOrders)
+
+    // Offline support
+    const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache } = useOffline()
+
+    // Cache les best-sellers pour le mode hors-ligne
+    useEffect(() => {
+        if (bestSellers && bestSellers.length > 0) {
+            refreshProductCache(bestSellers.map(bs => ({
+                id: bs.id,
+                name: bs.name,
+                selling_price: bs.selling_price,
+                current_stock: bs.stock_qty,
+                category: '',
+            })))
+        }
+    }, [bestSellers, refreshProductCache])
+    
+    // Cache les commandes prêtes
+    useEffect(() => {
+        if (!isOffline && initialOrders.length > 0) {
+            refreshReadyOrdersCache(initialOrders)
+            setReadyOrders(initialOrders)
+        } else if (isOffline) {
+            getCachedReadyOrders().then(cached => {
+                if (cached && cached.length > 0) {
+                    setReadyOrders(cached)
+                }
+            }).catch(console.error)
+        }
+    }, [isOffline, initialOrders, refreshReadyOrdersCache])
     
     // -- REALTIME --
     useEffect(() => {
@@ -155,6 +188,7 @@ export default function CaisseClient({
         setActiveClient(null)
         setAcompte(0)
         setMontantRemisStr('')
+        setActivePayments({ especes: 0 })
     }
     
     const detachClient = () => {
@@ -181,26 +215,37 @@ export default function CaisseClient({
     // -- CALCULS --
     const sousTotal = panier.reduce((sum, item) => sum + (item.prix * item.qty), 0)
     const totalAEncaisser = Math.max(0, sousTotal - acompte)
+    
+    const sommePayee = Object.values(activePayments).reduce((sum, val) => sum + val, 0)
+    const resteAPercevoir = Math.max(0, totalAEncaisser - sommePayee)
+    
+    // Si l'utilisateur a saisi un montant supérieur au total dans le champ espèces,
+    // on calcule la monnaie automatiquement à partir de cet extra.
+    const extraEspeces = (activePayments.especes || 0) > 0 ? Math.max(0, sommePayee - totalAEncaisser) : 0
     const montantRemis = Number(montantRemisStr) || 0
-    const monnaieARendre = montantRemis - totalAEncaisser
+    const monnaieARendre = montantRemis > 0 ? Math.max(0, montantRemis - (activePayments.especes || 0)) : extraEspeces
 
-    const canSubmit = panier.length > 0 && totalAEncaisser >= 0
+    const canSubmit = panier.length > 0 && resteAPercevoir === 0 && sommePayee > 0
     
     // -- ACTIONS --
     const handleEncaisser = async () => {
         if (!canSubmit) return
-        if (modePayment === 'especes' && montantRemis < totalAEncaisser && totalAEncaisser > 0) {
-            toast.error("Le montant remis est insuffisant")
-            return
+        const primaryMethod = Object.entries(activePayments).sort((a,b) => b[1] - a[1])[0][0]
+
+        // Pour l'enregistrement, on s'assure que le total des détails de paiement ne dépasse pas l'en-caisser
+        // On réduit le montant espèces si nécessaire (c'est lui qui génère la monnaie)
+        const paymentDetailsForDb = { ...activePayments }
+        const surplus = Math.max(0, sommePayee - totalAEncaisser)
+        if (surplus > 0 && paymentDetailsForDb.especes) {
+            paymentDetailsForDb.especes = Math.max(0, paymentDetailsForDb.especes - surplus)
         }
 
-        setIsSubmitting(true)
-        
         const payload = {
             order_id: activeOrder?.id || null,
             client_name: activeClient || 'Vente vitrine',
             amount: totalAEncaisser,
-            payment_method: modePayment,
+            payment_method: primaryMethod,
+            payment_details: paymentDetailsForDb,
             items: panier.map(item => ({
                 product_id: item.product_id,
                 name: item.nom,
@@ -209,6 +254,17 @@ export default function CaisseClient({
             }))
         }
         
+        setIsSubmitting(true)
+
+        // MODE OFFLINE : sauvegarder en IndexedDB
+        if (isOffline) {
+            await saveTransactionOffline(payload)
+            viderPanier()
+            setIsSubmitting(false)
+            return
+        }
+
+        // MODE ONLINE : envoi normal au serveur
         const res = await encaisserTransaction(payload)
         
         if (res.error) {
@@ -220,15 +276,14 @@ export default function CaisseClient({
         toast.success("Encaissé avec succès !")
         viderPanier()
         setIsSubmitting(false)
-        // Petit délai pour laisser Supabase commiter
         setTimeout(() => window.location.reload(), 800)
     }
 
     return (
-        <div style={{ display: 'flex', minHeight: 'calc(100dvh - 200px)', background: '#FDF8F3', borderRadius: '24px', overflow: 'hidden' }}>
+        <div className="caisse-layout-container" style={{ display: 'flex', minHeight: 'calc(100dvh - 200px)', background: '#FDF8F3', borderRadius: '24px', overflow: 'hidden' }}>
             
             {/* ====== COLONNE GAUCHE (Main) ====== */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px' }}>
+            <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px' }}>
                 
                 {/* 1. TOPBAR */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -243,6 +298,16 @@ export default function CaisseClient({
                     </div>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {isOffline && (
+                            <div style={{ 
+                                padding: '6px 12px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600,
+                                background: '#FEF3C7', color: '#92400E',
+                                display: 'flex', alignItems: 'center', gap: '6px'
+                            }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                                Mode hors-ligne
+                            </div>
+                        )}
                         <div style={{ 
                             padding: '6px 12px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600,
                             background: activeSession ? '#D1FAE5' : '#FEE2E2',
@@ -256,21 +321,21 @@ export default function CaisseClient({
                 </div>
 
                 {/* 2. METRIQUES */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
-                    <div className="card" style={{ padding: '20px' }}>
+                <div className="metrics-container" style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
+                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Ventes aujourd'hui</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2D1B0E' }}>{initialCmdCount + initialVitrineCount}</div>
                         <div style={{ fontSize: '0.8rem', color: '#C4836A', marginTop: '4px' }}>
                             {initialCmdCount} commandes · {initialVitrineCount} vitrine
                         </div>
                     </div>
-                    <div className="card" style={{ padding: '20px' }}>
+                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Recettes du jour</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2D1B0E' }}>
                             {initialCA.toLocaleString('fr-FR')} {currency}
                         </div>
                     </div>
-                    <div className="card" style={{ padding: '20px' }}>
+                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10B981' }}>{readyOrders.filter(o => o.status === 'ready').length}</div>
                     </div>
@@ -327,28 +392,32 @@ export default function CaisseClient({
                         Aucune commande en cours de production.
                     </div>
                 ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '32px' }}>
-                        {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').slice(0, 5).map(order => {
+                    <div className="pipeline-carousel" style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
+                        {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').map(order => {
                             const date = new Date(order.pickup_date)
                             return (
                                 <div key={order.id}
                                     style={{
-                                        background: '#F9FAFB', padding: '16px', borderRadius: '16px',
+                                        background: '#F9FAFB', padding: '12px', borderRadius: '12px',
                                         border: '1px dashed #E5E7EB', opacity: 0.8,
-                                        display: 'flex', flexDirection: 'column', gap: '8px'
+                                        display: 'flex', flexDirection: 'column', gap: '6px',
+                                        minWidth: '200px', flex: '0 0 auto', scrollSnapAlign: 'start'
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>{order.customer_name}</div>
+                                        <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem' }}>{order.customer_name}</div>
                                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>
                                             {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {order.order_items.map((i: any) => i.products?.name).join(' · ')}
-                                    </div>
-                                    <div style={{ alignSelf: 'flex-start', marginTop: 'auto', background: order.status === 'pending' ? '#FEF3C7' : '#DBEAFE', color: order.status === 'pending' ? '#92400E' : '#1E40AF', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700 }}>
-                                        {order.status === 'pending' ? 'En attente' : 'En production'}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '4px' }}>
+                                        <div style={{ fontSize: '0.7rem', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
+                                            {order.order_items.map((i: any) => i.products?.name).join(' · ')}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: order.status === 'pending' ? '#FEF3C7' : '#DBEAFE', color: order.status === 'pending' ? '#92400E' : '#1E40AF', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: order.status === 'pending' ? '#F59E0B' : '#3B82F6' }} />
+                                            {order.status === 'pending' ? 'En attente' : 'En production'}
+                                        </div>
                                     </div>
                                 </div>
                             )
@@ -422,7 +491,7 @@ export default function CaisseClient({
             </div>
 
             {/* ====== COLONNE DROITE (Panier) ====== */}
-            <div style={{ width: '380px', background: 'white', borderLeft: '1.5px solid #FDE8DB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div className="caisse-cart-column" style={{ background: 'white', borderLeft: '1.5px solid #FDE8DB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 
                 {/* Header Panier */}
                 <div style={{ padding: '20px', borderBottom: '1px solid #FDE8DB', background: '#FAFAFA' }}>
@@ -430,7 +499,7 @@ export default function CaisseClient({
                         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <ShoppingBag size={20} color="#D97757" /> Panier en cours
                         </h2>
-                        {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} />}
+                        {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} isFloating={true} />}
                     </div>
                     
                     <div style={{ position: 'relative', marginBottom: activeClient ? '16px' : 0 }}>
@@ -489,7 +558,7 @@ export default function CaisseClient({
                                     </div>
                                     
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', background: '#FDF8F3', borderRadius: '8px', overflow: 'hidden', border: '1px solid #FDE8DB' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', background: '#FDF8F3', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid #FDE8DB' }}>
                                             <button 
                                                 type="button"
                                                 onClick={(e) => {
@@ -497,11 +566,34 @@ export default function CaisseClient({
                                                     e.stopPropagation();
                                                     line.qty > 1 ? updateQty(idx, -1) : removeItem(idx);
                                                 }}
-                                                style={{ width: '28px', height: '28px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A' }}
+                                                style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderRight: '1.5px solid #FDE8DB', transition: 'all 0.1s' }}
+                                                onMouseDown={e => e.currentTarget.style.background = '#FEF3EC'}
+                                                onMouseUp={e => e.currentTarget.style.background = 'white'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'white'}
                                             >
-                                                {line.qty > 1 ? <Minus size={14} /> : <X size={14} color="#EF4444" />}
+                                                {line.qty > 1 ? <Minus size={20} /> : <X size={20} color="#EF4444" />}
                                             </button>
-                                            <span style={{ width: '24px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: '#2D1B0E' }}>{line.qty}</span>
+                                            
+                                            <TouchInput
+                                                value={line.qty.toString()}
+                                                onChange={(val) => {
+                                                    const newQty = Math.max(1, parseInt(val) || 1)
+                                                    setPanier(prev => prev.map((item, i) => i === idx ? { ...item, qty: newQty } : item))
+                                                }}
+                                                title={`Quantité : ${line.nom}`}
+                                                allowDecimal={false}
+                                                hideIcon={true}
+                                                style={{ 
+                                                    minHeight: '44px', 
+                                                    border: 'none', 
+                                                    background: 'transparent',
+                                                    width: '56px',
+                                                    justifyContent: 'center',
+                                                    fontSize: '1.1rem',
+                                                    borderRadius: 0
+                                                }}
+                                            />
+
                                             <button 
                                                 type="button"
                                                 onClick={(e) => {
@@ -509,9 +601,12 @@ export default function CaisseClient({
                                                     e.stopPropagation();
                                                     updateQty(idx, 1);
                                                 }}
-                                                style={{ width: '28px', height: '28px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A' }}
+                                                style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderLeft: '1.5px solid #FDE8DB', transition: 'all 0.1s' }}
+                                                onMouseDown={e => e.currentTarget.style.background = '#FEF3EC'}
+                                                onMouseUp={e => e.currentTarget.style.background = 'white'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'white'}
                                             >
-                                                <Plus size={14} />
+                                                <Plus size={20} />
                                             </button>
                                         </div>
                                         <div style={{ width: '70px', textAlign: 'right', fontWeight: 700, fontSize: '0.9rem', color: '#2D1B0E' }}>
@@ -541,45 +636,81 @@ export default function CaisseClient({
                         <span style={{ color: totalAEncaisser > 0 ? '#D97757' : '#10B981' }}>{totalAEncaisser.toLocaleString('fr-FR')} {currency}</span>
                     </div>
 
-                    {/* Modes de paiement */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                        {PAYMENT_METHODS.map(m => (
-                            <button key={m.id} onClick={() => setModePayment(m.id)}
-                                style={{
-                                    flex: 1, padding: '10px 4px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
-                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer',
-                                    transition: 'all 0.1s',
-                                    border: modePayment === m.id ? '2px solid #D97757' : '1px solid #E5E7EB',
-                                    background: modePayment === m.id ? '#FEF3EC' : 'white',
-                                    color: modePayment === m.id ? '#C4836A' : '#6B7280'
-                                }}
-                            >
-                                <m.icon size={18} />
-                                {m.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Monnaie (seulement si Espèces et montant à payer > 0) */}
-                    {modePayment === 'especes' && totalAEncaisser > 0 && (
-                        <div style={{ marginBottom: '20px', background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Montant remis</label>
-                                    <input 
-                                        type="number" 
-                                        className="input" 
-                                        value={montantRemisStr}
-                                        onChange={e => setMontantRemisStr(e.target.value)}
-                                        placeholder="Ex: 10000"
-                                    />
-                                </div>
-                                <div style={{ flex: 1, textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Monnaie à rendre</div>
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: montantRemis > 0 ? (monnaieARendre >= 0 ? '#10B981' : '#EF4444') : '#D1D5DB' }}>
-                                        {monnaieARendre > 0 ? monnaieARendre.toLocaleString('fr-FR') : '0'} {currency}
+                    {/* Modes de paiement — Ventilation */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#9C8070', marginBottom: '4px' }}>Répartition du paiement</div>
+                        
+                        {PAYMENT_METHODS.map(m => {
+                            const currentVal = activePayments[m.id] || 0
+                            const isActive = currentVal > 0
+                            
+                            return (
+                                <div key={m.id} style={{ 
+                                    display: 'flex', alignItems: 'center', gap: '12px', background: 'white', 
+                                    padding: '10px', borderRadius: '12px', border: isActive ? '2px solid #D97757' : '1px solid #E5E7EB'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '130px' }}>
+                                        <m.icon size={18} color={isActive ? '#D97757' : '#9CA3AF'} />
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isActive ? '#2D1B0E' : '#6B7280' }}>{m.label}</span>
+                                    </div>
+                                    
+                                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <TouchInput
+                                            value={currentVal.toString()}
+                                            onChange={(val) => {
+                                                const v = Math.max(0, parseFloat(val) || 0)
+                                                setActivePayments(prev => ({ ...prev, [m.id]: v }))
+                                            }}
+                                            allowDecimal={true}
+                                            title={`Paiement ${m.label}`}
+                                            placeholder="0"
+                                            style={{ 
+                                                flex: 1,
+                                                minHeight: '36px',
+                                                border: 'none', 
+                                                background: '#F9FAFB',
+                                                fontSize: '0.9rem'
+                                            }}
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                const currentOtherTotal = Object.entries(activePayments)
+                                                    .filter(([key]) => key !== m.id)
+                                                    .reduce((s, [_, v]) => s + v, 0)
+                                                const needed = Math.max(0, totalAEncaisser - currentOtherTotal)
+                                                setActivePayments(prev => ({ ...prev, [m.id]: needed }))
+                                            }}
+                                            style={{ 
+                                                background: '#FEF3EC', border: 'none', color: '#D97757', 
+                                                padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 900, cursor: 'pointer'
+                                            }}
+                                        >
+                                            MAX
+                                        </button>
                                     </div>
                                 </div>
+                            )
+                        })}
+                    </div>
+
+                    {/* Reste à percevoir (Alerte si non soldé) */}
+                    {resteAPercevoir > 0 && totalAEncaisser > 0 && (
+                        <div style={{ marginBottom: '20px', padding: '12px', borderRadius: '12px', background: '#FEF3C7', color: '#92400E', fontSize: '0.85rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Reste à percevoir :</span>
+                            <span style={{ fontWeight: 800 }}>{resteAPercevoir.toLocaleString('fr-FR')} {currency}</span>
+                        </div>
+                    )}
+
+                    {/* Monnaie à rendre — Apparaît seulement en cas de surplus */}
+                    {monnaieARendre > 0 && (
+                        <div style={{ 
+                            marginBottom: '20px', background: '#ECFDF5', padding: '16px', borderRadius: '16px', 
+                            border: '1.5px solid #10B981', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
+                        }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#065F46' }}>Monnaie à rendre</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10B981' }}>
+                                {monnaieARendre.toLocaleString('fr-FR')} {currency}
                             </div>
                         </div>
                     )}
@@ -612,6 +743,48 @@ export default function CaisseClient({
                 currency={currency}
             />
 
+            <style>{`
+                .caisse-layout-container {
+                    flex-direction: row;
+                }
+                .pipeline-carousel::-webkit-scrollbar {
+                    display: none;
+                }
+                .pipeline-carousel {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+                .metrics-container::-webkit-scrollbar {
+                    display: none;
+                }
+                .metrics-container {
+                    -ms-overflow-style: none;  /* IE and Edge */
+                    scrollbar-width: none;  /* Firefox */
+                }
+                .caisse-main-column {
+                    flex: 1;
+                }
+                .caisse-cart-column {
+                    width: 380px;
+                }
+                
+                @media (max-width: 900px) {
+                    .caisse-layout-container {
+                        flex-direction: column !important;
+                        overflow-y: auto !important;
+                    }
+                    .caisse-main-column {
+                        flex: none !important;
+                        overflow-y: visible !important;
+                    }
+                    .caisse-cart-column {
+                        width: 100% !important;
+                        border-left: none !important;
+                        border-top: 1.5px solid #FDE8DB !important;
+                        padding-bottom: 80px !important;
+                    }
+                }
+            `}</style>
         </div>
     )
 }

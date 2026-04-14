@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Delete, Check, X } from 'lucide-react'
 
 interface NumPadProps {
@@ -11,6 +11,7 @@ interface NumPadProps {
     isPassword?: boolean
     allowDecimal?: boolean
     maxLength?: number
+    isPhone?: boolean
 }
 
 export default function NumPad({
@@ -20,45 +21,49 @@ export default function NumPad({
     title = 'Saisie numérique',
     isPassword = false,
     allowDecimal = false,
-    maxLength
+    maxLength,
+    isPhone = false
 }: NumPadProps) {
     const [value, setValue] = useState(initialValue)
 
-    const handleNumber = (num: string) => {
+    const handleNumber = useCallback((num: string) => {
         if (maxLength && value.length >= maxLength) return
 
         // Prevent multiple decimals
         if (num === '.' && value.includes('.')) return
 
-        // Handle leading zeros for numeric non-PIN values
+        // Handle leading zeros for standard numeric values (prevents 00123 -> 123)
+        // But ALLOW leading zeros for Phone numbers, Passwords (PINs) or when a specific length is expected
         let newVal = value + num
-        if (!maxLength && newVal.startsWith('0') && newVal.length > 1 && num !== '.') {
+        const isSpecialInput = isPhone || isPassword || !!maxLength
+        if (!isSpecialInput && newVal.startsWith('0') && newVal.length > 1 && num !== '.') {
             newVal = newVal.replace(/^0+/, '')
         }
 
         setValue(newVal)
-    }
+    }, [value, maxLength])
 
-    const handleDelete = () => {
+    const handleDelete = useCallback(() => {
         setValue(prev => prev.slice(0, -1))
-    }
+    }, [])
 
-    const handleClear = () => {
+    const handleClear = useCallback(() => {
         setValue('')
-    }
+    }, [])
 
     // Support physical keyboard
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key >= '0' && e.key <= '9') handleNumber(e.key)
             if (e.key === '.' || e.key === ',') handleNumber('.')
+            if (e.key === '+' && isPhone) handleNumber('+')
             if (e.key === 'Backspace') handleDelete()
             if (e.key === 'Enter') onConfirm(value)
             if (e.key === 'Escape') onCancel()
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [value])
+    }, [handleNumber, handleDelete, onConfirm, onCancel, value])
 
     const displayValue = isPassword
         ? '•'.repeat(value.length)
@@ -120,7 +125,9 @@ export default function NumPad({
                         <PadButton key={n} onClick={() => handleNumber(n.toString())}>{n}</PadButton>
                     ))}
 
-                    {allowDecimal ? (
+                    {isPhone ? (
+                        <PadButton onClick={() => handleNumber('+')}>+</PadButton>
+                    ) : allowDecimal ? (
                         <PadButton onClick={() => handleNumber('.')}>.</PadButton>
                     ) : (
                         <PadButton onClick={handleClear} style={{ background: '#FEF3EC', color: '#D97757', fontSize: '1rem' }}>Effacer</PadButton>

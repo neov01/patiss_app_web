@@ -4,12 +4,14 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, Search, Box, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useOffline } from '@/components/providers/OfflineProvider'
+import { getCachedProducts } from '@/lib/offline/db'
 
 type Product = {
     id: string
     name: string
     selling_price: number
-    current_stock: number
+    current_stock: number | null
     category: string | null
 }
 
@@ -34,26 +36,65 @@ export default function CatalogueModal({
     const [activeCat, setActiveCat] = useState('Tous')
     const inputRef = useRef<HTMLInputElement>(null)
 
+    const { isOffline, refreshProductCache } = useOffline()
+
     // Load
     useEffect(() => {
         if (!open) return
         
         async function fetchCatalogue() {
             setLoading(true)
-            const supabase = createClient()
-            const { data } = await (supabase.from as any)('products')
-                .select('id, name, selling_price, current_stock, category')
-                .eq('organization_id', organizationId)
-                .order('name')
             
-            if (data) setProducts(data as any[])
+            if (isOffline) {
+                // MODE OFFLINE : lire le cache IndexedDB
+                try {
+                    const cached = await getCachedProducts()
+                    setProducts(cached.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        selling_price: p.selling_price,
+                        current_stock: p.current_stock,
+                        category: p.category
+                    })))
+                } catch (err) {
+                    console.error('[Offline] Erreur lecture cache produits:', err)
+                    setProducts([])
+                }
+            } else {
+                // MODE ONLINE : Supabase
+                const supabase = createClient()
+                const { data, error } = await supabase.from('products')
+                    .select('id, name, selling_price, current_stock, category')
+                    .eq('organization_id', organizationId)
+                    .order('name')
+                
+                if (error) {
+                    console.error('[Online] Erreur fetch catalogue:', error)
+                    setProducts([])
+                } else {
+                    const productsList = data || []
+                    setProducts(productsList)
+                    
+                    // Mettre à jour le cache local pour le futur mode hors-ligne
+                    if (productsList.length > 0) {
+                        refreshProductCache(productsList.map(p => ({
+                            id: p.id,
+                            name: p.name,
+                            selling_price: p.selling_price,
+                            current_stock: p.current_stock,
+                            category: p.category
+                        })))
+                    }
+                }
+            }
+            
             setLoading(false)
         }
         fetchCatalogue()
 
         // Focus input
         setTimeout(() => inputRef.current?.focus(), 100)
-    }, [open, organizationId])
+    }, [open, organizationId, isOffline, refreshProductCache])
 
     // Keyboard escape
     useEffect(() => {
@@ -142,38 +183,51 @@ export default function CatalogueModal({
                             {filtered.map(product => {
                                 const isOutOfStock = product.current_stock === 0
                                 return (
-                                    <button key={product.id} onClick={() => { onAddToCart(product); toast.success(`${product.name} ajouté`) }}
+                                    <button 
+                                        key={product.id} 
+                                        disabled={isOutOfStock}
+                                        onClick={() => { onAddToCart(product); toast.success(`${product.name} ajouté`) }}
                                         style={{
-                                            background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #E5E7EB',
-                                            textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                            background: 'white', padding: '16px', borderRadius: '16px', border: isOutOfStock ? '1px solid #FECACA' : '1px solid #E5E7EB',
+                                            textAlign: 'center', cursor: isOutOfStock ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
                                             boxShadow: '0 2px 8px rgba(0,0,0,0.02)', transition: 'transform 0.1s, box-shadow 0.1s',
                                             position: 'relative',
-                                            minHeight: '130px'
+                                            minHeight: '130px',
+                                            opacity: isOutOfStock ? 0.6 : 1,
+                                            filter: isOutOfStock ? 'grayscale(0.3)' : 'none'
                                         }}
-                                        className="card-clickable"
+                                        className={isOutOfStock ? '' : "card-clickable"}
                                     >
-                                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-                                            <Box size={22} color="#D97757" />
+                                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: isOutOfStock ? '#FEF2F2' : '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                                            <Box size={22} color={isOutOfStock ? '#DC2626' : "#D97757"} />
                                         </div>
-                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2D1B0E', marginBottom: '4px', lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: isOutOfStock ? '#9C8070' : '#2D1B0E', marginBottom: '4px', lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                             {product.name}
                                         </div>
-                                        <div style={{ fontWeight: 800, color: '#C4836A', fontSize: '1rem', marginTop: 'auto' }}>
-                                            {product.selling_price.toLocaleString('fr-FR')} {currency}
+                                        <div style={{ fontWeight: 800, color: isOutOfStock ? '#9C8070' : '#C4836A', fontSize: '1rem', marginTop: 'auto' }}>
+                                            {Number(product.selling_price).toLocaleString('fr-FR')} {currency}
                                         </div>
 
-                                        {/* Petit indicateur de stock en bas à droite (Floating Badge) */}
+                                        {/* Indicateur de stock ultra-visible */}
                                         <div style={{
-                                            position: 'absolute', bottom: '8px', right: '8px',
-                                            background: isOutOfStock ? '#FEF2F2' : '#ECFDF5',
-                                            color: isOutOfStock ? '#DC2626' : '#059669',
-                                            border: `1px solid ${isOutOfStock ? '#FECACA' : '#A7F3D0'}`,
-                                            padding: '2px 6px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 900,
-                                            display: 'flex', alignItems: 'center', gap: '4px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                            position: 'absolute', 
+                                            top: '8px', 
+                                            right: '8px',
+                                            padding: isOutOfStock ? '6px 12px' : '4px 10px',
+                                            borderRadius: '99px',
+                                            background: isOutOfStock ? '#DC2626' : ((product.current_stock || 0) < 5 ? '#F59E0B' : '#10B981'),
+                                            color: 'white',
+                                            fontSize: isOutOfStock ? '0.7rem' : '0.8rem',
+                                            fontWeight: 900,
+                                            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                                            zIndex: 10,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            border: '2px solid #fff',
+                                            pointerEvents: 'none'
                                         }}>
-                                            <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-                                            {product.current_stock}
+                                            {isOutOfStock ? 'ÉPUISÉ' : product.current_stock}
                                         </div>
                                     </button>
                                 )

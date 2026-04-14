@@ -9,6 +9,9 @@ import { toast } from 'sonner'
 import { addPayEvent } from '@/lib/actions/employees'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import TouchInput from '@/components/ui/TouchInput'
+import MonthPicker from '@/components/ui/MonthPicker'
+import { useCurrency } from '@/providers/CurrencyProvider'
 
 interface Props {
   open: boolean
@@ -20,6 +23,7 @@ interface Props {
 }
 
 export default function PayEventModal({ open, onClose, onSuccess, employeeId, employeeName, defaultMonth }: Props) {
+  const { currency } = useCurrency()
   const [isMounted, setIsMounted] = useState(false)
   const [type, setType]     = useState<'prime' | 'retenue'>('prime')
   const [amount, setAmount] = useState('')
@@ -81,7 +85,7 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
         background: '#fff', borderRadius: '24px', width: '100%', maxWidth: '420px',
         boxShadow: '0 24px 64px rgba(45,27,14,0.2)',
         animation: 'scaleIn 0.25s ease',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}>
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -128,15 +132,14 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
 
           {/* Montant */}
           <div>
-            <label className="label">Montant (FCFA)</label>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="Ex: 15000"
-              style={{ fontSize: '1.2rem', fontWeight: 700, textAlign: 'right' }}
+            <label className="label">Montant ({currency})</label>
+            <TouchInput
+                value={amount}
+                onChange={setAmount}
+                allowDecimal={false}
+                title="Saisie du montant"
+                placeholder="Ex: 15000"
+                style={{ fontSize: '1.2rem', fontWeight: 700 }}
             />
           </div>
 
@@ -155,11 +158,10 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
           {/* Mois */}
           <div>
             <label className="label">Mois concerné</label>
-            <input
-              className="input"
-              type="month"
+            <MonthPicker
               value={month}
-              onChange={e => setMonth(e.target.value)}
+              onChange={setMonth}
+              direction="up"
             />
           </div>
         </div>

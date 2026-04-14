@@ -3,6 +3,7 @@
 // {"file":"src/components/equipe/EquipeClient.tsx","type":"component","depends":["react","lucide-react","sonner","./EmployeeCard","./EmployeeModal","./PayslipDrawer"],"exports":["default"],"supabase_tables":["profiles"]}
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { UserPlus, Users } from 'lucide-react'
 import EmployeeCard, { EmployeeData } from './EmployeeCard'
 import EmployeeModal from './EmployeeModal'
@@ -16,6 +17,7 @@ interface Props {
 
 export default function EquipeClient({ employees: initial, organizationId, currency }: Props) {
   const [employees, setEmployees] = useState<EmployeeData[]>(initial)
+  const router = useRouter()
 
   // Modals state
   const [modalOpen, setModalOpen]       = useState(false)
@@ -24,6 +26,7 @@ export default function EquipeClient({ employees: initial, organizationId, curre
 
   const [payslipOpen, setPayslipOpen]   = useState(false)
   const [payslipTarget, setPayslipTarget] = useState<EmployeeData | undefined>(undefined)
+  const [showInactive, setShowInactive] = useState(false)
 
   // ── Handlers ──
   const openCreate = () => {
@@ -44,12 +47,13 @@ export default function EquipeClient({ employees: initial, organizationId, curre
   }
 
   const handleDeactivated = (id: string) => {
-    setEmployees(prev => prev.filter(e => e.id !== id))
+    // router.refresh() will update initial props
+    router.refresh()
   }
 
   const handleSuccess = () => {
-    // Recharge la page pour récupérer les dernières données du serveur
-    window.location.reload()
+    // Rafraîchit les données sans recharger toute la page
+    router.refresh()
   }
 
   return (
@@ -59,16 +63,33 @@ export default function EquipeClient({ employees: initial, organizationId, curre
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Users size={24} color="var(--color-rose-dark)" />
-            Mon Équipe
+            {showInactive ? 'Membres archivés' : 'Mon Équipe'}
           </h1>
           <p style={{ color: 'var(--color-muted)', margin: '6px 0 0', fontSize: '0.875rem' }}>
-            {employees.length} membre{employees.length > 1 ? 's' : ''} · Gérez les accès et la paie
+            {initial.filter(e => e.is_active !== showInactive).length} membre{initial.filter(e => e.is_active !== showInactive).length > 1 ? 's' : ''} {showInactive ? 'désactivés' : 'actifs'}
           </p>
         </div>
-        <button type="button" onClick={openCreate} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <UserPlus size={18} />
-          Ajouter un employé
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            type="button" 
+            onClick={() => setShowInactive(!showInactive)}
+            className="btn-ghost"
+            style={{ 
+              fontSize: '0.85rem', 
+              fontWeight: 700, 
+              color: showInactive ? 'var(--color-rose-dark)' : 'var(--color-muted)',
+              border: showInactive ? '1px solid var(--color-rose-dark)' : '1px solid var(--color-border)',
+              padding: '8px 16px',
+              borderRadius: '12px'
+            }}
+          >
+            {showInactive ? 'Voir l\'équipe active' : 'Voir les archivés'}
+          </button>
+          <button type="button" onClick={openCreate} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <UserPlus size={18} />
+            Ajouter un employé
+          </button>
+        </div>
       </div>
 
       {/* ── Liste ── */}
@@ -89,16 +110,19 @@ export default function EquipeClient({ employees: initial, organizationId, curre
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-          {employees.map(emp => (
-            <EmployeeCard
-              key={emp.id}
-              employee={emp}
-              currency={currency}
-              onEdit={openEdit}
-              onPayslip={openPayslip}
-              onDeactivated={handleDeactivated}
-            />
-          ))}
+          {initial
+            .filter(emp => showInactive ? emp.is_active === false : (emp.is_active !== false))
+            .map(emp => (
+              <EmployeeCard
+                key={emp.id}
+                employee={emp}
+                currency={currency}
+                onEdit={openEdit}
+                onPayslip={openPayslip}
+                onDeactivated={handleDeactivated}
+              />
+            ))
+          }
         </div>
       )}
 

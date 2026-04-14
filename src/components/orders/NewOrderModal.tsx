@@ -3,13 +3,15 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search } from 'lucide-react'
-import { createOrder } from '../../../lib/actions/orders'
+import { createOrder } from '@/lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
 import TimeDigiPad from '@/components/ui/TimeDigiPad'
+import TouchSelect from '@/components/ui/TouchSelect'
 
-interface Product { id: string; name: string; selling_price: number }
+interface Product { id: string; name: string; selling_price: number; current_stock: number | null }
 
 interface OrderItem {
     product_id?: string
@@ -38,6 +40,21 @@ const PRIORITY_OPTIONS = [
     { value: 'normale', label: 'Normale', color: '#3b82f6' },
     { value: 'urgent', label: 'Urgent', color: '#f59e0b' },
     { value: 'vip', label: 'VIP', color: '#10b981' },
+]
+
+const ORDER_CHANNELS = [
+    { value: 'Sur place', label: '📍 Sur place' },
+    { value: 'WhatsApp', label: '💬 WhatsApp' },
+    { value: 'Téléphone', label: '📞 Téléphone' },
+    { value: 'Instagram', label: '📸 Instagram' },
+    { value: 'Messenger', label: '🔵 Messenger' },
+]
+
+const PAYMENT_METHODS = [
+    { value: 'Espèces', label: '💵 Espèces' },
+    { value: 'Orange Money', label: '🟠 Orange Money' },
+    { value: 'Wave', label: '🌊 Wave' },
+    { value: 'Carte Bancaire', label: '💳 Carte Bancaire' },
 ]
 
 export default function NewOrderModal({ open, onClose, products: initialProducts, currency }: Props) {
@@ -109,7 +126,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         const fetchSearch = async () => {
             setIsSearching(true)
             const supabase = createSupabaseClient()
-            const { data } = await (supabase.from as any)('products').select('id, name, selling_price').ilike('name', `%${searchQuery}%`).limit(10)
+            const { data } = await supabase.from('products').select('id, name, selling_price, current_stock').ilike('name', `%${searchQuery}%`).limit(10)
             if (data) setSearchResults(data)
             setIsSearching(false)
         }
@@ -191,10 +208,21 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         if (pickupTime) {
             const [hh, mm] = pickupTime.split(':')
             d.setHours(parseInt(hh), parseInt(mm), 0, 0)
+        } else {
+            // Default to 10:00 AM if no time specified, or just leave as is (midnight)
+            // Setting to midnight local is fine as Supabase will store it correctly
+            d.setHours(10, 0, 0, 0) // Default 10h for pickup if not specified
         }
-        // Format as 'YYYY-MM-DDTHH:MM' for datetime-local compat
+        
+        // Use a safe ISO-like format that Supabase likes
         const pad = (n: number) => n.toString().padStart(2, '0')
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+        const yyyy = d.getFullYear()
+        const mm = pad(d.getMonth() + 1)
+        const dd = pad(d.getDate())
+        const hh = pad(d.getHours())
+        const min = pad(d.getMinutes())
+        
+        return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`
     })()
 
     async function handleSubmit(e: React.FormEvent) {
@@ -217,10 +245,18 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
             if (imageFile) {
                 try {
+                    // Compression de l'image (max 1200px, qualité 0.7, format WebP)
+                    const compressed = await compressImage(imageFile, { maxWidth: 1200, quality: 0.7 })
+                    
                     const supabase = createSupabaseClient()
-                    const ext = imageFile.name.split('.').pop() || 'jpg'
-                    const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-                    const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, imageFile)
+                    // On force le format .webp car notre utilitaire sort du WebP
+                    const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+                    
+                    const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, compressed, {
+                        contentType: 'image/webp',
+                        upsert: true
+                    })
+                    
                     if (!uploadError) {
                         const { data } = supabase.storage.from('order-images').getPublicUrl(filePath)
                         customImageUrl = data.publicUrl
@@ -283,10 +319,13 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                         </div>
                         
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                            <select value={status} onChange={e => setStatus(e.target.value)} 
-                                className="input" style={{ width: 'auto', padding: '4px 12px', minHeight: '32px', borderRadius: '99px', fontSize: '0.875rem', fontWeight: 600 }}>
-                                {STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
+                            <TouchSelect
+                                value={status}
+                                onChange={setStatus}
+                                options={STATUS_OPTIONS}
+                                title="Statut de la commande"
+                                style={{ width: 'auto', padding: '0 16px', minHeight: '36px', borderRadius: '20px', fontSize: '0.875rem' }}
+                            />
                             
                             <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '4px', gap: '4px' }}>
                                 {PRIORITY_OPTIONS.map(opt => (
@@ -323,16 +362,20 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 <div style={{ position: 'relative' }}>
                                     <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
                                     <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={clientName}
-                                        onChange={e => setClientName(e.target.value)} placeholder="Nom du client" required />
+                                        onChange={e => setClientName(e.target.value)} placeholder="Nom du client" required inputMode="text" autoComplete="name" />
                                 </div>
                             </div>
                             <div>
                                 <label className="label">Téléphone *</label>
-                                <div style={{ position: 'relative' }}>
-                                    <Phone size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
-                                    <input type="tel" className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={clientPhone}
-                                        onChange={e => setClientPhone(e.target.value)} placeholder="+225 00000000" required />
-                                </div>
+                                <TouchInput 
+                                    value={clientPhone}
+                                    onChange={setClientPhone}
+                                    placeholder="+225 00000000"
+                                    title="Numéro de téléphone"
+                                    isPhone={true}
+                                    icon={<Phone size={16} style={{ color: '#d97757' }} />}
+                                    style={{ borderColor: '#d4a87a' }}
+                                />
                             </div>
                             
                             <div style={{ gridColumn: '1 / -1' }}>
@@ -374,7 +417,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     <div style={{ position: 'relative' }}>
                                         <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
                                         <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={deliveryAddress}
-                                            onChange={e => setDeliveryAddress(e.target.value)} placeholder="Quartier, rue..." required={receptionType === 'livraison'} />
+                                            onChange={e => setDeliveryAddress(e.target.value)} placeholder="Quartier, rue..." required={receptionType === 'livraison'} inputMode="text" autoComplete="street-address" />
                                     </div>
                                 </div>
                             )}
@@ -382,13 +425,12 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             {receptionType === 'retrait' && (
                                 <div>
                                     <label className="label">Canal de commande</label>
-                                    <select className="input" value={orderChannel} onChange={e => setOrderChannel(e.target.value)}>
-                                        <option>Sur place</option>
-                                        <option>WhatsApp</option>
-                                        <option>Téléphone</option>
-                                        <option>Instagram</option>
-                                        <option>Messenger</option>
-                                    </select>
+                                    <TouchSelect
+                                        value={orderChannel}
+                                        onChange={setOrderChannel}
+                                        options={ORDER_CHANNELS}
+                                        title="Choisir le canal"
+                                    />
                                 </div>
                             )}
                         </div>
@@ -406,13 +448,37 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 
                                 {searchResults.length > 0 && (
                                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', zIndex: 20, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
-                                        {searchResults.map(res => (
-                                            <button key={res.id} type="button" onClick={() => handleAddItem(res)}
-                                                style={{ width: '100%', padding: '10px 12px', textAlign: 'left', display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)' }}>
-                                                <span style={{ fontWeight: 600 }}>{res.name}</span>
-                                                <span style={{ color: 'var(--color-muted)' }}>{res.selling_price.toLocaleString('fr-FR')} {currency}</span>
-                                            </button>
-                                        ))}
+                                        {searchResults.map(res => {
+                                            const isOut = res.current_stock === 0
+                                            return (
+                                                <button key={res.id} type="button" 
+                                                    onClick={() => !isOut && handleAddItem(res)}
+                                                    disabled={isOut}
+                                                    style={{ 
+                                                        width: '100%', padding: '10px 12px', textAlign: 'left', display: 'flex', 
+                                                        justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)',
+                                                        opacity: isOut ? 0.6 : 1,
+                                                        cursor: isOut ? 'not-allowed' : 'pointer',
+                                                        background: isOut ? '#f9fafb' : 'transparent'
+                                                    }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ 
+                                                            minWidth: '24px', height: '20px', borderRadius: '4px',
+                                                            background: isOut ? '#DC2626' : ((res.current_stock || 0) < 5 ? '#F59E0B' : '#10B981'),
+                                                            color: 'white', fontSize: '0.65rem', fontWeight: 800,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px'
+                                                        }}>
+                                                            {isOut ? '!' : res.current_stock}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, color: isOut ? '#9ca3af' : 'inherit' }}>{res.name}</div>
+                                                            {isOut && <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 700 }}>Stock épuisé</div>}
+                                                        </div>
+                                                    </div>
+                                                    <span style={{ color: isOut ? '#9ca3af' : 'var(--color-muted)' }}>{Number(res.selling_price).toLocaleString('fr-FR')} {currency}</span>
+                                                </button>
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -424,7 +490,13 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                             {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inv.</span>}
                                             <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px' }} required />
                                         </div>
-                                        <input type="number" min="1" className="input" value={item.quantity || ''} onChange={e => handleUpdateItem(idx, 'quantity', parseInt(e.target.value) || 0)} style={{ padding: '6px 8px', height: '32px', textAlign: 'center' }} required />
+                                        <TouchInput
+                                            value={item.quantity.toString()}
+                                            onChange={v => handleUpdateItem(idx, 'quantity', parseInt(v) || 1)}
+                                            allowDecimal={false}
+                                            title={`Quantité : ${item.name || 'Produit'}`}
+                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'center' }}
+                                        />
                                         <TouchInput value={item.unit_price.toString()} onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)} style={{ padding: '6px 8px', height: '32px', textAlign: 'right' }} />
                                         <button type="button" onClick={() => handleRemoveItem(idx)} className="btn-ghost" style={{ padding: '0', minHeight: '32px', color: '#D94F38' }}>
                                             <X size={16} />

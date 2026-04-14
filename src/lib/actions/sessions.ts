@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { closeSingleSession } from './session-utils'
 
 export async function getOpenSession(orgId: string) {
     const supabase = await createClient()
@@ -23,20 +24,11 @@ export async function toggleSession(orgId: string, userId: string, currentlyOpen
     const supabase = await createClient()
 
     if (currentlyOpenSessionId) {
-        // Close session via the API endpoint (which also computes metrics and sends the report email)
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-        const res = await fetch(`${baseUrl}/api/cron/close-session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.CRON_SECRET}`
-            },
-            body: JSON.stringify({ session_id: currentlyOpenSessionId, closed_by: userId })
-        })
-
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            return { success: false, error: data.error || 'Erreur lors de la clôture' }
+        // Clôture DIRECTE et FIABLE sans passer par un appel HTTP interne instable
+        const result = await closeSingleSession(currentlyOpenSessionId, userId)
+        
+        if (!result.success) {
+            return { success: false, error: result.error || 'Erreur lors de la clôture' }
         }
     } else {
         // Open new session

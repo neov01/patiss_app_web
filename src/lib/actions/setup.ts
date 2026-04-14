@@ -63,7 +63,7 @@ export async function setupSuperAdmin(formData: {
     } else {
         const { data: newOrg, error: orgError } = await supabaseAdmin
             .from('organizations')
-            .insert({ name: formData.orgName || 'Ma Pâtisserie', currency_symbol: 'FCFA' })
+            .insert({ name: formData.orgName || 'Ma Pâtisserie', currency_symbol: '' })
             .select()
             .single()
 

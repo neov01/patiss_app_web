@@ -62,6 +62,7 @@ export type Database = {
           created_at: string | null
           current_stock: number
           id: string
+          is_active: boolean | null
           name: string
           organization_id: string
           unit: string
@@ -72,6 +73,7 @@ export type Database = {
           created_at?: string | null
           current_stock?: number
           id?: string
+          is_active?: boolean | null
           name: string
           organization_id: string
           unit: string
@@ -82,6 +84,7 @@ export type Database = {
           created_at?: string | null
           current_stock?: number
           id?: string
+          is_active?: boolean | null
           name?: string
           organization_id?: string
           unit?: string
@@ -629,6 +632,7 @@ export type Database = {
           label_type: string
           order_id: string | null
           organization_id: string
+          payment_details: Json | null
           payment_method: string
         }
         Insert: {
@@ -640,6 +644,7 @@ export type Database = {
           label_type?: string
           order_id?: string | null
           organization_id: string
+          payment_details?: Json | null
           payment_method: string
         }
         Update: {
@@ -651,6 +656,7 @@ export type Database = {
           label_type?: string
           order_id?: string | null
           organization_id?: string
+          payment_details?: Json | null
           payment_method?: string
         }
         Relationships: [
@@ -683,10 +689,21 @@ export type Database = {
         Args: { p_qty: number; p_recipe_id: string }
         Returns: undefined
       }
+      get_best_sellers_v2: {
+        Args: { p_days_limit?: number; p_org_id: string; p_top_n?: number }
+        Returns: {
+          id: string
+          name: string
+          selling_price: number
+          stock_qty: number
+          total_sold: number
+        }[]
+      }
       get_daily_metrics: {
         Args: { p_org_id: string; p_target_date: string }
         Returns: Json
       }
+      get_ia_financial_context: { Args: { p_org_id: string }; Returns: Json }
       get_user_organization_id: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
       is_super_admin: { Args: never; Returns: boolean }
@@ -823,7 +840,12 @@ export const Constants = {
   },
 } as const
 
-// ─── Convenience type aliases (used across the app) ───
-export type Profile = Database['public']['Tables']['profiles']['Row']
-export type Ingredient = Database['public']['Tables']['ingredients']['Row']
-export type RoleSlug = 'super_admin' | 'gerant' | 'vendeur' | 'patissier'
+// --- Helpers pour le reste de l'application ---
+export type Profile = Tables<'profiles'>
+export type RoleSlug = Profile['role_slug']
+export type Ingredient = Tables<'ingredients'>
+export type Product = Tables<'products'>
+export type Order = Tables<'orders'>
+export type SalesSession = Tables<'sales_sessions'>
+export type Transaction = Tables<'transactions'>
+export type InventoryLog = Tables<'inventory_logs'>

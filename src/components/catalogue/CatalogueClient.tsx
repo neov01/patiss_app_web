@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Edit, Trash2, Loader2, Package } from 'lucide-react'
 import { deleteProduct } from '@/lib/actions/products'
 import { toast } from 'sonner'
@@ -14,6 +15,7 @@ interface Product {
   type: string
   trackStock: boolean
   currentStock?: number
+  image_url?: string | null
 }
 
 interface CatalogueClientProps {
@@ -33,6 +35,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 }
 
 export default function CatalogueClient({ products, currency, availableIngredients }: CatalogueClientProps) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Tous')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -56,6 +59,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
       const res = await deleteProduct(id)
       if (res.success) {
         toast.success("Produit supprimé")
+        router.refresh()
       } else {
         toast.error(res.error)
       }
@@ -181,26 +185,36 @@ export default function CatalogueClient({ products, currency, availableIngredien
                   </button>
                 </div>
 
-                {/* Icône du produit */}
+                {/* Icône ou Photo du produit */}
                 <div style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '32px',
-                  background: 'var(--color-blush)',
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '36px',
+                  background: product.image_url ? 'transparent' : 'var(--color-blush)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '1.75rem',
                   marginBottom: '16px',
-                  border: '1.5px solid var(--color-border)'
+                  border: '2px solid var(--color-border)',
+                  overflow: 'hidden',
+                  flexShrink: 0
                 }}>
-                  {product.type === 'maison' ? CATEGORY_ICONS[product.category] || '🥐' : '📦'}
+                  {product.image_url ? (
+                    <img 
+                      src={product.image_url} 
+                      alt={product.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    product.type === 'maison' ? CATEGORY_ICONS[product.category] || '🥐' : '📦'
+                  )}
                 </div>
                 
                 {/* Infos du produit */}
                 <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>{product.name}</h3>
                 <p style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--color-rose-dark)', margin: '0 0 12px' }}>
-                  {product.sellingPrice.toLocaleString('fr-FR')} {currency}
+                  {Number(product.sellingPrice).toLocaleString('fr-FR')} {currency}
                 </p>
                 
                 {/* Badge de Stock / Rupture */}
@@ -234,9 +248,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
         productToEdit={editingProduct}
         onSuccess={() => {
           setEditingProduct(null)
-          // router.refresh est géré par CatalogueHeader d'habitude, mais ici on est dans Client.
-          // On pourrait passer router ici ou juste laisser le revalidatePath faire son taf.
-          window.location.reload()
+          router.refresh()
         }}
       />
       {/* Modal de Confirmation de Suppression */}

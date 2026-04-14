@@ -3,33 +3,26 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { ensureActiveSubscription } from '@/lib/utils/subscription'
+import { z } from 'zod'
 
-export async function createOrder(formData: {
-    customer_name: string
-    customer_contact?: string
-    pickup_date: string
-    deposit_amount: number
-    total_amount: number
-    custom_image_url?: string
-    order_number: string
-    priority: string
-    reception_type: string
-    delivery_address?: string
-    order_channel?: string
-    subtotal: number
-    delivery_fee: number
-    balance: number
-    customization_notes?: string
-    status: string
-    deposit_payment_method?: string
-    items: { product_id?: string; name: string; quantity: number; unit_price: number; subtotal?: number; from_inventory: boolean }[]
-}) {
+import { orderSchema } from '@/lib/schemas/order.schema'
+
+export async function createOrder(input: any) {
     // Bloquer si l'abonnement est expiré
     try {
         await ensureActiveSubscription()
     } catch (e: any) {
         return { error: e.message }
     }
+
+    // 1. Validation Serveur (Zod)
+    const result = orderSchema.safeParse(input)
+    if (!result.success) {
+        const errors = result.error.flatten().fieldErrors
+        const firstErr = Object.values(errors).flat()[0]
+        return { error: firstErr || 'Données de commande invalides' }
+    }
+    const formData = result.data
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -38,10 +31,15 @@ export async function createOrder(formData: {
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
     if (!profile?.organization_id) return { error: 'Organisation introuvable' }
 
+    // 2. Calculs Sécurisés (Business Logic)
+    const totalAmount = formData.total_amount
+    const depositAmount = formData.deposit_amount
+    const balance = Math.max(0, totalAmount - depositAmount)
+
     // Déterminer le statut de paiement initial
-    const paymentStatus = formData.deposit_amount >= formData.total_amount
+    const paymentStatus = depositAmount >= totalAmount
         ? 'SOLDEE'
-        : formData.deposit_amount > 0
+        : depositAmount > 0
             ? 'PARTIEL'
             : 'EN_ATTENTE'
 
@@ -51,8 +49,8 @@ export async function createOrder(formData: {
         customer_name: formData.customer_name,
         customer_contact: formData.customer_contact,
         pickup_date: formData.pickup_date,
-        total_amount: formData.total_amount,
-        deposit_amount: formData.deposit_amount,
+        total_amount: totalAmount,
+        deposit_amount: depositAmount,
         custom_image_url: formData.custom_image_url,
         priority: formData.priority,
         reception_type: formData.reception_type,
@@ -60,7 +58,7 @@ export async function createOrder(formData: {
         order_channel: formData.order_channel,
         subtotal: formData.subtotal,
         delivery_fee: formData.delivery_fee,
-        balance: formData.balance,
+        balance: balance,
         customization_notes: formData.customization_notes,
         created_by: user.id,
         status: formData.status || 'pending',
@@ -83,13 +81,13 @@ export async function createOrder(formData: {
     }
 
     // Enregistrer l'acompte comme transaction avec label ACOMPTE
-    if (formData.deposit_amount > 0) {
-        const labelType = formData.deposit_amount >= formData.total_amount ? 'SOLDE' : 'ACOMPTE'
+    if (depositAmount > 0) {
+        const labelType = depositAmount >= totalAmount ? 'SOLDE' : 'ACOMPTE'
         await supabase.from('transactions').insert({
             organization_id: profile.organization_id,
             order_id: order.id,
             client_name: formData.customer_name,
-            amount: formData.deposit_amount,
+            amount: depositAmount,
             payment_method: formData.deposit_payment_method || 'Espèces',
             label_type: labelType,
             created_by: user.id
@@ -131,16 +129,27 @@ export async function deleteOrder(orderId: string) {
     return { success: true }
 }
 
-export async function createVitrineSale(formData: {
-    total_amount: number
-    items: { product_id: string; quantity: number; unit_price: number }[]
-}) {
+export async function createVitrineSale(input: any) {
     // Bloquer si l'abonnement est expiré
     try {
         await ensureActiveSubscription()
     } catch (e: any) {
         return { error: e.message }
     }
+
+    // Validation rapide pour la vitrine
+    const vitrineSchema = z.object({
+        total_amount: z.number().min(0),
+        items: z.array(z.object({
+            product_id: z.string().uuid(),
+            quantity: z.number().positive(),
+            unit_price: z.number().min(0)
+        })).min(1)
+    })
+
+    const result = vitrineSchema.safeParse(input)
+    if (!result.success) return { error: 'Données de vente invalides' }
+    const formData = result.data
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -158,14 +167,26 @@ export async function createVitrineSale(formData: {
         deposit_amount: formData.total_amount, 
         created_by: user.id,
         status: 'completed',
+        payment_status: 'SOLDEE'
     }).select().single()
 
     if (error) return { error: error.message }
 
     if (formData.items.length > 0) {
         await supabase.from('order_items').insert(
-            formData.items.map(i => ({ order_id: order.id, ...i }))
+            formData.items.map((i: any) => ({ order_id: order.id, ...i }))
         )
+        
+        // Enregistrer la transaction associée
+        await supabase.from('transactions').insert({
+            organization_id: profile.organization_id,
+            order_id: order.id,
+            client_name: 'Client Vitrine',
+            amount: formData.total_amount,
+            payment_method: 'Espèces', // Par défaut
+            label_type: 'SOLDE',
+            created_by: user.id
+        })
     }
 
     revalidatePath('/dashboard')

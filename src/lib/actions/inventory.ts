@@ -44,6 +44,7 @@ export async function createIngredient(formData: {
     unit: string
     cost_per_unit: number
     alert_threshold: number
+    current_stock?: number
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -65,6 +66,7 @@ export async function createIngredient(formData: {
         unit: formData.unit,
         cost_per_unit: formData.cost_per_unit,
         alert_threshold: formData.alert_threshold,
+        current_stock: formData.current_stock ?? 0,
     }).select().single()
 
     if (error) return { error: error.message }
@@ -98,8 +100,27 @@ export async function updateIngredient(id: string, formData: {
     return { success: true }
 }
 
+export async function toggleIngredientStatus(id: string, is_active: boolean) {
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase.from('ingredients').update({
+        is_active: is_active
+    }).eq('id', id)
+
+    if (error) return { error: error.message }
+    
+    revalidatePath('/ingredients')
+    revalidatePath('/inventaire')
+    return { success: true }
+}
+
 export async function deleteIngredient(id: string) {
-    // Bloquer si l'abonnement est expiré
+    // Gardé pour compatibilité mais non utilisé dans l'UI au profit de toggleIngredientStatus
     try {
         await ensureActiveSubscription()
     } catch (e: any) {

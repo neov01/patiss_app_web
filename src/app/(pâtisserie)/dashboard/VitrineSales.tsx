@@ -11,7 +11,7 @@ export default async function VitrineSales({
     const supabase = await createClient()
 
     // On récupère toutes les recettes de l'organisation
-    const { data: products } = await (supabase.from as any)('products')
+    const { data: products } = await supabase.from('products')
         .select('id, name, selling_price')
         .eq('organization_id', organizationId)
         .order('name', { ascending: true })

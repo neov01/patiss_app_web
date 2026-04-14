@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createVitrineSale } from '@/lib/actions/orders'
 import { toast } from 'sonner'
 import { Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react'
+import TouchInput from '@/components/ui/TouchInput'
 
 type Product = {
     id: string
@@ -117,19 +118,39 @@ export default function VitrineSalesClient({ products, currency }: { products: P
                                             {item.product.selling_price} {currency} / u
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', background: '#f3f4f6', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
                                         <button 
                                             onClick={() => removeFromCart(item.product.id)}
-                                            style={{ width: '28px', height: '28px', borderRadius: '14px', border: 'none', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #e5e7eb' }}
                                         >
-                                            <Minus size={14} />
+                                            <Minus size={16} />
                                         </button>
-                                        <span style={{ fontWeight: 600, width: '20px', textAlign: 'center' }}>{item.quantity}</span>
+                                        
+                                        <TouchInput
+                                            value={item.quantity.toString()}
+                                            onChange={(val) => {
+                                                const newQty = Math.max(1, parseInt(val) || 1)
+                                                setCart(prev => prev.map(i => i.product.id === item.product.id ? { ...i, quantity: newQty } : i))
+                                            }}
+                                            title={`Quantité : ${item.product.name}`}
+                                            allowDecimal={false}
+                                            hideIcon={true}
+                                            style={{ 
+                                                minHeight: '36px', 
+                                                border: 'none', 
+                                                background: 'transparent',
+                                                width: '44px',
+                                                justifyContent: 'center',
+                                                fontSize: '0.9rem',
+                                                borderRadius: 0
+                                            }}
+                                        />
+
                                         <button 
                                             onClick={() => addToCart(item.product)}
-                                            style={{ width: '28px', height: '28px', borderRadius: '14px', border: 'none', background: '#f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: '1px solid #e5e7eb' }}
                                         >
-                                            <Plus size={14} />
+                                            <Plus size={16} />
                                         </button>
                                     </div>
                                 </div>

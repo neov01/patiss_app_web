@@ -21,6 +21,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
         unit: ingredient?.unit ?? 'kg',
         cost_per_unit: ingredient?.cost_per_unit ?? 0,
         alert_threshold: ingredient?.alert_threshold ?? 5,
+        current_stock: ingredient?.current_stock ?? 0,
     })
 
     async function handleSubmit(e: React.FormEvent) {
@@ -36,7 +37,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                 toast.success(mode === 'create' ? 'Ingrédient créé !' : 'Ingrédient mis à jour !')
                 setOpen(false)
                 if (mode === 'create') {
-                    setForm({ name: '', unit: 'kg', cost_per_unit: 0, alert_threshold: 5 })
+                    setForm({ name: '', unit: 'kg', cost_per_unit: 0, alert_threshold: 5, current_stock: 0 })
                 }
             }
         })
@@ -66,6 +67,20 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                                 <label className="label">Nom</label>
                                 <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex: Farine T55" required />
                             </div>
+                            
+                            {mode === 'create' && (
+                                <div>
+                                    <label className="label">Quantité en stock initiale</label>
+                                    <TouchInput
+                                        value={form.current_stock.toString()}
+                                        onChange={val => setForm(f => ({ ...f, current_stock: parseFloat(val) || 0 }))}
+                                        allowDecimal={true}
+                                        placeholder="0.0"
+                                        title="Stock initial"
+                                    />
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
                                     <label className="label">Unité</label>

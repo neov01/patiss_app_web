@@ -23,7 +23,7 @@ export default async function CaissePage() {
     }
 
     const orgId = profile.organization_id!
-    const currency = (profile.organizations as any)?.currency_symbol || 'FCFA'
+    const currency = (profile.organizations as any)?.currency_symbol || ''
     const todayStart = startOfDay(new Date()).toISOString()
     const thirtyDaysAgo = subDays(new Date(), 30).toISOString()
 
@@ -68,44 +68,20 @@ export default async function CaissePage() {
         nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0)
     }))
 
-    // 4. Best-sellers (sur 30 jours, on ne garde que les top 8, mais via query)
-    // Supabase RPC if we had one is easier for GROUP BY, but let's do it simple:
-    const { data: allItems } = await supabase
-        .from('transaction_items')
-        .select(`
-            product_id, 
-            quantity, 
-            products!inner(id, name, selling_price, stock_qty)
-        `)
-        .gte('created_at', thirtyDaysAgo)
+    // 4. Best-sellers (sur 30 jours, via RPC haute performance)
+    const { data: rpcBestSellers } = await (supabase.rpc as any)('get_best_sellers_v2', {
+        p_org_id: orgId,
+        p_days_limit: 30,
+        p_top_n: 8
+    })
 
-    type BestSeller = {
-        id: string
-        name: string
-        selling_price: number
-        stock_qty: number
-        quantity: number
-    }
-    let bestSellers: BestSeller[] = []
-    if (allItems) {
-        const counts: Record<string, { id: string, name: string, selling_price: number, stock_qty: number, quantity: number }> = {}
-        allItems.forEach((item: any) => {
-            if (!item.product_id || !item.products) return
-            if (!counts[item.product_id]) {
-                counts[item.product_id] = {
-                    id: item.products.id,
-                    name: item.products.name,
-                    selling_price: item.products.selling_price,
-                    stock_qty: item.products.stock_qty,
-                    quantity: 0
-                }
-            }
-            counts[item.product_id].quantity += item.quantity
-        })
-        bestSellers = Object.values(counts)
-            .sort((a, b) => b.quantity - a.quantity)
-            .slice(0, 8)
-    }
+    const bestSellers = (rpcBestSellers as any[] || []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        selling_price: Number(b.selling_price),
+        stock_qty: b.stock_qty,
+        quantity: Number(b.total_sold)
+    }))
 
     return (
         <CaisseClient 
