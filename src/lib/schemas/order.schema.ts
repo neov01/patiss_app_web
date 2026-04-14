@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const orderItemSchema = z.object({
+  id: z.string().uuid().optional(),
   product_id: z.string().uuid().optional().nullable(),
   name: z.string().min(1, "La désignation est requise"),
   quantity: z.number().positive("La quantité doit être supérieure à 0"),
@@ -10,6 +11,7 @@ export const orderItemSchema = z.object({
 })
 
 export const orderSchema = z.object({
+  id: z.string().uuid().optional(),
   order_number: z.string().min(1, "Le numéro de commande est requis"),
   customer_name: z.string().min(2, "Le nom du client est trop court"),
   customer_contact: z.string().optional(),

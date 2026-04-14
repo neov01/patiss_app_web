@@ -26,7 +26,7 @@ const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'gerant', 'vendeur', 'patissier'] },
     { href: '/caisse', label: 'Caisse', icon: Store, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: ['super_admin', 'gerant', 'vendeur'] },
-    { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, roles: ['super_admin', 'gerant', 'patissier'] },
+    { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, roles: ['super_admin', 'gerant', 'patissier', 'vendeur'] },
     { href: '/ingredients', label: 'Ingrédients', icon: Package, roles: ['super_admin', 'gerant', 'patissier'] },
     { href: '/inventaire', label: 'Inventaire', icon: ClipboardList, roles: ['super_admin', 'gerant', 'patissier'] },
     { href: '/ai-assistant', label: 'Comptable IA', icon: Bot, roles: ['super_admin', 'gerant'] },

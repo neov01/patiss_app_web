@@ -44,6 +44,7 @@ export async function createOrder(input: any) {
             : 'EN_ATTENTE'
 
     const { data: order, error } = await supabase.from('orders').insert({
+        id: formData.id,
         organization_id: profile.organization_id,
         order_number: formData.order_number,
         customer_name: formData.customer_name,
@@ -70,6 +71,7 @@ export async function createOrder(input: any) {
     if (formData.items && formData.items.length > 0) {
         await supabase.from('order_items').insert(
             formData.items.map(i => ({ 
+                id: i.id,
                 order_id: order.id, 
                 product_id: i.product_id || null,
                 name: i.name,
@@ -139,8 +141,10 @@ export async function createVitrineSale(input: any) {
 
     // Validation rapide pour la vitrine
     const vitrineSchema = z.object({
+        id: z.string().uuid().optional(),
         total_amount: z.number().min(0),
         items: z.array(z.object({
+            id: z.string().uuid().optional(),
             product_id: z.string().uuid(),
             quantity: z.number().positive(),
             unit_price: z.number().min(0)
@@ -160,6 +164,7 @@ export async function createVitrineSale(input: any) {
 
     // Vente vitrine: Commande instantanée complétée
     const { data: order, error } = await supabase.from('orders').insert({
+        id: formData.id,
         organization_id: profile.organization_id,
         customer_name: 'Client Vitrine',
         pickup_date: new Date().toISOString(),
@@ -174,7 +179,7 @@ export async function createVitrineSale(input: any) {
 
     if (formData.items.length > 0) {
         await supabase.from('order_items').insert(
-            formData.items.map((i: any) => ({ order_id: order.id, ...i }))
+            formData.items.map((i: any) => ({ id: i.id, order_id: order.id, ...i }))
         )
         
         // Enregistrer la transaction associée

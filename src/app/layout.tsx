@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Toaster } from 'sonner'
 import RegisterSW from '@/components/providers/RegisterSW'
+import ReactQueryProvider from '@/components/providers/ReactQueryProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -33,17 +34,19 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body>
-        {children}
-        <RegisterSW />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              fontFamily: 'Inter, sans-serif',
-              borderRadius: '12px',
-            },
-          }}
-        />
+        <ReactQueryProvider>
+          {children}
+          <RegisterSW />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                fontFamily: 'Inter, sans-serif',
+                borderRadius: '12px',
+              },
+            }}
+          />
+        </ReactQueryProvider>
       </body>
     </html>
   )

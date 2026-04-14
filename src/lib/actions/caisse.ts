@@ -4,12 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 type EncaisserPayload = {
+    id?: string
     order_id: string | null
     client_name: string
     amount: number
     payment_method: string
     payment_details?: Record<string, number>
     items: Array<{
+        id?: string
         product_id: string | null
         name: string
         quantity: number
@@ -24,7 +26,6 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         if (!user) return { error: "Non autorisé" }
 
-        // Mêmes vérifications pour l'utilisateur
         const { data: profile } = await supabase
             .from('profiles')
             .select('organization_id')
@@ -35,17 +36,14 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         const orgId = profile.organization_id
 
-        // 1. Transaction d'encaissement principale
-        // Déterminer le label : SOLDE si lié à une commande, VENTE_DIRECTE sinon
         const labelType = payload.order_id ? 'SOLDE' : 'VENTE_DIRECTE'
-
-        // Déterminer si c'est un paiement mixte
         const isMixed = payload.payment_details && Object.keys(payload.payment_details).length > 1
         const finalPaymentMethod = isMixed ? 'MIXTE' : payload.payment_method
 
         const { data: transaction, error: txError } = await supabase
             .from('transactions')
             .insert({
+                id: payload.id, // Utilisé si fourni (Offline UUID)
                 organization_id: orgId,
                 order_id: payload.order_id,
                 client_name: payload.client_name,
@@ -63,8 +61,8 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
             return { error: "Erreur lors de l'encaissement" }
         }
 
-        // 2. Insérer le détail (transaction_items)
         const itemsToInsert = payload.items.map(item => ({
+            id: item.id, // Utilisé si fourni
             transaction_id: transaction.id,
             product_id: item.product_id,
             name: item.name,
@@ -74,7 +72,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         const { error: itemsError } = await supabase
             .from('transaction_items')
-            .insert(itemsToInsert)
+            .insert(itemsToInsert as any)
 
         if (itemsError) {
             console.error("Erreur insertion transaction_items:", itemsError)
