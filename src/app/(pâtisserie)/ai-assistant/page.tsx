@@ -8,7 +8,7 @@ export default async function AIAssistantPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('organization_id, organizations(currency_symbol)')
+        .select('organization_id, role_slug, organizations(currency_symbol)')
         .eq('id', user.id)
         .single()
 
@@ -25,17 +25,11 @@ export default async function AIAssistantPage() {
             </div>
 
             <div style={{ maxWidth: '680px' }}>
-                <AIAssistant currency={currency} organizationId={profile?.organization_id ?? ''} />
-
-                <div className="card" style={{ marginTop: '16px', background: 'var(--color-cream)' }}>
-                    <h3 style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 700 }}>💡 Idées de questions</h3>
-                    <ul style={{ margin: 0, padding: '0 0 0 20px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.875rem', color: 'var(--color-muted)' }}>
-                        <li>Quelles recettes génèrent la plus grande marge ?</li>
-                        <li>Mon stock de farine est-il suffisant pour les commandes du jour ?</li>
-                        <li>Analyse mes pertes de cette semaine.</li>
-                        <li>Quel est mon seuil de rentabilité mensuel ?</li>
-                    </ul>
-                </div>
+                <AIAssistant 
+                    currency={currency} 
+                    organizationId={profile?.organization_id ?? ''} 
+                    userRole={profile?.role_slug ?? 'vendeur'}
+                />
             </div>
         </div>
     )

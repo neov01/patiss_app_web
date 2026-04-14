@@ -21,7 +21,7 @@ export async function getCurrentSession() {
             user,
             profile,
             orgId: profile.organization_id,
-            currency: (profile.organizations as any)?.currency_symbol || 'FCFA',
+            currency: (profile.organizations as any)?.currency_symbol || '',
             isKiosk: false
         }
     } else {
@@ -41,7 +41,7 @@ export async function getCurrentSession() {
             user: null, // No official Supabase Auth user
             profile,
             orgId: profile.organization_id,
-            currency: (profile.organizations as any)?.currency_symbol || 'FCFA',
+            currency: (profile.organizations as any)?.currency_symbol || '',
             isKiosk: true,
             supabaseAdmin // Return the admin client for subsequent data fetching in the page
         }

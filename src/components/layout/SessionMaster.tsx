@@ -46,15 +46,19 @@ export default function SessionMaster({
         setLoading(false)
     }
 
-    // List of pages that should be locked when the session is closed
-    const isRestrictedPage = pathname === '/dashboard' || pathname.startsWith('/commandes')
+    // Liste des zones sensibles qui doivent être verrouillées si la caisse est fermée
+    const isRestrictedPage = 
+        pathname.startsWith('/dashboard') || 
+        pathname.startsWith('/caisse') || 
+        pathname.startsWith('/commandes') ||
+        pathname.startsWith('/inventaire')
     
-    // We apply the lock only if the boutique is closed AND we are on a restricted page
+    // Le verrouillage s'applique si la boutique est fermée ET que nous sommes sur une page restreinte
     const shouldLock = !isOpen && isRestrictedPage
 
     return (
         <SessionContext.Provider value={{ isOpen, sessionId }}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
                 {/* We only show the status banner on restricted pages to keep other pages clean */}
                 {isRestrictedPage && (
                     <div style={{ 

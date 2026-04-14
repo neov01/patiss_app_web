@@ -18,7 +18,7 @@ export default async function AdminPage() {
   // Fetch all orgs with member count
   let { data: orgs, error: orgsError } = await supabase
     .from('organizations')
-    .select('id, name, currency_symbol, subscription_end_date, kiosk_code')
+    .select('id, name, currency_symbol, subscription_end_date, kiosk_code, tier, max_users, contact_email, contact_phone')
     .order('name')
 
   // Fallback if kiosk_code doesn't exist yet (migration not run)
@@ -29,8 +29,15 @@ export default async function AdminPage() {
       .select('id, name, currency_symbol, subscription_end_date')
       .order('name')
     
-    // Add null kiosk_code to avoid type errors
-    orgs = (fallback.data ?? []).map(o => ({ ...o, kiosk_code: null }))
+    // Add null kiosk_code and default values to avoid type errors
+    orgs = (fallback.data ?? []).map(o => ({ 
+      ...o, 
+      kiosk_code: null,
+      tier: 'Basic',
+      max_users: 5,
+      contact_email: null,
+      contact_phone: null
+    })) as any
   }
 
   // Fetch all profiles with auth emails for the team tab

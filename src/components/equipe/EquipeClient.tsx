@@ -1,250 +1,151 @@
 'use client'
 
+// {"file":"src/components/equipe/EquipeClient.tsx","type":"component","depends":["react","lucide-react","sonner","./EmployeeCard","./EmployeeModal","./PayslipDrawer"],"exports":["default"],"supabase_tables":["profiles"]}
+
 import { useState } from 'react'
-import { toast } from 'sonner'
-import { UserPlus, Pencil, Power, X, Check } from 'lucide-react'
-import type { Profile } from '@/types/supabase'
-import { createEmployee, updateEmployee, deleteEmployee } from '@/lib/actions/employees'
-import TouchInput from '@/components/ui/TouchInput'
-
-const ROLE_OPTIONS = [
-    { value: 'vendeur', label: '🛒 Vendeur' },
-    { value: 'patissier', label: '👨‍🍳 Pâtissier' },
-]
-
-const COLOR_PRESETS = [
-    '#C4836A', '#6A9CC4', '#6AC48A', '#C4C46A',
-    '#C46AB0', '#6AC4C4', '#A06AC4', '#C47A6A',
-]
+import { useRouter } from 'next/navigation'
+import { UserPlus, Users } from 'lucide-react'
+import EmployeeCard, { EmployeeData } from './EmployeeCard'
+import EmployeeModal from './EmployeeModal'
+import PayslipDrawer from './PayslipDrawer'
 
 interface Props {
-    employees: Profile[]
-    organizationId: string
+  employees: EmployeeData[]
+  organizationId: string
+  currency: string
 }
 
-type FormState = {
-    full_name: string
-    role_slug: string
-    pin_code: string
-    theme_color: string
-    auto_lock_seconds: number
-}
+export default function EquipeClient({ employees: initial, organizationId, currency }: Props) {
+  const [employees, setEmployees] = useState<EmployeeData[]>(initial)
+  const router = useRouter()
 
-const DEFAULT_FORM: FormState = {
-    full_name: '',
-    role_slug: 'vendeur',
-    pin_code: '',
-    theme_color: COLOR_PRESETS[0],
-    auto_lock_seconds: 60,
-}
+  // Modals state
+  const [modalOpen, setModalOpen]       = useState(false)
+  const [modalMode, setModalMode]       = useState<'create' | 'edit'>('create')
+  const [editTarget, setEditTarget]     = useState<EmployeeData | undefined>(undefined)
 
-export default function EquipeClient({ employees, organizationId }: Props) {
-    const [list, setList] = useState<Profile[]>(employees)
-    const [showModal, setShowModal] = useState(false)
-    const [editTarget, setEditTarget] = useState<Profile | null>(null)
-    const [form, setForm] = useState<FormState>(DEFAULT_FORM)
-    const [saving, setSaving] = useState(false)
+  const [payslipOpen, setPayslipOpen]   = useState(false)
+  const [payslipTarget, setPayslipTarget] = useState<EmployeeData | undefined>(undefined)
+  const [showInactive, setShowInactive] = useState(false)
 
-    const openCreate = () => {
-        setEditTarget(null)
-        setForm(DEFAULT_FORM)
-        setShowModal(true)
-    }
+  // ── Handlers ──
+  const openCreate = () => {
+    setModalMode('create')
+    setEditTarget(undefined)
+    setModalOpen(true)
+  }
 
-    const openEdit = (emp: Profile) => {
-        setEditTarget(emp)
-        setForm({
-            full_name: emp.full_name,
-            role_slug: emp.role_slug,
-            pin_code: '',
-            theme_color: (emp as any).theme_color ?? COLOR_PRESETS[0],
-            auto_lock_seconds: emp.auto_lock_seconds ?? 60,
-        })
-        setShowModal(true)
-    }
+  const openEdit = (emp: EmployeeData) => {
+    setModalMode('edit')
+    setEditTarget(emp)
+    setModalOpen(true)
+  }
 
-    const handleSubmit = async () => {
-        if (!form.full_name.trim()) return toast.error('Nom requis')
-        if (!editTarget && (form.pin_code.length !== 4 || !/^\d+$/.test(form.pin_code))) {
-            return toast.error('Le code PIN doit être de 4 chiffres')
-        }
-        setSaving(true)
-        try {
-            if (editTarget) {
-                const upd: any = {
-                    full_name: form.full_name,
-                    role_slug: form.role_slug,
-                    theme_color: form.theme_color,
-                    auto_lock_seconds: form.auto_lock_seconds,
-                }
-                if (form.pin_code.length === 4) upd.pin_code = form.pin_code
-                const res = await updateEmployee(editTarget.id, upd)
-                if (res.error) return toast.error(res.error)
-                setList(l => l.map(e => e.id === editTarget.id ? { ...e, ...upd } : e))
-                toast.success('Employé mis à jour ✓')
-            } else {
-                const res = await createEmployee({
-                    full_name: form.full_name,
-                    role_slug: form.role_slug,
-                    pin_code: form.pin_code,
-                    theme_color: form.theme_color,
-                    auto_lock_seconds: form.auto_lock_seconds,
-                    organization_id: organizationId,
-                })
-                if (res.error) return toast.error(res.error)
-                toast.success('Employé créé ✓')
-                // Reload to get the new id from server
-                window.location.reload()
-            }
-            setShowModal(false)
-        } finally {
-            setSaving(false)
-        }
-    }
+  const openPayslip = (emp: EmployeeData) => {
+    setPayslipTarget(emp)
+    setPayslipOpen(true)
+  }
 
-    const handleToggleActive = async (emp: Profile) => {
-        const res = await deleteEmployee(emp.id) // does is_active = false
-        if (res.error) return toast.error(res.error)
-        setList(l => l.filter(e => e.id !== emp.id))
-        toast.success('Employé désactivé')
-    }
+  const handleDeactivated = (id: string) => {
+    // router.refresh() will update initial props
+    router.refresh()
+  }
 
-    const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  const handleSuccess = () => {
+    // Rafraîchit les données sans recharger toute la page
+    router.refresh()
+  }
 
-    return (
-        <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-                <button onClick={openCreate} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <UserPlus size={18} />
-                    Ajouter un employé
-                </button>
-            </div>
+  return (
+    <>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Users size={24} color="var(--color-rose-dark)" />
+            {showInactive ? 'Membres archivés' : 'Mon Équipe'}
+          </h1>
+          <p style={{ color: 'var(--color-muted)', margin: '6px 0 0', fontSize: '0.875rem' }}>
+            {initial.filter(e => e.is_active !== showInactive).length} membre{initial.filter(e => e.is_active !== showInactive).length > 1 ? 's' : ''} {showInactive ? 'désactivés' : 'actifs'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            type="button" 
+            onClick={() => setShowInactive(!showInactive)}
+            className="btn-ghost"
+            style={{ 
+              fontSize: '0.85rem', 
+              fontWeight: 700, 
+              color: showInactive ? 'var(--color-rose-dark)' : 'var(--color-muted)',
+              border: showInactive ? '1px solid var(--color-rose-dark)' : '1px solid var(--color-border)',
+              padding: '8px 16px',
+              borderRadius: '12px'
+            }}
+          >
+            {showInactive ? 'Voir l\'équipe active' : 'Voir les archivés'}
+          </button>
+          <button type="button" onClick={openCreate} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <UserPlus size={18} />
+            Ajouter un employé
+          </button>
+        </div>
+      </div>
 
-            {list.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-muted)' }}>
-                    <p style={{ fontSize: '1.1rem' }}>Aucun employé pour l'instant.</p>
-                    <p style={{ fontSize: '0.875rem' }}>Ajoutez vos vendeurs et pâtissiers pour le mode kiosque.</p>
-                </div>
-            ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-                    {list.map(emp => (
-                        <div key={emp.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{
-                                    width: '48px', height: '48px', borderRadius: '50%', flexShrink: 0,
-                                    background: (emp as any).theme_color ?? '#E8B4A0',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontWeight: 700, fontSize: '1rem', color: '#fff',
-                                    border: `3px solid ${(emp as any).theme_color ?? '#E8B4A0'}`,
-                                    boxShadow: `0 0 0 2px white, 0 0 0 4px ${(emp as any).theme_color ?? '#E8B4A0'}30`,
-                                }}>
-                                    {initials(emp.full_name)}
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#2D1B0E' }}>{emp.full_name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2px' }}>
-                                        {emp.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
-                                        {' · '}Auto-lock {emp.auto_lock_seconds}s
-                                    </div>
-                                </div>
-                            </div>
+      {/* ── Liste ── */}
+      {employees.length === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '80px 24px',
+          background: 'var(--color-cream)', borderRadius: '20px',
+          border: '2px dashed var(--color-border)',
+        }}>
+          <Users size={48} style={{ opacity: 0.25, margin: '0 auto 16px' }} />
+          <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#2D1B0E', margin: '0 0 6px' }}>Aucun employé pour l&apos;instant</p>
+          <p style={{ color: 'var(--color-muted)', margin: 0, fontSize: '0.875rem' }}>
+            Ajoutez vos vendeurs et pâtissiers pour le mode kiosque.
+          </p>
+          <button type="button" onClick={openCreate} className="btn-primary" style={{ marginTop: '24px' }}>
+            <UserPlus size={16} /> Ajouter le premier employé
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+          {initial
+            .filter(emp => showInactive ? emp.is_active === false : (emp.is_active !== false))
+            .map(emp => (
+              <EmployeeCard
+                key={emp.id}
+                employee={emp}
+                currency={currency}
+                onEdit={openEdit}
+                onPayslip={openPayslip}
+                onDeactivated={handleDeactivated}
+              />
+            ))
+          }
+        </div>
+      )}
 
-                            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
-                                <button onClick={() => openEdit(emp)} className="btn-ghost" style={{ flex: 1, gap: '6px', fontSize: '0.8rem' }}>
-                                    <Pencil size={14} /> Modifier
-                                </button>
-                                <button onClick={() => handleToggleActive(emp)} className="btn-ghost" style={{ flex: 1, gap: '6px', fontSize: '0.8rem', color: '#D94F38' }}>
-                                    <Power size={14} /> Désactiver
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+      {/* ── Modals ── */}
+      <EmployeeModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={handleSuccess}
+        mode={modalMode}
+        employee={editTarget}
+        organizationId={organizationId}
+        currency={currency}
+      />
 
-            {/* Modal */}
-            {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', position: 'relative' }}>
-                        <button onClick={() => setShowModal(false)}
-                            style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                            <X size={20} />
-                        </button>
-                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px' }}>
-                            {editTarget ? `Modifier ${editTarget.full_name}` : 'Nouvel employé'}
-                        </h2>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Nom complet</label>
-                                <input className="input" value={form.full_name}
-                                    onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                                    placeholder="ex: Marie Dupont" />
-                            </div>
-
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Rôle</label>
-                                <select className="input" value={form.role_slug}
-                                    onChange={e => setForm(f => ({ ...f, role_slug: e.target.value }))}>
-                                    {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                </select>
-                            </div>
-
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                                Code PIN 4 chiffres {editTarget && '(laisser vide pour ne pas changer)'}
-                            </label>
-                            <TouchInput
-                                value={form.pin_code}
-                                onChange={val => setForm(f => ({ ...f, pin_code: val }))}
-                                maxLength={4}
-                                placeholder="0000"
-                                title="Code PIN Employé"
-                                isPassword={true}
-                            />
-
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Couleur d'identité</label>
-                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                    {COLOR_PRESETS.map(c => (
-                                        <button key={c} onClick={() => setForm(f => ({ ...f, theme_color: c }))}
-                                            style={{
-                                                width: '36px', height: '36px', borderRadius: '50%',
-                                                background: c, border: 'none', cursor: 'pointer',
-                                                outline: form.theme_color === c ? `3px solid ${c}` : '3px solid transparent',
-                                                outlineOffset: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            }}>
-                                            {form.theme_color === c && <Check size={16} color="white" strokeWidth={3} />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                                    Auto-lock : {form.auto_lock_seconds}s
-                                    <span style={{ fontWeight: 400, color: 'var(--color-muted)', marginLeft: '8px' }}>
-                                        {form.auto_lock_seconds === 0 ? '(désactivé)' : `— verrou après ${form.auto_lock_seconds}s d'inactivité`}
-                                    </span>
-                                </label>
-                                <input type="range" min={0} max={300} step={15}
-                                    value={form.auto_lock_seconds}
-                                    onChange={e => setForm(f => ({ ...f, auto_lock_seconds: Number(e.target.value) }))}
-                                    style={{ width: '100%', accentColor: form.theme_color }} />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-muted)' }}>
-                                    <span>Désactivé</span><span>5 min</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
-                            <button onClick={() => setShowModal(false)} className="btn-ghost" style={{ flex: 1 }}>Annuler</button>
-                            <button onClick={handleSubmit} disabled={saving} className="btn-primary" style={{ flex: 2 }}>
-                                {saving ? 'Enregistrement...' : editTarget ? 'Mettre à jour' : 'Créer l\'employé'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    )
+      {payslipTarget && (
+        <PayslipDrawer
+          open={payslipOpen}
+          onClose={() => { setPayslipOpen(false); setPayslipTarget(undefined) }}
+          employeeId={payslipTarget.id}
+          employeeName={payslipTarget.full_name}
+          currency={currency}
+        />
+      )}
+    </>
+  )
 }

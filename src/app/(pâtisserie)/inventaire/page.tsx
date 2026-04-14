@@ -1,8 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { ClipboardList } from 'lucide-react'
 import StockMovementModal from '@/components/inventory/StockMovementModal'
+import Pagination from '@/components/ui/Pagination'
 
-export default async function InventairePage() {
+const PAGE_SIZE = 20
+
+export default async function InventairePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+    const { page: pageParam } = await searchParams
+    const currentPage = Number(pageParam) || 1
+    const from = (currentPage - 1) * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
@@ -11,13 +19,14 @@ export default async function InventairePage() {
 
     const [logsRes, ingredientsRes] = await Promise.all([
         supabase.from('inventory_logs')
-            .select('*, ingredients(name, unit), profiles(full_name)')
+            .select('*, ingredients(name, unit), profiles(full_name)', { count: 'exact' })
             .eq('organization_id', profile?.organization_id!)
             .order('log_date', { ascending: false })
-            .limit(100),
+            .range(from, to),
         supabase.from('ingredients').select('id, name').eq('organization_id', profile?.organization_id!).order('name'),
     ])
 
+    const totalCount = logsRes.count || 0
     const REASON_LABELS: Record<string, string> = {
         production: '👨‍🍳 Production', waste: '🗑 Perte', purchase: '🛒 Achat', adjustment: '⚖ Ajustement',
     }
@@ -31,7 +40,7 @@ export default async function InventairePage() {
                 <div>
                     <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>Inventaire</h1>
                     <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.875rem' }}>
-                        Journal des {logsRes.data?.length ?? 0} derniers mouvements
+                        {totalCount} mouvement{totalCount > 1 ? 's' : ''} au total
                     </p>
                 </div>
                 {/* Shortcut pour déclarer depuis cette page */}
@@ -93,6 +102,7 @@ export default async function InventairePage() {
                     </div>
                 </div>
             )}
+            <Pagination totalCount={totalCount} pageSize={PAGE_SIZE} />
         </div>
     )
 }

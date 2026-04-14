@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
     Building2, Users, AlertTriangle, ChevronRight, X,
     Check, RefreshCw, Calendar, Loader2, KeyRound, ShieldAlert,
-    ShieldCheck, Crown, Plus, ChevronDown, LayoutDashboard
+    ShieldCheck, Crown, Plus, ChevronDown, LayoutDashboard, ArrowLeft
 } from 'lucide-react'
 import {
     updateOrganization,
@@ -15,9 +15,14 @@ import {
     resetEmployeePin,
     createOrganizationWithGerant,
     generateKioskCode,
-    deleteOrganization
+    deleteOrganization,
+    impersonateUser,
+    createClientUser
 } from '@/lib/actions/admin'
+
 import TouchInput from '@/components/ui/TouchInput'
+import DatePicker from '@/components/ui/DatePicker'
+import TouchSelect from '@/components/ui/TouchSelect'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Org {
@@ -27,7 +32,12 @@ interface Org {
     kiosk_code: string | null
     subscription_end_date: string | null
     member_count: number
+    tier: string
+    max_users: number
+    contact_email: string | null
+    contact_phone: string | null
 }
+
 
 interface OrgProfile {
     id: string
@@ -80,32 +90,64 @@ const ROLE_BADGE: Record<string, { icon: string; color: string; bg: string }> = 
     patissier: { icon: '👨‍🍳', color: '#4C9E6A', bg: '#E8F5EE' },
 }
 
+const CURRENCY_OPTIONS = [
+    { value: 'FCFA', label: 'Franc CFA (FCFA)', icon: '🌍' },
+    { value: '€', label: 'Euro (€)', icon: '🇪🇺' },
+    { value: '$', label: 'Dollar US ($)', icon: '🇺🇸' },
+    { value: '£', label: 'Livre Sterling (£)', icon: '🇬🇧' },
+    { value: 'GNF', label: 'Franc Guinéen (GNF)', icon: '🇬🇳' },
+    { value: 'GHS', label: 'Cedi Ghanéen (GHS)', icon: '🇬🇭' }
+]
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: Props) {
     const [orgs, setOrgs] = useState<Org[]>(initialOrgs)
     const [profiles, setProfiles] = useState<OrgProfile[]>(allProfiles)
     const [selectedOrgId, setSelectedOrgId] = useState<string>('')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-    const [tab, setTab] = useState<'info' | 'team' | 'danger'>('info')
+    const [tab, setTab] = useState<'info' | 'team' | 'support' | 'danger'>('info')
     const [isPending, startTransition] = useTransition()
     const [pinResetTarget, setPinResetTarget] = useState<string | null>(null)
     const [newPin, setNewPin] = useState('')
     const [confirmSuspend, setConfirmSuspend] = useState(false)
     const [confirmDelete, setConfirmDelete] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+
 
     // Creation Form State
     const [newOrgForm, setNewOrgForm] = useState({
         org_name: '',
-        currency_symbol: 'FCFA',
+        currency_symbol: '',
         subscription_end_date: '',
         gerant_full_name: '',
         gerant_email: '',
         gerant_pin: '',
     })
 
+    const [newUserForm, setNewUserForm] = useState({
+        full_name: '',
+        role_slug: 'vendeur',
+        pin_code: '',
+        email: ''
+    })
+    const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
+
+
     // Selected Org Detail State
     const selectedOrg = orgs.find(o => o.id === selectedOrgId)
-    const [subForm, setSubForm] = useState({ name: '', currency_symbol: '', subscription_end_date: '' })
+    const [subForm, setSubForm] = useState({ 
+        name: '', 
+        currency_symbol: '', 
+        subscription_end_date: '',
+        tier: 'Basic',
+        max_users: 5,
+        contact_email: '',
+        contact_phone: ''
+    })
+
+    const [impersonationLoading, setImpersonationLoading] = useState(false)
+    const [resetPinResult, setResetPinResult] = useState<{ pin: string; name: string } | null>(null)
+
 
     const handleOrgSelect = (id: string) => {
         setSelectedOrgId(id)
@@ -114,11 +156,16 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             setSubForm({
                 name: org.name,
                 currency_symbol: org.currency_symbol,
-                subscription_end_date: org.subscription_end_date ?? ''
+                subscription_end_date: org.subscription_end_date ?? '',
+                tier: org.tier || 'Basic',
+                max_users: org.max_users || 5,
+                contact_email: org.contact_email ?? '',
+                contact_phone: org.contact_phone ?? ''
             })
         }
         setTab('info')
     }
+
 
     // KPIs
     const totalActive = orgs.filter(o => subscriptionStatus(o.subscription_end_date).label !== 'Expiré').length
@@ -157,17 +204,26 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 name: subForm.name,
                 currency_symbol: subForm.currency_symbol,
                 subscription_end_date: subForm.subscription_end_date || null,
+                tier: subForm.tier,
+                max_users: subForm.max_users,
+                contact_email: subForm.contact_email || null,
+                contact_phone: subForm.contact_phone || null
             })
             if (res.error) { toast.error(res.error); return }
             setOrgs(prev => prev.map(o => o.id === selectedOrg.id ? {
                 ...o,
                 name: subForm.name,
                 currency_symbol: subForm.currency_symbol,
-                subscription_end_date: subForm.subscription_end_date || null
+                subscription_end_date: subForm.subscription_end_date || null,
+                tier: subForm.tier,
+                max_users: subForm.max_users,
+                contact_email: subForm.contact_email || null,
+                contact_phone: subForm.contact_phone || null
             } : o))
             toast.success('Pâtisserie mise à jour ✓')
         })
     }
+
 
     const handleGenerateKioskCode = (orgId: string) => {
         startTransition(async () => {
@@ -208,13 +264,49 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             return toast.error('PIN doit être 4 chiffres')
         }
         startTransition(async () => {
-            const res = await resetEmployeePin(profileId, newPin)
+            const res = await resetEmployeePin(profileId, newPin || undefined)
             if (res.error) { toast.error(res.error); return }
             setPinResetTarget(null)
             setNewPin('')
+            
+            const p = profiles.find(pr => pr.id === profileId)
+            setResetPinResult({ pin: res.newPin!, name: p?.full_name || 'utilisateur' })
             toast.success('Code PIN réinitialisé ✓')
         })
     }
+
+    const handleImpersonate = async () => {
+        if (!selectedOrg) return
+        setImpersonationLoading(true)
+        try {
+            const res = await impersonateUser(selectedOrg.id)
+            if (res.error) { toast.error(res.error); return }
+            toast.success(`Session générée pour ${res.targetName}. Ouverture...`)
+            window.open(res.link, '_blank')
+        } catch (err) {
+            toast.error("Erreur lors de l'impersonation")
+        } finally {
+            setImpersonationLoading(false)
+        }
+    }
+
+    const handleAddUser = () => {
+        if (!selectedOrg || !newUserForm.full_name || newUserForm.pin_code.length !== 4) {
+            return toast.error('Veuillez remplir le nom et un PIN de 4 chiffres')
+        }
+        startTransition(async () => {
+            const res = await createClientUser({
+                ...newUserForm,
+                organization_id: selectedOrg.id
+            })
+            if (res.error) { toast.error(res.error); return }
+            toast.success('Utilisateur créé avec succès !')
+            setIsAddUserModalOpen(false)
+            setNewUserForm({ full_name: '', role_slug: 'vendeur', pin_code: '', email: '' })
+            window.location.reload()
+        })
+    }
+
 
     const handleSuspendOrg = () => {
         if (!selectedOrg) return
@@ -256,7 +348,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     const allSuspended = orgTeam.length > 0 && orgTeam.every(p => !p.is_active)
 
     return (
-        <div style={{ paddingBottom: '100px' }}>
+        <div style={{ paddingBottom: '64px' }}>
             {/* Header with Stats */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '20px' }}>
                 <div>
@@ -284,22 +376,21 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 border: '1px solid rgba(217,119,87,0.1)'
             }}>
                 <div style={{ flex: 1, position: 'relative' }}>
-                    <label style={{ position: 'absolute', top: '-10px', left: '16px', background: 'white', padding: '0 8px', fontSize: '0.7rem', fontWeight: 800, color: '#d97757', textTransform: 'uppercase' }}>
-                        Choisir une pâtisserie
-                    </label>
                     <div style={{ position: 'relative' }}>
-                        <select
-                            value={selectedOrgId}
-                            onChange={(e) => handleOrgSelect(e.target.value)}
+                        <input
+                            type="text"
+                            placeholder="Rechercher une pâtisserie (nom, contact...)"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="input"
-                            style={{ paddingRight: '40px', appearance: 'none', fontWeight: 600, fontSize: '1rem', border: '2px solid #FEF3EC' }}
-                        >
-                            <option value="">Sélectionner dans la liste...</option>
-                            {orgs.map(o => (
-                                <option key={o.id} value={o.id}>{o.name} ({subscriptionStatus(o.subscription_end_date).label})</option>
-                            ))}
-                        </select>
-                        <ChevronDown size={20} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#d97757' }} />
+                            style={{ 
+                                paddingLeft: '44px', 
+                                height: '52px', 
+                                border: '2px solid #FEF3EC',
+                                fontWeight: 600
+                            }}
+                        />
+                        <LayoutDashboard size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#d97757' }} />
                     </div>
                 </div>
 
@@ -309,25 +400,86 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 </button>
             </div>
 
-            {/* Main Detail View */}
+            {/* Main Content Area */}
             {!selectedOrg ? (
-                <div style={{ textAlign: 'center', padding: '80px 20px', background: '#FDFCFB', borderRadius: '32px', border: '2px dashed #EEE' }}>
-                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                        <LayoutDashboard size={40} color="#d97757" />
+                <div className="animate-fadeIn">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Toutes les Pâtisseries</h3>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--color-muted)', fontWeight: 600 }}>{orgs.length} clients au total</div>
                     </div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2D1B0E', margin: '0 0 10px' }}>Aucune organisation sélectionnée</h3>
-                    <p style={{ color: 'var(--color-muted)', maxWidth: '400px', margin: '0 auto', fontSize: '0.95rem' }}>
-                        Utilisez le menu déroulant ci-dessus pour gérer une pâtisserie existante ou créez-en une nouvelle pour commencer.
-                    </p>
+
+                    <div style={{ background: 'white', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid #EEE' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ background: '#FDFCFB', borderBottom: '1px solid #EEE' }}>
+                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Pâtisserie</th>
+                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Statut / Plan</th>
+                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Usage</th>
+                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Expiration</th>
+                                    <th style={{ width: '40px' }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {orgs
+                                    .filter(o => o.name.toLowerCase().includes(searchQuery.toLowerCase()) || o.contact_email?.toLowerCase().includes(searchQuery.toLowerCase()))
+                                    .map(o => {
+                                        const status = subscriptionStatus(o.subscription_end_date)
+                                        return (
+                                            <tr key={o.id} onClick={() => handleOrgSelect(o.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #F5F5F5', transition: 'background 0.2s' }} className="table-row-hover">
+                                                <td style={{ padding: '16px 24px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FEF3EC', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem' }}>
+                                                            {initials(o.name)}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 700, color: '#2D1B0E' }}>{o.name}</div>
+                                                            <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{o.contact_email || 'Pas d\'email contact'}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '16px 24px' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: status.bg, color: status.color, padding: '2px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, width: 'fit-content' }}>
+                                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: status.color }} />
+                                                            {status.label.toUpperCase()}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6A9CC4' }}>{o.tier || 'Basic'}</div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '16px 24px' }}>
+                                                    <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{o.member_count} / {o.max_users || 5}</div>
+                                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>Utilisateurs</div>
+                                                </td>
+                                                <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                    {formatDate(o.subscription_end_date)}
+                                                </td>
+                                                <td style={{ paddingRight: '24px', textAlign: 'right', color: '#D97757' }}>
+                                                    <ChevronRight size={20} />
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             ) : (
                 <div className="animate-fadeIn">
+                    <button 
+                        onClick={() => setSelectedOrgId('')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '10px 16px', borderRadius: '16px', background: '#FEF3EC', color: '#D97757', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem' }}
+                    >
+                        <ArrowLeft size={20} />
+                        RETOUR À TOUTES LES PÂTISSERIES
+                    </button>
                     {/* Detail Navigation Tabs */}
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
                         {[
                             { id: 'info', label: 'Configuration & Licence', icon: <Building2 size={18} /> },
                             { id: 'team', label: 'Équipe & Utilisateurs', icon: <Users size={18} /> },
+                            { id: 'support', label: 'Support & Activité', icon: <AlertTriangle size={18} /> },
                             { id: 'danger', label: 'Zone de Danger', icon: <ShieldAlert size={18} /> },
+
                         ].map(t => (
                             <button
                                 key={t.id}
@@ -371,11 +523,22 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         <input className="input" value={subForm.name} onChange={e => setSubForm(f => ({ ...f, name: e.target.value }))} />
                                     </Field>
                                     <Field label="Symbole Monétaire">
-                                        <input className="input" value={subForm.currency_symbol} onChange={e => setSubForm(f => ({ ...f, currency_symbol: e.target.value }))} maxLength={10} />
+                                        <TouchSelect 
+                                            value={subForm.currency_symbol} 
+                                            onChange={val => setSubForm(f => ({ ...f, currency_symbol: val }))}
+                                            options={CURRENCY_OPTIONS}
+                                            placeholder="Choisir une devise"
+                                            title="Devises"
+                                        />
                                     </Field>
                                     <Field label="Expiration de la Licence">
                                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                            <input type="date" className="input" value={subForm.subscription_end_date} onChange={e => setSubForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                                            <DatePicker 
+                                                value={subForm.subscription_end_date ? new Date(subForm.subscription_end_date) : null}
+                                                onChange={(date: Date) => setSubForm(f => ({ ...f, subscription_end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                                                placeholder="Sélectionner une date"
+                                                direction="up"
+                                            />
                                             {subForm.subscription_end_date && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4C9E6A' }}>{formatDate(subForm.subscription_end_date)}</span>}
                                         </div>
                                     </Field>
@@ -399,6 +562,41 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             </button>
                                         </div>
                                     </Field>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <Field label="Plan Tarifaire (Tier)">
+                                            <select className="input" value={subForm.tier} onChange={e => setSubForm(f => ({ ...f, tier: e.target.value }))}>
+                                                <option value="Basic">Basic</option>
+                                                <option value="Premium">Premium</option>
+                                                <option value="Premium + IA">Premium + IA</option>
+                                            </select>
+                                        </Field>
+                                        <Field label="Limite Utilisateurs">
+                                            <TouchInput
+                                                value={subForm.max_users.toString()}
+                                                onChange={val => setSubForm(f => ({ ...f, max_users: parseInt(val) || 1 }))}
+                                                allowDecimal={false}
+                                                title="Limite utilisateurs"
+                                                style={{ fontSize: '0.9rem', minHeight: '32px' }}
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                        <Field label="Email Contact Propriétaire">
+                                            <input className="input" placeholder="exemple@mail.com" value={subForm.contact_email} onChange={e => setSubForm(f => ({ ...f, contact_email: e.target.value }))} />
+                                        </Field>
+                                        <Field label="Tél Contact Propriétaire">
+                                            <TouchInput 
+                                                value={subForm.contact_phone || ''} 
+                                                onChange={val => setSubForm(f => ({ ...f, contact_phone: val }))}
+                                                isPhone={true}
+                                                placeholder="+225 ..."
+                                                title="Téléphone Propriétaire"
+                                            />
+                                        </Field>
+                                    </div>
+
 
                                     <div style={{ background: '#FDFCFB', padding: '20px', borderRadius: '20px', border: '1px solid #FEF3EC' }}>
                                         <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97757', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prolonger l&apos;abonnement</p>
@@ -424,10 +622,16 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                             <div>
                                 <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Membres de la pâtisserie</h3>
-                                    <div style={{ background: '#FEF3EC', color: '#d97757', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
-                                        {orgTeam.length} utilisateurs enregistrés
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button onClick={() => setIsAddUserModalOpen(true)} className="btn-secondary" style={{ height: '40px', fontSize: '0.8rem' }}>
+                                            <Plus size={16} /> Créer un utilisateur
+                                        </button>
+                                        <div style={{ background: '#FEF3EC', color: '#d97757', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                            {orgTeam.length} utilisateurs
+                                        </div>
                                     </div>
                                 </div>
+
 
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                                     {orgTeam.map(p => {
@@ -482,6 +686,70 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             </div>
                                         )
                                     })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Tab Content: Support */}
+                        {tab === 'support' && (
+                            <div style={{ maxWidth: '800px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+                                    <div style={{ padding: '24px', borderRadius: '24px', background: 'linear-gradient(135deg, #FF6B6B, #D94F38)', color: 'white' }}>
+                                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <ShieldAlert size={24} /> Prise de main (Impersonation)
+                                        </h3>
+                                        <p style={{ fontSize: '0.9rem', opacity: 0.9, lineHeight: 1.5, marginBottom: '20px' }}>
+                                            Connectez-vous à l'interface POS comme si vous étiez le gérant de cet établissement. 
+                                            Utile pour débugger ou configurer le compte client en direct.
+                                        </p>
+                                        <button 
+                                            onClick={handleImpersonate}
+                                            disabled={impersonationLoading}
+                                            style={{ 
+                                                width: '100%', height: '52px', borderRadius: '14px', border: 'none', 
+                                                background: 'white', color: '#D94F38', fontWeight: 800, cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                                            }}
+                                        >
+                                            {impersonationLoading ? <Loader2 size={20} className="animate-spin" /> : <LayoutDashboard size={20} />}
+                                            SE CONNECTER EN TANT QUE CLIENT
+                                        </button>
+                                    </div>
+
+                                    <div style={{ padding: '24px', borderRadius: '24px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E293B', marginBottom: '16px' }}>Infos Support</h3>
+                                        <div style={{ display: 'grid', gap: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: '#64748B' }}>Dernière Synchro :</span>
+                                                <span style={{ fontWeight: 700 }}>Aujourd'hui, 14:22</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: '#64748B' }}>Version Client :</span>
+                                                <span style={{ fontWeight: 700 }}>v2.4.0 (Vercel)</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                                                <span style={{ color: '#64748B' }}>Contact Facturation :</span>
+                                                <span style={{ fontWeight: 700, color: '#D97757' }}>{selectedOrg.contact_email || 'Non défini'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Activité Récente</h4>
+                                <div style={{ border: '1px solid #EEE', borderRadius: '16px', overflow: 'hidden' }}>
+                                    {[
+                                        { type: 'Session', msg: 'Session ouverte par Gérant', date: 'il y a 3h' },
+                                        { type: 'Order', msg: 'Nouvelle commande #CMD-402', date: 'il y a 4h' },
+                                        { type: 'Alert', msg: 'Alerte stock : Farine T55', date: 'il y a 1j' },
+                                    ].map((l, i) => (
+                                        <div key={i} style={{ padding: '12px 20px', borderBottom: i === 2 ? 'none' : '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.type === 'Alert' ? '#D94F38' : '#4C9E6A' }} />
+                                                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{l.msg}</span>
+                                            </div>
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>{l.date}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -571,12 +839,23 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 <Field label="Nom de l'enseigne">
                                     <input className="input" placeholder="ex: Boulangerie Moderne" value={newOrgForm.org_name} onChange={e => setNewOrgForm(f => ({ ...f, org_name: e.target.value }))} />
                                 </Field>
-                                <Field label="Devise">
-                                    <input className="input" value={newOrgForm.currency_symbol} onChange={e => setNewOrgForm(f => ({ ...f, currency_symbol: e.target.value }))} />
+                                <Field label="Devise (Symbol)">
+                                    <TouchSelect 
+                                        value={newOrgForm.currency_symbol} 
+                                        onChange={val => setNewOrgForm(f => ({ ...f, currency_symbol: val }))}
+                                        options={CURRENCY_OPTIONS}
+                                        placeholder="Choisir une devise"
+                                        title="Devises"
+                                    />
                                 </Field>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <Field label="Fin d'abonnement (Optionnel)">
-                                        <input type="date" className="input" value={newOrgForm.subscription_end_date} onChange={e => setNewOrgForm(f => ({ ...f, subscription_end_date: e.target.value }))} />
+                                        <DatePicker 
+                                            value={newOrgForm.subscription_end_date ? new Date(newOrgForm.subscription_end_date) : null}
+                                            onChange={(date: Date) => setNewOrgForm(f => ({ ...f, subscription_end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                                            placeholder="Sélectionner une date"
+                                            direction="up"
+                                        />
                                     </Field>
                                 </div>
 
@@ -614,6 +893,57 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 </div>
             )}
 
+            {/* ─── Add User Modal ───────────────────────────────────────────── */}
+            {isAddUserModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsAddUserModalOpen(false)}>
+                    <div className="modal-content animate-scaleIn" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 900 }}>Nouvel utilisateur</h2>
+                            <button onClick={() => setIsAddUserModalOpen(false)} className="btn-ghost"><X size={24} /></button>
+                        </div>
+                        <div style={{ display: 'grid', gap: '16px' }}>
+                            <Field label="Nom Complet">
+                                <input className="input" value={newUserForm.full_name} onChange={e => setNewUserForm(f => ({ ...f, full_name: e.target.value }))} placeholder="ex: Jean Dupont" />
+                            </Field>
+                            <Field label="Rôle">
+                                <select className="input" value={newUserForm.role_slug} onChange={e => setNewUserForm(f => ({ ...f, role_slug: e.target.value }))}>
+                                    {roles.map(r => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+                                </select>
+                            </Field>
+                            <Field label="Email (Optionnel)">
+                                <input className="input" type="email" value={newUserForm.email} onChange={e => setNewUserForm(f => ({ ...f, email: e.target.value }))} placeholder="laisser vide pour auto-généré" />
+                            </Field>
+                            <Field label="Code PIN (4 chiffres)">
+                                <TouchInput value={newUserForm.pin_code} onChange={val => setNewUserForm(f => ({ ...f, pin_code: val }))} maxLength={4} title="Définir le PIN" />
+                            </Field>
+                            <button onClick={handleAddUser} disabled={isPending} className="btn-primary" style={{ height: '52px', marginTop: '10px' }}>
+                                {isPending ? <Loader2 size={20} className="animate-spin" /> : 'CRÉER L\'UTILISATEUR'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── PIN Reset Result Modal ────────────────────────────────────── */}
+            {resetPinResult && (
+                <div className="modal-overlay">
+                    <div className="modal-content animate-scaleIn" style={{ maxWidth: '400px', textAlign: 'center' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#E8F5EE', color: '#4C9E6A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <KeyRound size={32} />
+                        </div>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '10px' }}>Nouveau Code PIN</h2>
+                        <p style={{ color: 'var(--color-muted)', marginBottom: '24px' }}>
+                            Le code PIN pour <strong>{resetPinResult.name}</strong> a été réinitialisé. Communiquez-lui ce code :
+                        </p>
+                        <div style={{ fontSize: '3rem', fontWeight: 900, color: '#D97757', letterSpacing: '0.2em', marginBottom: '32px' }}>
+                            {resetPinResult.pin}
+                        </div>
+                        <button onClick={() => setResetPinResult(null)} className="btn-primary" style={{ width: '100%' }}>J&apos;ai pris note</button>
+                    </div>
+                </div>
+            )}
+
+
             <style>{`
                 .stat-pill {
                     padding: 8px 16px;
@@ -638,7 +968,24 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     from { transform: scale(0.95); opacity: 0; }
                     to { transform: scale(1); opacity: 1; }
                 }
+                .table-row-hover:hover {
+                    background: #FDFCFB !important;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: rgba(217, 119, 87, 0.2);
+                    border-radius: 99px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: rgba(217, 119, 87, 0.4);
+                }
             `}</style>
+
         </div>
     )
 }

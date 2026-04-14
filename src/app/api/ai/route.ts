@@ -1,70 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
 
-const SYSTEM_INSTRUCTION = `Tu es un Expert Comptable spécialisé en Boulangerie-Pâtisserie.
-Ton rôle est d'analyser les données JSON que je te fournis (Ventes, Coûts Matières, Pertes) et de donner des conseils stratégiques au gérant.
-Ton ton doit être professionnel, encourageant mais direct sur les problèmes financiers.
+const SYSTEM_INSTRUCTION_GERANT = `Tu es "Compta-Gâteau", l'expert comptable et assistant IA d'une pâtisserie, omniscient sur toutes les données financières et opérationnelles.
+Tu as accès à TOUT l'historique financier de la pâtisserie, organisé en sections JSON.
 
-Règles strictes :
-1. Ne jamais inventer de chiffres. Utilise uniquement ceux fournis dans le contexte.
-2. Si la marge baisse, alerte immédiatement sur les ingrédients dont le prix a augmenté ou sur les pertes trop élevées.
-3. Exprime-toi toujours dans la devise configurée.
-4. Tes réponses doivent être courtes (max 3 phrases) pour s'afficher dans une "Carte Dashboard".
-5. Réponds toujours en français.`
+## DONNÉES DISPONIBLES
+- **ca_mensuel** : CA agrégé par mois (acomptes, soldes, ventes directes, ventilation par méthode de paiement)
+- **ca_quotidien_30j** : CA jour par jour sur 30 jours
+- **transactions_recentes** : Détail des 7 derniers jours
+- **commandes_impayees** : Clients avec solde restant à payer, avec date de retrait (date_retrait)
+- **commandes_a_venir** : Toutes les commandes planifiées dans les 30 prochains jours, avec date_retrait
+- **catalogue_produits** : Tous les produits actifs du catalogue {nom, categorie, prix_vente, cout_production, marge_pct, stock_actuel}
+- **masse_salariale** : Salaires mensuels de chaque employé actif + total (CONFIDENTIEL — accès gérant uniquement)
+- **evenements_salariaux** : Primes et retenues récentes (CONFIDENTIEL — accès gérant uniquement)
+- **kpis_globaux** : CA total depuis la création, nombre total de transactions
+- **alertes_stock** : Ingrédients en rupture ou sous le seuil d'alerte
+- **stocks_ingredients** : Stock complet de tous les ingrédients
+
+## RÈGLES STRICTES
+1. GESTION DE L'ACCUEIL : Si la question est vide ou très vague, dis simplement bonjour, remonte au maximum UNE information urgente (alerte stock ou impayé urgent) et demande comment tu peux aider.
+2. RÉPONDRE À LA QUESTION : Réponds clairement et de manière concise en te basant sur le contexte.
+3. DATES DE RETRAIT : Utilise le champ "date_retrait" des commandes pour répondre aux questions sur les livraisons, retraits et planning.
+4. CATALOGUE : Utilise "catalogue_produits" pour analyser les marges, les best-sellers potentiels ou les prix.
+5. PROACTIVITÉ LÉGÈRE : Après avoir répondu, tu peux poser UNE question courte pour aider à anticiper.
+6. FORMATAGE HTML STRICT : Utilise des balises HTML basiques : <b>texte</b>, <ul><li></li></ul>, <br/>. INTERDICTION d'utiliser du Markdown (* ou **).
+7. CALCULS : Calcule les totaux en additionnant les montants des transactions correspondantes.
+8. LABELS : ACOMPTE = réservation client. SOLDE = paiement final. VENTE_DIRECTE = vente immédiate en caisse.
+9. FIABILITÉ : Ne jamais inventer de chiffres. Utilise UNIQUEMENT ceux fournis dans le contexte JSON.
+10. TON ET LANGUE : Réponds toujours en français. Sois professionnel mais conversationnel. Utilise la devise fournie.`
+
+const SYSTEM_INSTRUCTION_EMPLOYE = `Tu es "Compta-Gâteau", l'assistant IA d'une pâtisserie.
+Tu as accès aux données opérationnelles de la pâtisserie, organisées en sections JSON.
+
+## DONNÉES DISPONIBLES
+- **ca_mensuel** : CA agrégé par mois
+- **ca_quotidien_30j** : CA jour par jour sur 30 jours
+- **transactions_recentes** : Détail des 7 derniers jours
+- **commandes_impayees** : Clients avec solde restant à payer, avec date de retrait (date_retrait)
+- **commandes_a_venir** : Toutes les commandes planifiées dans les 30 prochains jours, avec date_retrait
+- **catalogue_produits** : Tous les produits actifs {nom, categorie, prix_vente, stock_actuel}
+- **alertes_stock** : Ingrédients en rupture ou sous le seuil d'alerte
+- **stocks_ingredients** : Stock complet de tous les ingrédients
+
+## RÈGLES STRICTES
+1. CONFIDENTIALITÉ ABSOLUE : Tu n'as PAS accès aux salaires, primes, retenues ou à la masse salariale. Si on te demande des informations sur les salaires ou la paie, réponds : "Ces informations sont réservées à la direction." Ne cherche pas à les deviner ou les estimer.
+2. DATES DE RETRAIT : Utilise le champ "date_retrait" des commandes pour le planning.
+3. CATALOGUE : Utilise "catalogue_produits" pour les questions sur les prix et le stock.
+4. FORMATAGE HTML STRICT : <b>texte</b>, <ul><li></li></ul>, <br/>. INTERDICTION du Markdown.
+5. FIABILITÉ : Ne jamais inventer de chiffres.
+6. TON ET LANGUE : Réponds toujours en français. Sois professionnel mais conversationnel. Utilise la devise fournie.`
 
 export async function POST(req: NextRequest) {
     try {
-        const { question, organizationId, currency } = await req.json()
+        const { question, organizationId, currency, userRole } = await req.json()
+
+        if (!organizationId) {
+            return NextResponse.json({ answer: "Organisation non identifiée." }, { status: 200 })
+        }
 
         const supabase = await createClient()
         const today = new Date().toISOString().split('T')[0]
 
-        const [ordersRes, logsRes, alertsRes] = await Promise.all([
-            supabase.from('orders').select('total_amount, status, customer_name').eq('organization_id', organizationId).gte('created_at', today + 'T00:00:00'),
-            supabase.from('inventory_logs').select('quantity_change, reason, ingredient_id').eq('organization_id', organizationId).gte('log_date', today + 'T00:00:00'),
-            supabase.from('ingredients').select('name, current_stock, alert_threshold, cost_per_unit').eq('organization_id', organizationId),
-        ])
+        // Un seul appel RPC côté Postgres → ultra-rapide, pas de N+1
+        const { data: financialContext, error } = await supabase.rpc(
+            'get_ia_financial_context' as any,
+            { p_org_id: organizationId }
+        )
 
-        const context = {
-            currency,
-            date: today,
-            ventes_du_jour: {
-                nombre_commandes: ordersRes.data?.length ?? 0,
-                total_ca: ordersRes.data?.reduce((s, o) => s + o.total_amount, 0) ?? 0,
-            },
-            mouvements_stock: {
-                pertes: logsRes.data?.filter(l => l.reason === 'waste') ?? [],
-                productions: logsRes.data?.filter(l => l.reason === 'production') ?? [],
-                achats: logsRes.data?.filter(l => l.reason === 'purchase') ?? [],
-            },
-            alertes_stock: alertsRes.data?.filter(i => i.current_stock < i.alert_threshold).map(i => ({
-                ingredient: i.name,
-                stock_actuel: i.current_stock,
-                seuil: i.alert_threshold,
-            })) ?? [],
+        if (error) {
+            console.error('[AI Route] RPC error:', error)
+            return NextResponse.json(
+                { answer: "Erreur d'accès aux données financières. Contactez l'administrateur." },
+                { status: 200 }
+            )
         }
 
+        const isManager = userRole === 'gerant' || userRole === 'super_admin'
+        const rawContext = financialContext as Record<string, unknown>
+
+        // Filtrer les données sensibles pour les non-gérants
+        const context: Record<string, unknown> = {
+            currency,
+            date_du_jour: today,
+            ca_mensuel: rawContext.ca_mensuel,
+            ca_quotidien_30j: rawContext.ca_quotidien_30j,
+            transactions_recentes: rawContext.transactions_recentes,
+            commandes_impayees: rawContext.commandes_impayees,
+            commandes_a_venir: rawContext.commandes_a_venir,
+            catalogue_produits: rawContext.catalogue_produits,
+            alertes_stock: rawContext.alertes_stock,
+            stocks_ingredients: rawContext.stocks_ingredients,
+            kpis_globaux: rawContext.kpis_globaux,
+        }
+
+        // Salaires accessibles seulement aux gérants
+        if (isManager) {
+            context.masse_salariale = rawContext.masse_salariale
+            context.evenements_salariaux = rawContext.evenements_salariaux
+        }
+
+        const systemInstruction = isManager ? SYSTEM_INSTRUCTION_GERANT : SYSTEM_INSTRUCTION_EMPLOYE
+
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
-            systemInstruction: SYSTEM_INSTRUCTION,
+            model: 'gemini-flash-latest',
+            systemInstruction,
+            safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            ]
         })
 
-        const prompt = `Données du jour en JSON :
-${JSON.stringify(context, null, 2)}
+        const prompt = `Contexte complet de la pâtisserie (JSON) :
+${JSON.stringify(context, (k, v) => v === null ? undefined : v, 2)}
 
-Question du gérant : ${question}`
+Question : ${question}`
 
         const result = await model.generateContent(prompt)
         const answer = result.response.text()
 
         return NextResponse.json({ answer })
-    } catch (err) {
+    } catch (err: unknown) {
         console.error('[AI Route] Error:', err)
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+
+        if (message.includes('429') || message.includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
+            return NextResponse.json(
+                { answer: "⏳ Le quota de l'IA est temporairement atteint. Réessayez dans 1-2 minutes." },
+                { status: 200 }
+            )
+        }
+
         return NextResponse.json(
-            { answer: "Je n'ai pas pu accéder aux données. Vérifiez la configuration de l'API Gemini." },
+            { answer: `Erreur technique : ${message.substring(0, 120)}. Réessayez.` },
             { status: 200 }
         )
     }

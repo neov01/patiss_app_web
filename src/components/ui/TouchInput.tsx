@@ -14,6 +14,9 @@ interface TouchInputProps {
     maxLength?: number
     className?: string
     style?: React.CSSProperties
+    icon?: React.ReactNode
+    isPhone?: boolean
+    hideIcon?: boolean
 }
 
 export default function TouchInput({
@@ -25,7 +28,10 @@ export default function TouchInput({
     allowDecimal = false,
     maxLength,
     className = 'input',
-    style
+    style,
+    icon,
+    isPhone = false,
+    hideIcon = false
 }: TouchInputProps) {
     const [isOpen, setIsOpen] = useState(false)
 
@@ -42,19 +48,53 @@ export default function TouchInput({
                     minHeight: '44px',
                     userSelect: 'none',
                     background: 'white',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    border: '1px solid #E5E7EB',
                     ...style
+                }}
+                onMouseDown={e => {
+                    e.currentTarget.style.transform = 'scale(0.98)'
+                    e.currentTarget.style.backgroundColor = '#FAF9F6'
+                }}
+                onMouseUp={e => {
+                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.backgroundColor = 'white'
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.backgroundColor = 'white'
                 }}
             >
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                     {value ? (
-                        <span style={{ color: '#2D1B0E', fontWeight: 600 }}>
+                        <span style={{ 
+                            color: '#2D1B0E', 
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            letterSpacing: isPassword ? '0.2rem' : 'normal'
+                        }}>
                             {isPassword ? '•'.repeat(value.length) : value}
                         </span>
                     ) : (
-                        <span style={{ color: '#9C8070', opacity: 0.6 }}>{placeholder}</span>
+                        <span style={{ color: '#9C8070', opacity: 0.5, fontStyle: 'italic' }}>{placeholder}</span>
                     )}
                 </div>
-                <Calculator size={18} style={{ color: '#d97757', flexShrink: 0, marginLeft: '8px' }} />
+                {!hideIcon && (
+                    <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
+                        background: '#FEF3EC',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: '8px'
+                    }}>
+                        {icon || <Calculator size={16} style={{ color: '#d97757' }} />}
+                    </div>
+                )}
             </div>
 
             {isOpen && (
@@ -64,6 +104,7 @@ export default function TouchInput({
                     isPassword={isPassword}
                     allowDecimal={allowDecimal}
                     maxLength={maxLength}
+                    isPhone={isPhone}
                     onConfirm={(val) => {
                         onChange(val)
                         setIsOpen(false)

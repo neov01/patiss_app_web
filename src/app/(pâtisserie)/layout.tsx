@@ -6,6 +6,11 @@ import AutoLockProvider from '@/components/auth/AutoLockProvider'
 import { checkSubscriptionStatus } from '@/lib/utils/subscription'
 import { getOpenSession } from '@/lib/actions/sessions'
 import SessionMaster from '@/components/layout/SessionMaster'
+import RealtimeSync from '@/components/shared/RealtimeSync'
+import { CurrencyProvider } from '@/providers/CurrencyProvider'
+
+import NetworkStatusBar from '@/components/layout/NetworkWrapper'
+import OfflineProvider from '@/components/providers/OfflineProvider'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
@@ -56,56 +61,68 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     // Fetch active sales session
     const openSession = await getOpenSession(displayProfile.organization_id!)
+    const currency = (displayProfile.organizations as any)?.currency_symbol || ''
 
     return (
-        <AutoLockProvider
-            autoLockSeconds={(displayProfile as any).auto_lock_seconds ?? 0}
-            themeColor={(displayProfile as any).theme_color}
-            userId={displayProfile.id}
-            role={displayProfile.role_slug}
-        >
-            <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--color-bg)' }}>
-                {isExpired && (
-                    <div style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        textAlign: 'center',
-                        padding: '8px',
-                        zIndex: 9999,
-                        fontSize: '14px',
-                        fontWeight: 'bold'
-                    }}>
-                        ⚠️ Abonnement expiré — Mode lecture seule activé. Veuillez contacter le support ou renouveler votre offre.
+        <CurrencyProvider currency={currency}>
+        <OfflineProvider>
+            <AutoLockProvider
+                autoLockSeconds={(displayProfile as any).auto_lock_seconds ?? 0}
+                themeColor={(displayProfile as any).theme_color}
+                userId={displayProfile.id}
+                role={displayProfile.role_slug}
+                organizationId={displayProfile.organization_id!}
+                isKiosk={!!kioskUserId}
+            >
+                <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--color-bg)' }}>
+                    <RealtimeSync organizationId={displayProfile.organization_id!} />
+                    {isExpired && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            textAlign: 'center',
+                            padding: '8px',
+                            zIndex: 9999,
+                            fontSize: '14px',
+                            fontWeight: 'bold'
+                        }}>
+                            ⚠️ Abonnement expiré — Mode lecture seule activé. Veuillez contacter le support ou renouveler votre offre.
+                        </div>
+                    )}
+                    <DashboardSidebar
+                        profile={displayProfile}
+                        adminProfile={adminProfile}
+                        organization={displayProfile.organizations as { name: string; currency_symbol: string }}
+                        isKiosk={!!kioskUserId}
+                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
+                        <NetworkStatusBar />
+                        <main style={{ 
+                            flex: 1, 
+                            minWidth: 0, 
+                            padding: '24px', 
+                            paddingTop: isExpired ? '60px' : '24px',
+                            paddingBottom: '120px',
+                            overflowY: 'auto' 
+                        }}>
+                            <SessionMaster 
+                                initialSession={openSession} 
+                                orgId={displayProfile.organization_id!} 
+                                userId={displayProfile.id}
+                                role={displayProfile.role_slug}
+                            >
+                                {children}
+                            </SessionMaster>
+                        </main>
                     </div>
-                )}
-                <DashboardSidebar
-                    profile={displayProfile}
-                    adminProfile={adminProfile}
-                    organization={displayProfile.organizations as { name: string; currency_symbol: string }}
-                />
-                <main style={{ 
-                    flex: 1, 
-                    minWidth: 0, 
-                    padding: '24px', 
-                    paddingTop: isExpired ? '60px' : '24px',
-                    paddingBottom: '120px',
-                    height: '100dvh',
-                    overflowY: 'auto' 
-                }}>
-                    <SessionMaster 
-                        initialSession={openSession} 
-                        orgId={displayProfile.organization_id!} 
-                        userId={displayProfile.id}
-                        role={displayProfile.role_slug}
-                    >
-                        {children}
-                    </SessionMaster>
-                </main>
-            </div>
-        </AutoLockProvider>
+                </div>
+            </AutoLockProvider>
+        </OfflineProvider>
+        </CurrencyProvider>
     )
 }
+

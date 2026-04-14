@@ -7,10 +7,18 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
     try {
-        // Simple Bearer token validation pour protéger la route cron
-        const authHeader = request.headers.get('Authorization')
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const cronSecret = process.env.CRON_SECRET;
+
+        // Safety guard: if the secret is not defined in the environment, reject all requests.
+        // This prevents 'Bearer undefined' matching when the variable is missing.
+        if (!cronSecret) {
+            console.error('CRON_SECRET is not configured in environment variables.');
+            return NextResponse.json({ error: 'Config missing' }, { status: 500 });
+        }
+
+        const authHeader = request.headers.get('Authorization');
+        if (authHeader !== `Bearer ${cronSecret}`) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
