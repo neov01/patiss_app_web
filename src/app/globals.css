@@ -88,8 +88,8 @@ html, body {
   box-shadow: 0 2px 8px rgba(196,131,106,0.4);
 }
 .btn-primary:hover  { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(196,131,106,0.5); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-primary:active { transform: scale(0.97); box-shadow: 0 2px 4px rgba(196,131,106,0.2); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-secondary {
   display: inline-flex;
@@ -108,6 +108,7 @@ html, body {
   transition: background 0.2s, border-color 0.2s, transform 0.15s;
 }
 .btn-secondary:hover { background: var(--color-cream); border-color: var(--color-rose); transform: translateY(-1px); }
+.btn-secondary:active { transform: scale(0.97); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-ghost {

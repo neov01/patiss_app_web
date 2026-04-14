@@ -269,6 +269,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
             }
 
             const result = await createOrder({
+                id: crypto.randomUUID(),
                 order_number: orderNumber,
                 status,
                 priority,
@@ -286,7 +287,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 customization_notes: customizationNotes,
                 custom_image_url: customImageUrl,
                 deposit_payment_method: deposit > 0 ? depositPaymentMethod : undefined,
-                items: orderItems
+                items: orderItems.map(item => ({ ...item, id: crypto.randomUUID() }))
             })
 
             if ('error' in result && result.error) {

@@ -92,3 +92,44 @@ self.addEventListener('fetch', (event) => {
     return
   }
 })
+
+// --- BACKGROUND SYNC ---
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-orders') {
+    console.log('[SW] Background sync triggered: sync-orders')
+    event.waitUntil(processOfflineQueue())
+  }
+})
+
+async function processOfflineQueue() {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open('patissapp-offline', 2)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+
+  // 1. Sync Transactions
+  const txStore = db.transaction('pendingTransactions', 'readonly').objectStore('pendingTransactions')
+  const transactions = await new Promise((resolve) => {
+    const req = txStore.getAll()
+    req.onsuccess = () => resolve(req.result)
+  })
+
+  if (transactions && transactions.length > 0) {
+    console.log(`[SW] Found ${transactions.length} pending transactions to sync`)
+    // TODO: The actual POST request to an API route should go here.
+    // Example: await fetch('/api/sync/transactions', { method: 'POST', body: JSON.stringify(transactions) })
+  }
+
+  // 2. Sync Orders
+  const orderStore = db.transaction('pendingOrders', 'readonly').objectStore('pendingOrders')
+  const orders = await new Promise((resolve) => {
+    const req = orderStore.getAll()
+    req.onsuccess = () => resolve(req.result)
+  })
+
+  if (orders && orders.length > 0) {
+    console.log(`[SW] Found ${orders.length} pending orders to sync`)
+    // Example: await fetch('/api/sync/orders', { method: 'POST', body: JSON.stringify(orders) })
+  }
+}

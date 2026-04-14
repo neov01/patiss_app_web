@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useOptimistic, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { startOfDay, format } from 'date-fns'
@@ -78,6 +78,30 @@ export default function CaisseClient({
     const [searchClient, setSearchClient] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     
+    // Optimistic UI pour le panier (Zéro Latence)
+    const [optimisticPanier, setOptimisticPanier] = useOptimistic<PanierLine[], { type: 'add' | 'update' | 'remove' | 'clear', payload?: any }>(
+        panier,
+        (state, action) => {
+            switch (action.type) {
+                case 'add':
+                    const existing = state.find(p => p.product_id === action.payload.id && !p.fromCmd)
+                    if (existing) {
+                        return state.map(p => (p.product_id === action.payload.id && !p.fromCmd) ? { ...p, qty: p.qty + 1 } : p)
+                    }
+                    return [...state, { product_id: action.payload.id, nom: action.payload.name, prix: Number(action.payload.selling_price), qty: 1, fromCmd: false }]
+                case 'update':
+                    return state.map((item, i) => i === action.payload.index ? { ...item, qty: Math.max(1, item.qty + action.payload.delta) } : item)
+                case 'remove':
+                    return state.filter((_, i) => i !== action.payload.index)
+                case 'clear':
+                    return []
+                default:
+                    return state
+            }
+        }
+    )
+    const [isPending, startTransition] = useTransition()
+    
     const [readyOrders, setReadyOrders] = useState(initialOrders)
 
     // Offline support
@@ -150,6 +174,12 @@ export default function CaisseClient({
     }
     
     const addToCart = (product: any) => {
+        // MAJ UI Immédiate Optimiste
+        startTransition(() => {
+            setOptimisticPanier({ type: 'add', payload: product })
+        })
+        
+        // MAJ Etat Réel
         setPanier(prev => {
             const existing = prev.find(p => p.product_id === product.id && !p.fromCmd)
             if (existing) {
@@ -173,16 +203,25 @@ export default function CaisseClient({
         if (now - lastUpdateRef.current < 150) return
         lastUpdateRef.current = now
 
+        startTransition(() => {
+            setOptimisticPanier({ type: 'update', payload: { index, delta } })
+        })
         setPanier(prev => prev.map((item, i) => 
             i === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item
         ))
     }
     
     const removeItem = (index: number) => {
+        startTransition(() => {
+            setOptimisticPanier({ type: 'remove', payload: { index } })
+        })
         setPanier(prev => prev.filter((_, i) => i !== index))
     }
     
     const viderPanier = () => {
+        startTransition(() => {
+            setOptimisticPanier({ type: 'clear' })
+        })
         setPanier([])
         setActiveOrder(null)
         setActiveClient(null)
@@ -213,7 +252,8 @@ export default function CaisseClient({
     }, [searchParams, readyOrders])
 
     // -- CALCULS --
-    const sousTotal = panier.reduce((sum, item) => sum + (item.prix * item.qty), 0)
+    // Use optimisticPanier instead of panier for zero-latency display
+    const sousTotal = optimisticPanier.reduce((sum, item) => sum + (item.prix * item.qty), 0)    
     const totalAEncaisser = Math.max(0, sousTotal - acompte)
     
     const sommePayee = Object.values(activePayments).reduce((sum, val) => sum + val, 0)
@@ -225,7 +265,7 @@ export default function CaisseClient({
     const montantRemis = Number(montantRemisStr) || 0
     const monnaieARendre = montantRemis > 0 ? Math.max(0, montantRemis - (activePayments.especes || 0)) : extraEspeces
 
-    const canSubmit = panier.length > 0 && resteAPercevoir === 0 && sommePayee > 0
+    const canSubmit = optimisticPanier.length > 0 && resteAPercevoir === 0 && sommePayee > 0
     
     // -- ACTIONS --
     const handleEncaisser = async () => {
@@ -241,12 +281,14 @@ export default function CaisseClient({
         }
 
         const payload = {
+            id: crypto.randomUUID(),
             order_id: activeOrder?.id || null,
             client_name: activeClient || 'Vente vitrine',
             amount: totalAEncaisser,
             payment_method: primaryMethod,
             payment_details: paymentDetailsForDb,
-            items: panier.map(item => ({
+            items: optimisticPanier.map(item => ({
+                id: crypto.randomUUID(),
                 product_id: item.product_id,
                 name: item.nom,
                 quantity: item.qty,
@@ -538,14 +580,14 @@ export default function CaisseClient({
 
                 {/* Lignes Panier */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-                    {panier.length === 0 ? (
+                    {optimisticPanier.length === 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9C8070', opacity: 0.6 }}>
                             <ShoppingBag size={48} style={{ marginBottom: '16px' }} />
                             <p style={{ fontWeight: 600 }}>Panier vide</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {panier.map((line, idx) => (
+                            {optimisticPanier.map((line, idx) => (
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -725,8 +767,7 @@ export default function CaisseClient({
                     >
                         {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : `Encaisser ${totalAEncaisser.toLocaleString('fr-FR')} ${currency}`}
                     </button>
-                    
-                    {panier.length > 0 && (
+                    {optimisticPanier.length > 0 && (
                         <button onClick={viderPanier} className="btn-secondary" style={{ width: '100%', color: '#9C8070' }}>
                             Vider le panier
                         </button>

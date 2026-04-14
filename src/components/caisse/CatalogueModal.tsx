@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { X, Search, Box, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useOffline } from '@/components/providers/OfflineProvider'
-import { getCachedProducts } from '@/lib/offline/db'
 
 type Product = {
     id: string
@@ -30,71 +30,30 @@ export default function CatalogueModal({
     organizationId: string
     currency: string
 }) {
-    const [products, setProducts] = useState<Product[]>([])
-    const [loading, setLoading] = useState(false)
     const [search, setSearch] = useState('')
     const [activeCat, setActiveCat] = useState('Tous')
     const inputRef = useRef<HTMLInputElement>(null)
+    const { isOffline } = useOffline()
 
-    const { isOffline, refreshProductCache } = useOffline()
+    const { data: products = [], isLoading: loading } = useQuery({
+        queryKey: ['catalog', organizationId],
+        queryFn: async () => {
+            const supabase = createClient()
+            const { data, error } = await supabase.from('products')
+                .select('id, name, selling_price, current_stock, category')
+                .eq('organization_id', organizationId)
+                .order('name')
+            
+            if (error) throw error
+            return data || []
+        },
+        enabled: open,
+        staleTime: Infinity, // Catalogue changes rarely, rely on idb-keyval cache
+    })
 
-    // Load
     useEffect(() => {
-        if (!open) return
-        
-        async function fetchCatalogue() {
-            setLoading(true)
-            
-            if (isOffline) {
-                // MODE OFFLINE : lire le cache IndexedDB
-                try {
-                    const cached = await getCachedProducts()
-                    setProducts(cached.map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        selling_price: p.selling_price,
-                        current_stock: p.current_stock,
-                        category: p.category
-                    })))
-                } catch (err) {
-                    console.error('[Offline] Erreur lecture cache produits:', err)
-                    setProducts([])
-                }
-            } else {
-                // MODE ONLINE : Supabase
-                const supabase = createClient()
-                const { data, error } = await supabase.from('products')
-                    .select('id, name, selling_price, current_stock, category')
-                    .eq('organization_id', organizationId)
-                    .order('name')
-                
-                if (error) {
-                    console.error('[Online] Erreur fetch catalogue:', error)
-                    setProducts([])
-                } else {
-                    const productsList = data || []
-                    setProducts(productsList)
-                    
-                    // Mettre à jour le cache local pour le futur mode hors-ligne
-                    if (productsList.length > 0) {
-                        refreshProductCache(productsList.map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            selling_price: p.selling_price,
-                            current_stock: p.current_stock,
-                            category: p.category
-                        })))
-                    }
-                }
-            }
-            
-            setLoading(false)
-        }
-        fetchCatalogue()
-
-        // Focus input
-        setTimeout(() => inputRef.current?.focus(), 100)
-    }, [open, organizationId, isOffline, refreshProductCache])
+        if (open) setTimeout(() => inputRef.current?.focus(), 100)
+    }, [open])
 
     // Keyboard escape
     useEffect(() => {

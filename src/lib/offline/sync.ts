@@ -53,21 +53,24 @@ export async function syncPendingData(): Promise<SyncResult> {
   await Promise.allSettled(pendingTx.map(async (tx) => {
     try {
       const res = await encaisserTransaction({
+        id: tx.id,         // UUID client-side → idempotence sur Supabase
         order_id: tx.order_id,
         client_name: tx.client_name,
         amount: tx.amount,
         payment_method: tx.payment_method,
         payment_details: tx.payment_details,
-        items: tx.items
+        items: tx.items    // contient déjà les id items
       })
 
       if (!res.error) {
         await removePendingTransaction(tx.offlineId!)
         result.syncedTransactions++
       } else {
+        console.warn('[Sync] Transaction rejetée par le serveur:', res.error)
         result.failedTransactions++
       }
-    } catch {
+    } catch (err) {
+      console.error('[Sync] Erreur réseau sur transaction:', err)
       result.failedTransactions++
     }
   }))
@@ -81,6 +84,7 @@ export async function syncPendingData(): Promise<SyncResult> {
       const rand = Math.floor(1000 + Math.random() * 9000)
 
       const res = await createOrder({
+        id: order.id,    // UUID client-side → idempotence
         order_number: `CMD-${year}-${rand}`,
         status: 'pending',
         priority: order.priority as any,
@@ -93,7 +97,9 @@ export async function syncPendingData(): Promise<SyncResult> {
         deposit_amount: 0,
         balance: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
         customization_notes: order.customization_notes,
+        delivery_fee: 0,
         items: order.items.map(i => ({
+          id: i.id,         // UUID item client-side → idempotence
           product_id: i.product_id || undefined,
           name: i.name,
           quantity: i.quantity,
@@ -107,9 +113,11 @@ export async function syncPendingData(): Promise<SyncResult> {
         await removePendingOrder(order.offlineId!)
         result.syncedOrders++
       } else {
+        console.warn('[Sync] Commande rejetée par le serveur:', res.error)
         result.failedOrders++
       }
-    } catch {
+    } catch (err) {
+      console.error('[Sync] Erreur réseau sur commande:', err)
       result.failedOrders++
     }
   }))

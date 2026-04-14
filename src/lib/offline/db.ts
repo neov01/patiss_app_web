@@ -117,12 +117,14 @@ export async function getCachedReadyOrders(): Promise<any[]> {
 
 export type PendingTransaction = {
   offlineId?: number
+  id: string
   order_id: string | null
   client_name: string
   amount: number
   payment_method: string
   payment_details: Record<string, number>
   items: Array<{
+    id: string
     product_id: string | null
     name: string
     quantity: number
@@ -174,12 +176,14 @@ export async function removePendingTransaction(offlineId: number): Promise<void>
 
 export type PendingOrder = {
   offlineId?: number
+  id: string
   customer_name: string
   customer_contact: string
   pickup_date: string
   reception_type: string
   customization_notes?: string
   items: Array<{
+    id: string
     product_id: string | null
     name: string
     quantity: number
