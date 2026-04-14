@@ -1,6 +1,6 @@
 'use client'
 
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { get, set, del } from 'idb-keyval'
@@ -37,8 +37,12 @@ export default function ReactQueryProvider({ children }: { children: ReactNode }
   }, [])
 
   if (!persister) {
-    // Render without persister during SSR
-    return <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: undefined as any }}>{children}</PersistQueryClientProvider>
+    // Render standard provider during SSR/early client load to avoid restoreClient undefined error
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    )
   }
 
   return (
@@ -47,4 +51,5 @@ export default function ReactQueryProvider({ children }: { children: ReactNode }
     </PersistQueryClientProvider>
   )
 }
+
 
