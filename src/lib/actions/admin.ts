@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import bcrypt from 'bcryptjs'
 
 // Helper to verify super_admin role
@@ -179,23 +180,41 @@ export async function impersonateUser(orgId: string) {
   try {
     await checkSuperAdmin()
     
+    // Détection dynamique de l'URL du site (évite les erreurs localhost en prod)
+    const host = (await headers()).get('host')
+    const protocol = host?.includes('localhost') ? 'http' : 'https'
+    const siteUrl = `${protocol}://${host}`
+    
     // Initialize admin client to generate link
     const supabaseAdmin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // 1. Find a user from that organization to impersonate (usually the gérant)
-    const { data: profile, error: pErr } = await supabaseAdmin
+    // 1. Trouver un utilisateur à imiter. 
+    // Priorité au Gérant, sinon le premier utilisateur actif trouvé.
+    let { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('id, full_name')
       .eq('organization_id', orgId)
       .eq('role_slug', 'gerant')
+      .eq('is_active', true)
       .limit(1)
       .single()
 
-    if (pErr || !profile) {
-      return { error: "Aucun gérant trouvé pour cette organisation." }
+    if (!profile) {
+        const { data: fallback } = await supabaseAdmin
+            .from('profiles')
+            .select('id, full_name')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .limit(1)
+            .single()
+        profile = fallback
+    }
+
+    if (!profile) {
+      return { error: "Aucun utilisateur actif trouvé pour cette organisation." }
     }
 
     // 2. Get the user's email from auth.users
@@ -208,7 +227,7 @@ export async function impersonateUser(orgId: string) {
     const { data: linkData, error: lErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: targetUser.email,
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` }
+      options: { redirectTo: `${siteUrl}/dashboard` }
     })
 
     if (lErr || !linkData.properties?.action_link) {
