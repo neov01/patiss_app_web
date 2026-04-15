@@ -38,43 +38,54 @@ export async function closeSingleSession(
 
     const org = (session as SessionResult).organizations as SessionResult
     const orgId = (session as SessionResult).organization_id
-    const today = new Date()
-    // Début de journée (pour les calculs de stats)
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+    const sessionStart = (session as SessionResult).opened_at
 
     // 2. CALCUL DES MÉTRIQUES
-    // Récupération des commandes du jour pour cette organisation
-    const { data: todayOrders } = await supabaseAdmin
-        .from('orders')
-        .select('total_amount, deposit_amount, payment_method, payment_details, status')
+    // Récupération des transactions depuis l'ouverture de la session
+    const { data: periodTransactions } = await supabaseAdmin
+        .from('transactions')
+        .select('amount, payment_method, payment_details, label_type')
         .eq('organization_id', orgId)
-        .gte('created_at', todayStart)
+        .gte('created_at', sessionStart)
 
-    const orders = todayOrders ?? []
+    // Récupération des commandes depuis l'ouverture de la session
+    const { data: periodOrders } = await supabaseAdmin
+        .from('orders')
+        .select('id, total_amount, deposit_amount, status')
+        .eq('organization_id', orgId)
+        .gte('created_at', sessionStart)
+
+    const transactions = periodTransactions ?? []
+    const orders = periodOrders ?? []
+    
     const totalOrders = orders.length
-    const completedOrders = orders.filter(o => o.status === 'completed').length
+    const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
 
     let totalCash = 0
     let totalMobileMoney = 0
     let totalPending = 0
 
-    for (const order of orders) {
-        const paid = order.deposit_amount ?? 0
-        const remaining = (order.total_amount ?? 0) - paid
-        
-        if (order.status === 'completed') {
-            // Utilisation du nouveau système payment_details si disponible (Paiement Mixte)
-            if (order.payment_details && Object.keys(order.payment_details).length > 0) {
-                totalCash += (order.payment_details.especes || 0)
-                totalMobileMoney += (order.payment_details.mobile_money || 0)
-                // Note: la carte n'est pas encore comptabilisée dans les totaux cash/mm de l'email mais le sera dans le totalRevenue
-            } else {
-                // Rétrocompatibilité ancien système
-                const method = order.payment_method ?? 'en_attente'
-                if (method === 'especes') totalCash += order.total_amount
-                else if (method === 'mobile_money') totalMobileMoney += order.total_amount
-            }
+    // Les finances sont calculées à partir des transactions (Acomptes, Soldes, Ventes Directes)
+    for (const tx of transactions) {
+        if (tx.payment_details && Object.keys(tx.payment_details).length > 0) {
+            totalCash += (tx.payment_details.especes || 0)
+            totalMobileMoney += (tx.payment_details.mobile_money || 0)
         } else {
+            // Repli vers payment_method si payment_details est vide
+            const method = tx.payment_method?.toLowerCase()
+            if (method === 'especes' || method === 'espèces') {
+                totalCash += Number(tx.amount) || 0
+            } else if (method === 'mobile_money' || method === 'mobile money') {
+                totalMobileMoney += Number(tx.amount) || 0
+            }
+        }
+    }
+
+    // Le total en attente se base sur les commandes non soldées
+    for (const order of orders) {
+        if (order.status !== 'completed' && order.status !== 'delivered' && order.status !== 'cancelled') {
+            const paid = order.deposit_amount ?? 0
+            const remaining = (order.total_amount ?? 0) - paid
             totalPending += remaining
         }
     }
