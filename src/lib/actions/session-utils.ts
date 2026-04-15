@@ -148,6 +148,7 @@ export async function closeSingleSession(
 
     const isProduction = process.env.ENVIRONMENT === 'production'
     const reportRecipient = isProduction ? managerEmail : (process.env.REPORT_DEV_EMAIL ?? 'adouwilfried@gmail.com')
+    const today = new Date()
     const dateStr = format(today, 'EEEE d MMMM yyyy', { locale: fr })
 
     const alertHtml = alertItems.length > 0

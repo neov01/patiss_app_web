@@ -46,18 +46,22 @@ patiss_app_web/
 | **Génération ID Client** | Architecture Local-First : les IDs de commandes sont créés par la tablette, pas par la DB. |
 | **Permissions Vendeur** | Extension des droits : les profils vendeurs ont désormais les droits d'écriture complets sur le catalogue. |
 | **Modernisation Tactile** | 100% des inputs numériques convertis (TouchInput/NumPad). |
+| **Logiciel de Reporting** | Correction majeure du calcul du chiffre d'affaires (basé sur `transactions` et `opened_at`) pour des rapports quotidiens 100% fidèles. |
+| **Prise de Main Admin** | Système d'impersonation corrigé pour la production (détection DNS dynamique) permettant au Super Admin d'aider les clients en direct. |
 
 ---
 
 ## 3. 🔍 DETTE TECHNIQUE & PROCHAINES ÉTAPES
 
 ### Restant à faire (Priorités)
-- **Stabilité Synchronisation** : 
+- [ ] **Système d'Impression Intelligent** :
+    - [ ] Création de templates HTML/CSS optimisés pour tickets de caisse (80mm/58mm).
+    - [ ] Support multi-périphériques via `window.print()` (Universel).
+    - [ ] Exploration de l'impression directe ESC/POS pour les imprimantes thermiques Bluetooth/USB.
+- [ ] **Stabilité Synchronisation** : 
     - [ ] Implémenter une page "Journal des Erreurs de Sync" pour corriger manuellement les conflits SI le serveur rejette une transaction.
-- **Optimisation** :
+- [ ] **Optimisation** :
     - [ ] Réduire le poids des images produits chargées en cache initial pour économiser le stockage local.
-- **Fonctionnalités Matérielles** :
-    - [ ] Impression thermique directe (Bluetooth/USB) - *Hors périmètre actuel, mais fortement demandé.*
 
 ### Décisions de design stratégiques
 - **Local-First Over Cloud-First** : La vérité de l'interface vient de l'état local (Optimistic), synchronisée asynchronement avec le Cloud.
