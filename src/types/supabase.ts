@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          lifetime_points: number | null
+          loyalty_points: number | null
+          name: string
+          organization_id: string
+          phone: string | null
+          preferences: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          lifetime_points?: number | null
+          loyalty_points?: number | null
+          name: string
+          organization_id: string
+          phone?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          lifetime_points?: number | null
+          loyalty_points?: number | null
+          name?: string
+          organization_id?: string
+          phone?: string | null
+          preferences?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_pay_events: {
         Row: {
           amount: number
@@ -209,6 +256,7 @@ export type Database = {
           created_by: string | null
           custom_image_url: string | null
           customer_contact: string | null
+          customer_id: string | null
           customer_name: string
           customization_notes: string | null
           delivery_address: string | null
@@ -232,6 +280,7 @@ export type Database = {
           created_by?: string | null
           custom_image_url?: string | null
           customer_contact?: string | null
+          customer_id?: string | null
           customer_name: string
           customization_notes?: string | null
           delivery_address?: string | null
@@ -255,6 +304,7 @@ export type Database = {
           created_by?: string | null
           custom_image_url?: string | null
           customer_contact?: string | null
+          customer_id?: string | null
           customer_name?: string
           customization_notes?: string | null
           delivery_address?: string | null
@@ -278,6 +328,27 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm_segments"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
           {
@@ -628,6 +699,7 @@ export type Database = {
           client_name: string
           created_at: string | null
           created_by: string | null
+          customer_id: string | null
           id: string
           label_type: string
           order_id: string | null
@@ -640,6 +712,7 @@ export type Database = {
           client_name?: string
           created_at?: string | null
           created_by?: string | null
+          customer_id?: string | null
           id?: string
           label_type?: string
           order_id?: string | null
@@ -652,6 +725,7 @@ export type Database = {
           client_name?: string
           created_at?: string | null
           created_by?: string | null
+          customer_id?: string | null
           id?: string
           label_type?: string
           order_id?: string | null
@@ -660,6 +734,27 @@ export type Database = {
           payment_method?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm_segments"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_order_id_fkey"
             columns: ["order_id"]
@@ -678,7 +773,58 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      customer_rfm: {
+        Row: {
+          customer_id: string | null
+          f_score: number | null
+          frequency: number | null
+          last_purchase_at: string | null
+          loyalty_points: number | null
+          m_score: number | null
+          monetary: number | null
+          name: string | null
+          organization_id: string | null
+          phone: string | null
+          r_score: number | null
+          recency_interval: string | null
+          rfm_segment: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_rfm_segments: {
+        Row: {
+          customer_id: string | null
+          f_score: number | null
+          frequency: number | null
+          lifetime_points: number | null
+          loyalty_points: number | null
+          m_score: number | null
+          monetary: number | null
+          name: string | null
+          organization_id: string | null
+          phone: string | null
+          r_score: number | null
+          recency_days: number | null
+          segment_label: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       decrement_product_stock: {
@@ -692,6 +838,7 @@ export type Database = {
       get_best_sellers_v2: {
         Args: { p_days_limit?: number; p_org_id: string; p_top_n?: number }
         Returns: {
+          category: string
           id: string
           name: string
           selling_price: number
@@ -706,6 +853,10 @@ export type Database = {
       get_ia_financial_context: { Args: { p_org_id: string }; Returns: Json }
       get_user_organization_id: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
+      increment_customer_points: {
+        Args: { p_amount: number; p_customer_id: string }
+        Returns: undefined
+      }
       is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
@@ -849,3 +1000,4 @@ export type Order = Tables<'orders'>
 export type SalesSession = Tables<'sales_sessions'>
 export type Transaction = Tables<'transactions'>
 export type InventoryLog = Tables<'inventory_logs'>
+export type CustomerRFM = Database['public']['Views']['customer_rfm']['Row']

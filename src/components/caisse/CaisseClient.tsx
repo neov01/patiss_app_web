@@ -25,6 +25,7 @@ import { encaisserTransaction } from '@/lib/actions/caisse'
 import TouchInput from '@/components/ui/TouchInput'
 import { useOffline } from '@/components/providers/OfflineProvider'
 import { getCachedReadyOrders } from '@/lib/offline/db'
+import { CRMSelector } from './CRMSelector'
 
 type CaisseProps = {
     organizationId: string
@@ -69,6 +70,7 @@ export default function CaisseClient({
     const [panier, setPanier] = useState<PanierLine[]>([])
     const [activeOrder, setActiveOrder] = useState<any | null>(null)
     const [activeClient, setActiveClient] = useState<string | null>(null)
+    const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null)
     const [acompte, setAcompte] = useState(0)
     
     const [activePayments, setActivePayments] = useState<Record<string, number>>({ especes: 0 })
@@ -159,6 +161,7 @@ export default function CaisseClient({
     const chargerCommande = (order: any) => {
         setActiveOrder(order)
         setActiveClient(order.customer_name)
+        setActiveCustomerId(order.customer_id || null)
         setAcompte(Number(order.deposit_amount))
         
         const lines: PanierLine[] = order.order_items.map((item: any) => ({
@@ -225,6 +228,7 @@ export default function CaisseClient({
         setPanier([])
         setActiveOrder(null)
         setActiveClient(null)
+        setActiveCustomerId(null)
         setAcompte(0)
         setMontantRemisStr('')
         setActivePayments({ especes: 0 })
@@ -235,6 +239,7 @@ export default function CaisseClient({
         setPanier(prev => prev.filter(p => !p.fromCmd))
         setActiveOrder(null)
         setActiveClient(null)
+        setActiveCustomerId(null)
         setAcompte(0)
     }
 
@@ -283,6 +288,7 @@ export default function CaisseClient({
         const payload = {
             id: crypto.randomUUID(),
             order_id: activeOrder?.id || null,
+            customer_id: activeCustomerId,
             client_name: activeClient || 'Vente vitrine',
             amount: totalAEncaisser,
             payment_method: primaryMethod,
@@ -544,38 +550,16 @@ export default function CaisseClient({
                         {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} isFloating={true} />}
                     </div>
                     
-                    <div style={{ position: 'relative', marginBottom: activeClient ? '16px' : 0 }}>
-                        <Search size={16} color="#9C8070" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                        <input 
-                            type="text" 
-                            className="input" 
-                            placeholder="Rechercher une commande..."
-                            value={searchClient}
-                            onChange={e => setSearchClient(e.target.value)}
-                            style={{ paddingLeft: '36px', height: '40px', fontSize: '0.85rem' }}
+                    <div style={{ marginBottom: '16px' }}>
+                        <CRMSelector
+                            selectedCustomer={activeClient ? { id: activeCustomerId || '', name: activeClient } : null}
+                            onCustomerSelected={(id, name) => {
+                                setActiveCustomerId(id)
+                                setActiveClient(name)
+                            }}
+                            onClear={detachClient}
                         />
-                        {/* Fake dropdown logic for standard filter */}
-                        {searchClient && (
-                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, marginTop: '4px', overflow: 'hidden' }}>
-                                {readyOrders.filter(o => o.customer_name.toLowerCase().includes(searchClient.toLowerCase())).map(o => (
-                                    <button key={o.id} onClick={() => { chargerCommande(o); setSearchClient('') }}
-                                        style={{ width: '100%', padding: '12px', textAlign: 'left', borderBottom: '1px solid #eee', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
-                                        <div style={{ fontWeight: 600 }}>{o.customer_name}</div>
-                                        <div style={{ color: '#888' }}>{Number(o.balance).toLocaleString('fr-FR')} {currency} reste à payer</div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </div>
-                    
-                    {activeClient && (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#FEF3EC', padding: '6px 12px', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600, color: '#D97757' }}>
-                            <span>Client : {activeClient}</span>
-                            <button onClick={detachClient} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#D97757' }}>
-                                <X size={14} />
-                            </button>
-                        </div>
-                    )}
                 </div>
 
                 {/* Lignes Panier */}

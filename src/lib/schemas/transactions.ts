@@ -9,7 +9,7 @@ export const PaymentStatus = z.enum(['EN_ATTENTE', 'PARTIEL', 'SOLDEE'])
 export type PaymentStatus = z.infer<typeof PaymentStatus>
 
 // ─── Méthodes de paiement ───
-export const PaymentMethod = z.enum(['Espèces', 'Mobile Money', 'Carte Bancaire'])
+export const PaymentMethod = z.enum(['Espèces', 'Orange Money', 'Wave', 'MTN MOMO'])
 export type PaymentMethod = z.infer<typeof PaymentMethod>
 
 // ─── Schéma de validation pour créer une transaction ───

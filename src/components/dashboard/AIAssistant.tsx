@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bot, Send, Loader2, Sparkles, Lightbulb, FileText, Download } from 'lucide-react'
+import { Bot, Send, Loader2, Sparkles, MoreVertical } from 'lucide-react'
 
 interface Props {
     currency: string
@@ -13,30 +13,9 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
     const [question, setQuestion] = useState('')
     const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean }>>([])
     const [loading, setLoading] = useState(false)
-    const [suggestions, setSuggestions] = useState<string[]>([])
-    const [suggestionsLoading, setSuggestionsLoading] = useState(true)
     const chatEndRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        async function loadSuggestions() {
-            try {
-                const res = await fetch('/api/ai-suggestions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ organizationId }),
-                })
-                const data = await res.json()
-                setSuggestions(data.suggestions ?? [])
-            } catch {
-                setSuggestions([])
-            } finally {
-                setSuggestionsLoading(false)
-            }
-        }
-        if (organizationId) loadSuggestions()
-    }, [organizationId])
-
-    // Auto-scroll vers le bas à chaque nouveau message
+    // Auto-scroll vers le bas
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [history])
@@ -45,7 +24,6 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
         const prompt = q ?? question
         if (!prompt.trim()) return
         
-        // Ajouter la question à l'historique avec un indicateur de chargement
         const newHistory = [...history, { q: prompt, a: '', loading: true }].slice(-5)
         setHistory(newHistory)
         setLoading(true)
@@ -58,7 +36,6 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
             })
             const data = await res.json()
             
-            // Mettre à jour l'entrée correspondante dans l'historique
             setHistory(prev => prev.map(item => 
                 item.q === prompt && item.loading 
                     ? { q: prompt, a: data.answer ?? "Je n'ai pas pu analyser les données.", loading: false }
@@ -75,223 +52,140 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
         if (!q) setQuestion('')
     }
 
-    // Sécurisation XSS : Autorise seulement les balises saines
+    // Sécurisation XSS
     function sanitizeHtml(html: string) {
         if (!html) return ''
         let clean = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, '')
-        clean = clean.replace(/<iframe\b[^>]*>([\s\S]*?)<\/iframe>/gmi, '')
         clean = clean.replace(/<([a-z1-6]+)\s+[^>]*>/gmi, '<$1>')
         return clean
     }
 
-    const handlePrint = () => {
-        window.print()
-    }
-
     return (
-        <div className="card" style={{ borderLeft: '4px solid #C4836A' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }} className="no-print">
-                <div style={{
-                    width: '36px', height: '36px', borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                    <Bot size={18} color="white" />
+        <div className="card shadow-2xl transition-all duration-500 hover:shadow-primary/5" style={{ padding: 0, overflow: 'hidden', height: '500px', display: 'flex', flexDirection: 'column', border: 'none', background: 'var(--color-lift)' }}>
+            {/* Header style - Editorial Glassmorphism */}
+            <div style={{ 
+                background: 'rgba(129, 84, 49, 0.95)', 
+                backdropFilter: 'blur(20px)',
+                padding: '24px 32px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                borderBottom: '1px solid rgba(255,255,255,0.1)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ 
+                        width: '48px', height: '48px', borderRadius: '16px', 
+                        background: 'rgba(255,255,255,0.15)', 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                    }}>
+                        <Sparkles size={24} color="white" />
+                    </div>
+                    <div>
+                        <h4 style={{ margin: 0, color: 'white', fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.15rem', letterSpacing: '-0.02em' }}>Assistant Compta-Gâteau</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ADE80', animation: 'pulse-dot 2s infinite' }} />
+                            <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intelligence Artisanale</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Comptable IA</h3>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-muted)' }}>Propulsé par Gemini</p>
-                </div>
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {history.length > 0 && (
-                        <button 
-                            onClick={handlePrint}
-                            className="btn-outline"
-                            style={{ 
-                                padding: '6px 12px', 
-                                fontSize: '0.75rem', 
-                                gap: '6px', 
-                                height: '32px',
-                                borderColor: '#EDCFBF',
-                                color: '#C4836A'
-                            }}
-                        >
-                            <Download size={14} />
-                            Exporter
-                        </button>
-                    )}
-                    <Sparkles size={16} style={{ color: '#C78A4A' }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                     <div className="p-2 rounded-full hover:bg-white/10 cursor-pointer transition-colors">
+                        <MoreVertical size={20} color="white" />
+                     </div>
                 </div>
             </div>
 
-            {/* Header invisible à l'écran, visible à l'impression */}
-            <div className="print-only" style={{ marginBottom: '30px', borderBottom: '2px solid #C4836A', paddingBottom: '15px' }}>
-                <h1 style={{ color: '#2D1B0E', margin: 0 }}>Pâtiss'App - Bilan IA</h1>
-                <p style={{ color: '#C4836A', margin: '5px 0 0', fontWeight: 600 }}>Rapport d'analyse financière - {new Date().toLocaleDateString('fr-FR')}</p>
-            </div>
-
-            {/* Zone de discussion scrollable */}
+            {/* Zone de discussion */}
             <div style={{
-                height: '320px', padding: '14px', borderRadius: 'var(--radius-md)',
-                background: 'var(--color-cream)', marginBottom: '16px',
-                fontSize: '0.9rem', color: 'var(--color-text)', lineHeight: 1.6,
-                display: 'flex', flexDirection: 'column', gap: '20px',
-                overflowY: 'auto',
-                scrollBehavior: 'smooth'
-            }} className="chat-container">
+                flex: 1, padding: '24px', background: 'var(--color-surface-container-lowest)',
+                overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px',
+            }} className="no-scrollbar">
                 {history.length === 0 ? (
-                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <p style={{ margin: 0, color: 'var(--color-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                            Posez une question pour obtenir une analyse de vos données financières.
-                        </p>
+                    <div style={{ display: 'flex', gap: '12px', maxWidth: '85%' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Bot size={16} color="var(--color-primary)" />
+                        </div>
+                        <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
+                            Bonjour Wilfried ! J'ai analysé vos ventes d'hier. Souhaitez-vous un récapitulatif ou une prévision pour aujourd'hui ?
+                        </div>
                     </div>
                 ) : (
                     history.map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {/* Question utilisateur */}
                             <div style={{ 
                                 alignSelf: 'flex-end',
-                                background: '#fff',
-                                padding: '10px 16px',
-                                borderRadius: '18px 18px 4px 18px',
+                                background: 'rgba(192, 138, 99, 0.15)', /* Transparent Primary container */
+                                padding: '12px 18px',
+                                borderRadius: '16px 16px 0 16px',
                                 fontSize: '0.85rem',
                                 fontWeight: 600,
-                                color: '#2D1B0E',
-                                border: '1px solid var(--color-border)',
-                                maxWidth: '85%',
-                                boxShadow: '0 2px 8px rgba(45,27,14,0.04)'
+                                color: 'var(--color-on-primary-container)',
+                                maxWidth: '80%'
                             }}>
                                 {item.q}
                             </div>
 
                             {/* Réponse IA */}
-                            <div style={{ alignSelf: 'flex-start', width: '90%' }}>
-                                {item.loading ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-muted)', paddingLeft: '4px' }}>
-                                        <Loader2 size={16} className="animate-spin" />
-                                        <span style={{ fontSize: '0.8rem' }}>Analyse en cours…</span>
-                                    </div>
-                                ) : (
-                                    <div 
-                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.a) }} 
-                                        className="ai-response"
-                                        style={{ margin: 0 }}
-                                    />
-                                )}
+                            <div style={{ display: 'flex', gap: '12px', maxWidth: '85%', alignSelf: 'flex-start' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Bot size={16} color="var(--color-primary)" />
+                                </div>
+                                <div style={{ 
+                                    background: 'var(--color-surface-container-low)', 
+                                    padding: '16px', 
+                                    borderRadius: '0 16px 16px 16px', 
+                                    fontSize: '0.875rem', 
+                                    color: 'var(--color-on-surface)' 
+                                }}>
+                                    {item.loading ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            <span>Analyse en cours…</span>
+                                        </div>
+                                    ) : (
+                                        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.a) }} className="ai-response" />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))
                 )}
+                <div ref={chatEndRef} />
+            </div>
+
+            {/* Zone de saisie */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-surface-container-low)' }}>
+                <div style={{ position: 'relative' }}>
+                    <input
+                        className="input"
+                        value={question}
+                        onChange={e => setQuestion(e.target.value)}
+                        placeholder="Posez une question..."
+                        onKeyDown={e => e.key === 'Enter' && askAI()}
+                        disabled={loading}
+                        style={{ background: 'var(--color-surface-container-low)', borderRadius: '99px', paddingRight: '48px', minHeight: '48px' }}
+                    />
+                    <button 
+                        onClick={() => askAI()} 
+                        disabled={loading || !question.trim()}
+                        style={{ 
+                            position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                            width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: 'none'
+                        }}
+                    >
+                        <Send size={16} />
+                    </button>
+                </div>
             </div>
 
             <style jsx>{`
-                .ai-response :global(ul) {
-                    margin: 8px 0;
-                    padding-left: 20px;
-                }
-                .ai-response :global(li) {
-                    margin-bottom: 4px;
-                }
-                .ai-response :global(b) {
-                    color: #2D1B0E;
-                    font-weight: 700;
-                }
-
-                @media print {
-                    :global(body *) {
-                        visibility: hidden;
-                    }
-                    .chat-container, .chat-container *, .print-only, .print-only * {
-                        visibility: visible;
-                    }
-                    .chat-container {
-                        position: absolute;
-                        left: 0;
-                        top: 80px;
-                        width: 100%;
-                        height: auto !important;
-                        overflow: visible !important;
-                        background: white !important;
-                        padding: 0 !important;
-                    }
-                    .print-only {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        display: block !important;
-                    }
-                    .no-print {
-                        display: none !important;
-                    }
-                    :global(.animate-fade-in) {
-                        animation: none !important;
-                    }
-                    .ai-response {
-                        page-break-inside: avoid;
-                    }
-                }
-
-                .print-only {
-                    display: none;
-                }
+                .ai-response :global(ul) { margin: 8px 0; padding-left: 20px; }
+                .ai-response :global(li) { margin-bottom: 4px; }
+                .ai-response :global(b) { font-weight: 700; color: var(--color-primary); }
             `}</style>
-
-            {/* Suggestions contextuelles */}
-            {suggestionsLoading ? (
-                <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Loader2 size={12} className="animate-spin" style={{ color: '#C78A4A' }} />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>Chargement des suggestions…</span>
-                </div>
-            ) : suggestions.length > 0 && (
-                <div style={{ marginBottom: '12px' }} className="no-print">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <Lightbulb size={13} color="#C78A4A" />
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#C78A4A', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Suggestions</span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {suggestions.map((s, i) => (
-                            <button
-                                key={i}
-                                onClick={() => askAI(s)}
-                                disabled={loading}
-                                style={{
-                                    padding: '7px 13px',
-                                    borderRadius: '99px',
-                                    border: '1.5px solid #EDCFBF',
-                                    background: '#FEF3EC',
-                                    fontSize: '0.78rem',
-                                    fontWeight: 600,
-                                    color: '#C4836A',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s',
-                                    opacity: loading ? 0.5 : 1
-                                }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#EDCFBF' }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#FEF3EC' }}
-                            >
-                                {s}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Input question */}
-            <div style={{ display: 'flex', gap: '8px' }} className="no-print">
-                <input
-                    className="input"
-                    value={question}
-                    onChange={e => setQuestion(e.target.value)}
-                    placeholder="Posez une question…"
-                    onKeyDown={e => e.key === 'Enter' && askAI()}
-                    disabled={loading}
-                />
-                <button onClick={() => askAI()} className="btn-primary" disabled={loading || !question.trim()}
-                    style={{ padding: '0 16px', minWidth: '44px' }}>
-                    <Send size={16} />
-                </button>
-            </div>
         </div>
     )
 }

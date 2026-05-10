@@ -1,0 +1,41 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import CustomerListClient from "@/components/dashboard/CustomerListClient";
+
+export default async function ClientsDashboardPage() {
+  const supabase = await createClient();
+
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) {
+    redirect("/login");
+  }
+
+  // Get the user's organization
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", authData.user.id)
+    .single();
+
+  if (!profile?.organization_id) {
+    redirect("/dashboard");
+  }
+
+  // Fetch customers from our RFM view
+  const { data: customers } = await supabase
+    .from("customer_rfm")
+    .select("*")
+    .eq("organization_id", profile.organization_id)
+    .order("monetary", { ascending: false });
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">CRM & Fidélité</h1>
+        <p className="text-gray-500 mt-2">Gérez vos clients et suivez leur valeur à vie grâce à l'analyse RFM.</p>
+      </div>
+
+      <CustomerListClient initialCustomers={(customers as any) || []} />
+    </div>
+  );
+}

@@ -54,7 +54,7 @@ const PAYMENT_METHODS = [
     { value: 'Espèces', label: '💵 Espèces' },
     { value: 'Orange Money', label: '🟠 Orange Money' },
     { value: 'Wave', label: '🌊 Wave' },
-    { value: 'Carte Bancaire', label: '💳 Carte Bancaire' },
+    { value: 'MTN MOMO', label: '🍌 MTN MOMO' },
 ]
 
 export default function NewOrderModal({ open, onClose, products: initialProducts, currency }: Props) {
@@ -304,62 +304,57 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
     return (
         <div className="modal-overlay" onClick={handleClose} style={{ zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="modal-content" style={{ maxWidth: '42rem', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '0' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-content" style={{ maxWidth: '42rem', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '0' }} onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
-                    
-                    {/* EN-TÊTE DU MODAL */}
-                    <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-background)', zIndex: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Nouvelle commande</h2>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--color-muted)', fontFamily: 'monospace' }}>#{orderNumber}</span>
-                            </div>
-                            <button type="button" onClick={handleClose} className="btn-ghost" style={{ padding: '4px' }}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+
+                    {/* EN-TÊTE — une seule ligne */}
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-background)', zIndex: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap' }}>Nouvelle commande</h2>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontFamily: 'monospace', marginRight: 'auto' }}>#{orderNumber}</span>
                             <TouchSelect
                                 value={status}
                                 onChange={setStatus}
                                 options={STATUS_OPTIONS}
                                 title="Statut de la commande"
-                                style={{ width: 'auto', padding: '0 16px', minHeight: '36px', borderRadius: '20px', fontSize: '0.875rem' }}
+                                style={{ width: 'auto', padding: '0 10px', minHeight: '30px', borderRadius: '20px', fontSize: '0.8rem' }}
                             />
-                            
-                            <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '4px', gap: '4px' }}>
+                            <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
                                 {PRIORITY_OPTIONS.map(opt => (
-                                    <button 
-                                        key={opt.value} 
-                                        type="button" 
+                                    <button
+                                        key={opt.value}
+                                        type="button"
                                         onClick={() => setPriority(opt.value)}
-                                        style={{ 
+                                        style={{
                                             flex: 1,
-                                            padding: '6px 12px', 
-                                            fontSize: '0.85rem', 
-                                            fontWeight: 700, 
+                                            padding: '4px 8px',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 700,
                                             borderRadius: '6px',
                                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                             background: priority === opt.value ? opt.color : 'transparent',
                                             color: priority === opt.value ? 'white' : 'var(--color-muted)',
                                             boxShadow: priority === opt.value ? `0 4px 12px ${opt.color}44` : 'none',
-                                            border: 'none'
+                                            border: 'none',
+                                            whiteSpace: 'nowrap'
                                         }}
                                     >
                                         {opt.label}
                                     </button>
                                 ))}
                             </div>
+                            <button type="button" onClick={handleClose} className="btn-ghost" style={{ padding: '4px', flexShrink: 0 }}>
+                                <X size={20} />
+                            </button>
                         </div>
                     </div>
 
-                    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        
+                    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
                         {/* CLIENT & LOGISTIQUE */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '8px' }}>
                             <div>
-                                <label className="label">Client *</label>
+                                <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Client *</label>
                                 <div style={{ position: 'relative' }}>
                                     <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
                                     <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={clientName}
@@ -367,8 +362,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 </div>
                             </div>
                             <div>
-                                <label className="label">Téléphone *</label>
-                                <TouchInput 
+                                <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Téléphone *</label>
+                                <TouchInput
                                     value={clientPhone}
                                     onChange={setClientPhone}
                                     placeholder="+225 00000000"
@@ -378,16 +373,16 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     style={{ borderColor: '#d4a87a' }}
                                 />
                             </div>
-                            
+
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '4px' }}>
                                     <button type="button" onClick={() => setReceptionType('retrait')}
-                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
+                                        style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
                                         background: receptionType === 'retrait' ? '#d4a87a' : 'transparent', color: receptionType === 'retrait' ? 'white' : 'var(--color-muted)' }}>
                                         🏠 Retrait en boutique
                                     </button>
                                     <button type="button" onClick={() => setReceptionType('livraison')}
-                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
+                                        style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
                                         background: receptionType === 'livraison' ? '#d4a87a' : 'transparent', color: receptionType === 'livraison' ? 'white' : 'var(--color-muted)' }}>
                                         🚚 Livraison
                                     </button>
@@ -395,7 +390,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             </div>
 
                             <div>
-                                <label className="label">{receptionType === 'retrait' ? 'Date de retrait *' : 'Date de livraison *'}</label>
+                                <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>{receptionType === 'retrait' ? 'Date de retrait *' : 'Date de livraison *'}</label>
                                 <DatePicker
                                     value={pickupDate}
                                     onChange={setPickupDate}
@@ -404,7 +399,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 />
                             </div>
                             <div>
-                                <label className="label">Heure</label>
+                                <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Heure</label>
                                 <TimeDigiPad
                                     value={pickupTime}
                                     onChange={setPickupTime}
@@ -414,7 +409,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                             {receptionType === 'livraison' && (
                                 <div>
-                                    <label className="label">Adresse de livraison *</label>
+                                    <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Adresse de livraison *</label>
                                     <div style={{ position: 'relative' }}>
                                         <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
                                         <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={deliveryAddress}
@@ -425,7 +420,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                             {receptionType === 'retrait' && (
                                 <div>
-                                    <label className="label">Canal de commande</label>
+                                    <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Canal de commande</label>
                                     <TouchSelect
                                         value={orderChannel}
                                         onChange={setOrderChannel}
@@ -436,57 +431,59 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             )}
                         </div>
 
-                        {/* PRODUITS COMMANDÉS */}
-                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '20px' }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>Produits</h3>
-                            
-                            <div style={{ position: 'relative', marginBottom: '12px' }} ref={searchRef}>
-                                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
-                                <input className="input" style={{ paddingLeft: '36px' }} placeholder="Rechercher dans l'inventaire..."
-                                    value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                
-                                {isSearching && <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
-                                
-                                {searchResults.length > 0 && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', zIndex: 20, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
-                                        {searchResults.map(res => {
-                                            const isOut = res.current_stock === 0
-                                            return (
-                                                <button key={res.id} type="button" 
-                                                    onClick={() => !isOut && handleAddItem(res)}
-                                                    disabled={isOut}
-                                                    style={{ 
-                                                        width: '100%', padding: '10px 12px', textAlign: 'left', display: 'flex', 
-                                                        justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)',
-                                                        opacity: isOut ? 0.6 : 1,
-                                                        cursor: isOut ? 'not-allowed' : 'pointer',
-                                                        background: isOut ? '#f9fafb' : 'transparent'
-                                                    }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <div style={{ 
-                                                            minWidth: '24px', height: '20px', borderRadius: '4px',
-                                                            background: isOut ? '#DC2626' : ((res.current_stock || 0) < 5 ? '#F59E0B' : '#10B981'),
-                                                            color: 'white', fontSize: '0.65rem', fontWeight: 800,
-                                                            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px'
+                        {/* PRODUITS */}
+                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }} ref={searchRef}>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
+                                    <input className="input" style={{ paddingLeft: '36px' }} placeholder="Rechercher un produit..."
+                                        value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                                    {isSearching && <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
+                                    {searchResults.length > 0 && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', zIndex: 20, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+                                            {searchResults.map(res => {
+                                                const isOut = res.current_stock === 0
+                                                return (
+                                                    <button key={res.id} type="button"
+                                                        onClick={() => !isOut && handleAddItem(res)}
+                                                        disabled={isOut}
+                                                        style={{
+                                                            width: '100%', padding: '10px 12px', textAlign: 'left', display: 'flex',
+                                                            justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)',
+                                                            opacity: isOut ? 0.6 : 1,
+                                                            cursor: isOut ? 'not-allowed' : 'pointer',
+                                                            background: isOut ? '#f9fafb' : 'transparent'
                                                         }}>
-                                                            {isOut ? '!' : res.current_stock}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <div style={{
+                                                                minWidth: '24px', height: '20px', borderRadius: '4px',
+                                                                background: isOut ? '#DC2626' : ((res.current_stock || 0) < 5 ? '#F59E0B' : '#10B981'),
+                                                                color: 'white', fontSize: '0.65rem', fontWeight: 800,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px'
+                                                            }}>
+                                                                {isOut ? '!' : res.current_stock}
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontWeight: 600, color: isOut ? '#9ca3af' : 'inherit' }}>{res.name}</div>
+                                                                {isOut && <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 700 }}>Stock épuisé</div>}
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <div style={{ fontWeight: 600, color: isOut ? '#9ca3af' : 'inherit' }}>{res.name}</div>
-                                                            {isOut && <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 700 }}>Stock épuisé</div>}
-                                                        </div>
-                                                    </div>
-                                                    <span style={{ color: isOut ? '#9ca3af' : 'var(--color-muted)' }}>{Number(res.selling_price).toLocaleString('fr-FR')} {currency}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                )}
+                                                        <span style={{ color: isOut ? '#9ca3af' : 'var(--color-muted)' }}>{Number(res.selling_price).toLocaleString('fr-FR')} {currency}</span>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <button type="button" onClick={handleAddManual}
+                                    style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0 14px', height: '42px', background: 'transparent', color: '#d4a87a', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0, cursor: 'pointer' }}>
+                                    +
+                                </button>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {orderItems.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '8px', alignItems: 'center', background: 'var(--color-surface-secondary)', padding: '8px', borderRadius: '8px' }}>
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-surface-secondary)', padding: '6px', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inv.</span>}
                                             <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px' }} required />
@@ -504,33 +501,27 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                         </button>
                                     </div>
                                 ))}
-                                
-                                <button type="button" onClick={handleAddManual} className="btn-ghost" style={{ color: '#d4a87a', fontWeight: 600, alignSelf: 'flex-start', padding: '6px 0' }}>
-                                    + Ajouter manuellement
-                                </button>
                             </div>
                         </div>
 
                         {/* PERSONNALISATION */}
-                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '20px' }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>Personnalisation</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                 <textarea className="input" rows={2} value={customizationNotes} onChange={e => setCustomizationNotes(e.target.value)}
-                                    placeholder="Texte sur le gâteau, couleurs, allergies, instructions spéciales..." style={{ resize: 'none' }}></textarea>
-                                
-                                <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px dashed var(--color-border)', borderRadius: '8px', padding: '16px', cursor: 'pointer', background: 'var(--color-surface-secondary)', color: 'var(--color-muted)' }}>
-                                        <ImageIcon size={20} />
-                                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{imageFile ? imageFile.name : 'Ajouter une photo d\'inspiration'}</span>
-                                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setImageFile(e.target.files?.[0] || null)} />
-                                    </label>
-                                </div>
+                                    placeholder="Texte sur le gâteau, couleurs, allergies, instructions spéciales..." style={{ resize: 'none', flex: 1 }}></textarea>
+                                <label
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--color-surface-secondary)', color: imageFile ? '#d4a87a' : 'var(--color-muted)', flexShrink: 0 }}
+                                    title={imageFile ? imageFile.name : "Ajouter une photo d'inspiration"}
+                                >
+                                    <ImageIcon size={18} />
+                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setImageFile(e.target.files?.[0] || null)} />
+                                </label>
                             </div>
                         </div>
 
                         {/* RÉCAP FINANCIER */}
-                        <div style={{ background: 'var(--color-surface-secondary)', borderRadius: '12px', padding: '16px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ background: 'var(--color-surface-secondary)', borderRadius: '12px', padding: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
                                     <span>Sous-total</span>
                                     <span>{subtotal.toLocaleString('fr-FR')} {currency}</span>
@@ -548,14 +539,14 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     </div>
                                 </div>
                                 {deposit > 0 && (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                                         <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Paiement acompte</span>
-                                        <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
-                                            {['Espèces', 'Mobile Money', 'Carte Bancaire'].map(method => (
+                                        <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px', flexWrap: 'wrap' }}>
+                                            {PAYMENT_METHODS.map(m => (
                                                 <button
-                                                    key={method}
+                                                    key={m.value}
                                                     type="button"
-                                                    onClick={() => setDepositPaymentMethod(method)}
+                                                    onClick={() => setDepositPaymentMethod(m.value)}
                                                     style={{
                                                         padding: '5px 10px',
                                                         fontSize: '0.75rem',
@@ -564,18 +555,18 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                                         border: 'none',
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s',
-                                                        background: depositPaymentMethod === method ? '#d4a87a' : 'transparent',
-                                                        color: depositPaymentMethod === method ? 'white' : 'var(--color-muted)',
+                                                        background: depositPaymentMethod === m.value ? '#d4a87a' : 'transparent',
+                                                        color: depositPaymentMethod === m.value ? 'white' : 'var(--color-muted)',
                                                     }}
                                                 >
-                                                    {method === 'Espèces' ? '💵' : method === 'Mobile Money' ? '📱' : '💳'} {method}
+                                                    {m.label}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-                                <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '1rem', color: '#d4a87a' }}>
+                                <div style={{ height: '1px', background: 'var(--color-border)', margin: '2px 0' }}></div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '0.95rem', color: '#d4a87a' }}>
                                     <span>Solde restant</span>
                                     <span>{balance.toLocaleString('fr-FR')} {currency}</span>
                                 </div>
@@ -583,12 +574,12 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                         </div>
 
                     </div>
-                    
-                    {/* FOOTER ACTIONS */}
-                    <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '10px', background: 'var(--color-background)', position: 'sticky', bottom: 0 }}>
+
+                    {/* FOOTER */}
+                    <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '8px', background: 'var(--color-background)', position: 'sticky', bottom: 0 }}>
                         <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
-                        <button type="submit" className="btn-primary" 
-                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate} 
+                        <button type="submit" className="btn-primary"
+                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate}
                             style={{ flex: 2, background: '#d4a87a', color: 'white' }}>
                             {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
                             {isPending ? 'Création...' : 'Créer la commande'}

@@ -78,38 +78,38 @@ export default function NumPad({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
-            background: 'rgba(45, 27, 14, 0.4)',
-            backdropFilter: 'blur(8px)'
+            background: 'rgba(26, 28, 26, 0.3)',
+            backdropFilter: 'blur(20px)'
         }}>
             <div style={{
-                background: 'white',
-                borderRadius: '32px',
+                background: 'var(--color-lift)',
+                borderRadius: 'var(--radius-lg)',
                 padding: '32px',
                 width: '100%',
                 maxWidth: '400px',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+                boxShadow: 'var(--shadow-lg)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '24px',
                 animation: 'scaleIn 0.3s cubic-bezier(.22, .68, 0, 1.2)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#2D1B0E', margin: 0 }}>{title}</h3>
-                    <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9C8070' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', margin: 0, fontFamily: 'var(--font-display)' }}>{title}</h3>
+                    <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)' }}>
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Main Display */}
                 <div style={{
-                    background: '#FDFCFB',
-                    borderRadius: '20px',
+                    background: 'var(--color-well)',
+                    borderRadius: 'var(--radius-md)',
                     padding: '24px',
                     textAlign: 'center',
                     fontSize: '2.5rem',
                     fontWeight: 900,
-                    color: '#2D1B0E',
-                    border: '2px solid #FEF3EC',
+                    color: 'var(--color-text)',
+                    border: 'none',
                     minHeight: '100px',
                     display: 'flex',
                     alignItems: 'center',
@@ -130,21 +130,21 @@ export default function NumPad({
                     ) : allowDecimal ? (
                         <PadButton onClick={() => handleNumber('.')}>.</PadButton>
                     ) : (
-                        <PadButton onClick={handleClear} style={{ background: '#FEF3EC', color: '#D97757', fontSize: '1rem' }}>Effacer</PadButton>
+                        <PadButton onClick={handleClear} style={{ background: 'var(--color-well)', color: 'var(--color-primary)', fontSize: '1rem' }}>Effacer</PadButton>
                     )}
 
                     <PadButton onClick={() => handleNumber('0')}>0</PadButton>
 
-                    <PadButton onClick={handleDelete} style={{ background: '#FEE8E5', color: '#D94F38' }}>
+                    <PadButton onClick={handleDelete} style={{ background: 'var(--color-well)', color: 'var(--color-error)' }}>
                         <Delete size={24} />
                     </PadButton>
                 </div>
 
                 <div style={{ display: 'flex', gap: '16px' }}>
-                    <button onClick={onCancel} className="btn-ghost" style={{ flex: 1, height: '60px', borderRadius: '20px', fontWeight: 700 }}>
+                    <button onClick={onCancel} className="btn-ghost" style={{ flex: 1, height: '60px', borderRadius: 'var(--radius-md)', fontWeight: 700 }}>
                         Annuler
                     </button>
-                    <button onClick={() => onConfirm(value)} className="btn-primary" style={{ flex: 2, height: '60px', borderRadius: '20px', fontWeight: 800, fontSize: '1.1rem', gap: '10px' }}>
+                    <button onClick={() => onConfirm(value)} className="btn-primary" style={{ flex: 2, height: '60px', borderRadius: '9999px', fontWeight: 800, fontSize: '1.1rem', gap: '10px' }}>
                         <Check size={24} /> Valider
                     </button>
                 </div>
@@ -169,10 +169,11 @@ function PadButton({ children, onClick, style }: { children: React.ReactNode, on
                 height: '72px',
                 fontSize: '1.5rem',
                 fontWeight: 700,
-                background: 'white',
-                borderRadius: '20px',
-                border: '2px solid #F3F0EE',
-                color: '#2D1B0E',
+                background: 'var(--color-lift)',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                boxShadow: 'var(--shadow-sm)',
+                color: 'var(--color-text)',
                 cursor: 'pointer',
                 transition: 'all 0.1s',
                 display: 'flex',
@@ -182,15 +183,15 @@ function PadButton({ children, onClick, style }: { children: React.ReactNode, on
             }}
             onMouseDown={(e) => {
                 e.currentTarget.style.transform = 'scale(0.95)'
-                e.currentTarget.style.background = '#FDFCFB'
+                e.currentTarget.style.background = 'var(--color-well)'
             }}
             onMouseUp={(e) => {
                 e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.background = 'var(--color-lift)'
             }}
             onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.background = 'var(--color-lift)'
             }}
         >
             {children}
