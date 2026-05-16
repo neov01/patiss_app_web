@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 type EncaisserPayload = {
     id?: string
     order_id: string | null
+    customer_id?: string | null
     client_name: string
     amount: number
     payment_method: string
@@ -46,6 +47,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
                 id: payload.id, // Utilisé si fourni (Offline UUID)
                 organization_id: orgId,
                 order_id: payload.order_id,
+                customer_id: payload.customer_id || null,
                 client_name: payload.client_name,
                 amount: payload.amount,
                 payment_method: finalPaymentMethod,
@@ -89,7 +91,21 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
             if (orderError) console.error("Erreur mise à jour commande:", orderError)
         }
 
-        // 4. Décrémenter les stocks des produits
+        // 4. Créditer les points de fidélité (1 point par 1000 FCFA)
+        if (payload.customer_id && payload.amount > 0) {
+            const pointsToAdd = Math.floor(payload.amount / 1000)
+            if (pointsToAdd > 0) {
+                const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', payload.customer_id).single()
+                if (cust) {
+                    await supabase.from('customers').update({
+                        loyalty_points: (cust.loyalty_points || 0) + pointsToAdd,
+                        lifetime_points: (cust.lifetime_points || 0) + pointsToAdd,
+                    }).eq('id', payload.customer_id)
+                }
+            }
+        }
+
+        // 5. Décrémenter les stocks des produits
         for (const item of payload.items) {
             if (item.product_id) {
                 // Utilisation de la fonction RPC créée pour le nouveau catalogue
@@ -106,6 +122,31 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         revalidatePath('/dashboard')
         revalidatePath('/catalogue')
 
+        return { success: true }
+    } catch (e: any) {
+        console.error("Erreur inattendue :", e)
+        return { error: "Erreur inattendue" }
+    }
+}
+
+export async function finaliserCommandeDejaPayee(orderId: string) {
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { error: "Non autorisé" }
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'completed' })
+            .eq('id', orderId)
+
+        if (error) {
+            console.error("Erreur finalisation commande:", error)
+            return { error: "Erreur lors de la finalisation" }
+        }
+
+        revalidatePath('/caisse')
+        revalidatePath('/dashboard')
         return { success: true }
     } catch (e: any) {
         console.error("Erreur inattendue :", e)

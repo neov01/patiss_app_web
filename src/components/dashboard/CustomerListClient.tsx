@@ -31,6 +31,29 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
 
+  const handleExportCSV = (customers: CustomerRFM[]) => {
+    const headers = ['Nom', 'Téléphone', 'Segment', 'CA Total (FCFA)', 'Commandes', 'Points fidélité', 'Dernier passage']
+    const rows = customers.map(c => [
+      `"${c.name}"`,
+      c.phone || '',
+      c.rfm_segment || '',
+      c.monetary || 0,
+      c.frequency || 0,
+      c.loyalty_points || 0,
+      c.last_purchase_at ? format(new Date(c.last_purchase_at), 'dd/MM/yyyy', { locale: fr }) : 'Jamais'
+    ])
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `clients_${format(new Date(), 'yyyy-MM-dd')}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const getAvatarColor = (name: string) => {
     const colors = [
       "bg-rose-100 text-rose-600",
@@ -364,9 +387,12 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                 <Plus size={18} className="text-amber-400" />
                 Points
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 hover:bg-slate-800 rounded-xl transition-all text-sm font-bold">
+              <button
+                onClick={() => handleExportCSV(selectedIds.length > 0 ? filtered.filter(c => selectedIds.includes(c.customer_id)) : filtered)}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-slate-800 rounded-xl transition-all text-sm font-bold"
+              >
                 <Download size={18} className="text-indigo-400" />
-                Exporter
+                Exporter CSV
               </button>
               <button 
                 onClick={() => setSelectedIds([])}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { ArrowUpDown, X, Loader2, Minus, Plus } from 'lucide-react'
 import TouchInput from '@/components/ui/TouchInput'
@@ -50,7 +51,7 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
             <button onClick={() => setOpen(true)} className="btn-ghost" style={{ minHeight: '36px', padding: '0 8px', color: '#C4836A' }}>
                 <ArrowUpDown size={16} />
             </button>
-            {open && (
+            {open && createPortal(
                 <div className="modal-overlay" onClick={() => setOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -112,7 +113,7 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </>
     )
 }

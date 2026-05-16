@@ -79,6 +79,30 @@ export async function searchCustomers(query: string) {
   return { data };
 }
 
+export async function findCustomerByPhone(rawPhone: string) {
+  const digits = rawPhone.replace(/\D/g, '')
+  if (digits.length < 8) return { data: null }
+
+  const supabase = await createClient()
+
+  // Essayer plusieurs normalisations pour couvrir les formats stockés en DB
+  let stripped = digits
+  if (digits.startsWith('225') && digits.length >= 11) stripped = digits.slice(3)
+  else if (digits.startsWith('33') && digits.length === 11) stripped = '0' + digits.slice(2)
+
+  const candidates = Array.from(new Set([digits, stripped]))
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('id, name, phone, loyalty_points')
+    .in('phone', candidates)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  return { data }
+}
+
 export async function getCustomerOrders(customerId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

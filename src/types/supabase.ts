@@ -112,6 +112,8 @@ export type Database = {
           is_active: boolean | null
           name: string
           organization_id: string
+          supplier_name: string | null
+          supplier_phone: string | null
           unit: string
         }
         Insert: {
@@ -123,6 +125,8 @@ export type Database = {
           is_active?: boolean | null
           name: string
           organization_id: string
+          supplier_name?: string | null
+          supplier_phone?: string | null
           unit: string
         }
         Update: {
@@ -134,6 +138,8 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           organization_id?: string
+          supplier_name?: string | null
+          supplier_phone?: string | null
           unit?: string
         }
         Relationships: [
@@ -260,7 +266,6 @@ export type Database = {
           customer_name: string
           customization_notes: string | null
           delivery_address: string | null
-          delivery_fee: number | null
           deposit_amount: number
           id: string
           order_channel: string | null
@@ -284,7 +289,6 @@ export type Database = {
           customer_name: string
           customization_notes?: string | null
           delivery_address?: string | null
-          delivery_fee?: number | null
           deposit_amount?: number
           id?: string
           order_channel?: string | null
@@ -308,7 +312,6 @@ export type Database = {
           customer_name?: string
           customization_notes?: string | null
           delivery_address?: string | null
-          delivery_fee?: number | null
           deposit_amount?: number
           id?: string
           order_channel?: string | null

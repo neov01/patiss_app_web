@@ -46,7 +46,7 @@ export default function CustomerIntelligenceModal({
   const queryClient = useQueryClient();
   const supabase = createClient();
   
-  const [activeTab, setActiveTab] = useState<"timeline" | "preferences" | "notes">("timeline");
+  const [activeTab, setActiveTab] = useState<"timeline" | "preferences" | "notes" | "analytique">("timeline");
   const [localNotes, setLocalNotes] = useState("");
   const [showQR, setShowQR] = useState(false);
   const [isSelectingProduct, setIsSelectingProduct] = useState(false);
@@ -102,6 +102,30 @@ export default function CustomerIntelligenceModal({
     enabled: !!clientId && isOpen,
   });
 
+  const { data: monthlyCA = [] } = useQuery({
+    queryKey: ["customer-monthly-ca", clientId],
+    queryFn: async () => {
+      if (!clientId) return []
+      const sixMonthsAgo = new Date()
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+      sixMonthsAgo.setDate(1)
+      const { data } = await supabase
+        .from("transactions")
+        .select("amount, created_at")
+        .eq("customer_id", clientId)
+        .gte("created_at", sixMonthsAgo.toISOString())
+        .order("created_at", { ascending: true })
+      if (!data) return []
+      const byMonth: Record<string, number> = {}
+      data.forEach(t => {
+        const key = new Date(t.created_at!).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" })
+        byMonth[key] = (byMonth[key] || 0) + Number(t.amount)
+      })
+      return Object.entries(byMonth).map(([month, total]) => ({ month, total }))
+    },
+    enabled: !!clientId && isOpen && activeTab === "analytique",
+  })
+
   const { data: products = [] } = useQuery({
     queryKey: ["quick-order-products"],
     queryFn: async () => {
@@ -125,7 +149,7 @@ export default function CustomerIntelligenceModal({
   // Reset tab when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setActiveTab("timeline");
+      setActiveTab("timeline" as const);
       setShowQR(false);
       setIsSelectingProduct(false);
     }
@@ -190,7 +214,6 @@ export default function CustomerIntelligenceModal({
       priority: "normale",
       reception_type: "retrait",
       subtotal: product.selling_price,
-      delivery_fee: 0,
       total_amount: product.selling_price,
       deposit_amount: 0,
       items: [
@@ -387,17 +410,78 @@ export default function CustomerIntelligenceModal({
                         )}
                       </div>
 
-                      <div className="mt-8 flex-1">
+                      {/* Barre d'onglets */}
+                      <div className="flex gap-1 border-b border-slate-100 mb-6 mt-2">
+                        {([
+                          { id: "timeline", label: "Historique" },
+                          { id: "analytique", label: "📊 Analytique" },
+                          { id: "preferences", label: "Préférences" },
+                          { id: "notes", label: "Notes" },
+                        ] as const).map(tab => (
+                          <button key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors border-b-2 ${
+                              activeTab === tab.id
+                                ? "border-[#DC5F4A] text-[#DC5F4A]"
+                                : "border-transparent text-slate-400 hover:text-slate-600"
+                            }`}
+                          >{tab.label}</button>
+                        ))}
+                      </div>
+
+                      <div className="flex-1">
                         {activeTab === "timeline" && (
-                          <CustomerTimeline 
-                            orders={orders} 
-                            formatCurrency={formatCurrency} 
+                          <CustomerTimeline
+                            orders={orders}
+                            formatCurrency={formatCurrency}
                           />
                         )}
 
+                        {activeTab === "analytique" && (
+                          <div>
+                            <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">CA mensuel (6 derniers mois)</h4>
+                            {monthlyCA.length === 0 ? (
+                              <div className="text-center py-12 text-slate-400 text-sm">Aucune donnée disponible</div>
+                            ) : (() => {
+                              const max = Math.max(...monthlyCA.map(m => m.total), 1)
+                              return (
+                                <div className="flex items-end gap-3 h-40">
+                                  {monthlyCA.map(m => (
+                                    <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
+                                      <span className="text-xs font-bold text-slate-600">{formatCurrency(m.total)}</span>
+                                      <div
+                                        title={`${m.month} : ${formatCurrency(m.total)}`}
+                                        style={{ height: `${Math.round((m.total / max) * 100)}%`, minHeight: 4 }}
+                                        className="w-full bg-[#DC5F4A]/80 rounded-t-lg hover:bg-[#DC5F4A] transition-colors"
+                                      />
+                                      <span className="text-[10px] text-slate-400 font-semibold">{m.month}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })()}
+                            <div className="mt-6 grid grid-cols-3 gap-3">
+                              <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CA Total</p>
+                                <p className="text-lg font-black text-slate-800 mt-1">{formatCurrency(customer?.total_spent || 0)}</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Commandes</p>
+                                <p className="text-lg font-black text-slate-800 mt-1">{customer?.total_orders || 0}</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-2xl p-4 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Panier moy.</p>
+                                <p className="text-lg font-black text-slate-800 mt-1">
+                                  {customer?.total_spent && customer?.total_orders ? formatCurrency(Math.round(customer.total_spent / customer.total_orders)) : "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {activeTab === "preferences" && (
-                          <CustomerPreferences 
-                            customer={customer || null} 
+                          <CustomerPreferences
+                            customer={customer || null}
                           />
                         )}
 

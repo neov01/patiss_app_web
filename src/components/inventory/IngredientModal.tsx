@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { Plus, Edit2, X, Loader2 } from 'lucide-react'
 import TouchInput from '@/components/ui/TouchInput'
@@ -22,6 +23,8 @@ export default function IngredientModal({ mode, ingredient }: Props) {
         cost_per_unit: ingredient?.cost_per_unit ?? 0,
         alert_threshold: ingredient?.alert_threshold ?? 5,
         current_stock: ingredient?.current_stock ?? 0,
+        supplier_name: ingredient?.supplier_name ?? '',
+        supplier_phone: ingredient?.supplier_phone ?? '',
     })
 
     async function handleSubmit(e: React.FormEvent) {
@@ -37,7 +40,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                 toast.success(mode === 'create' ? 'Ingrédient créé !' : 'Ingrédient mis à jour !')
                 setOpen(false)
                 if (mode === 'create') {
-                    setForm({ name: '', unit: 'kg', cost_per_unit: 0, alert_threshold: 5, current_stock: 0 })
+                    setForm({ name: '', unit: 'kg', cost_per_unit: 0, alert_threshold: 5, current_stock: 0, supplier_name: '', supplier_phone: '' })
                 }
             }
         })
@@ -51,7 +54,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                 {mode === 'create' ? <><Plus size={16} /> Ajouter</> : <Edit2 size={16} />}
             </button>
 
-            {open && (
+            {open && createPortal(
                 <div className="modal-overlay" onClick={() => setOpen(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -110,6 +113,33 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                                 />
                             </div>
 
+                            <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '12px', marginTop: '4px' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                    Fournisseur (optionnel)
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label className="label">Nom</label>
+                                        <input
+                                            className="input"
+                                            value={form.supplier_name}
+                                            onChange={e => setForm(f => ({ ...f, supplier_name: e.target.value }))}
+                                            placeholder="ex: Moulin Belle Côte"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="label">WhatsApp</label>
+                                        <input
+                                            className="input"
+                                            type="tel"
+                                            value={form.supplier_phone}
+                                            onChange={e => setForm(f => ({ ...f, supplier_phone: e.target.value }))}
+                                            placeholder="+225 07 XX XX XX XX"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                                 <button type="button" onClick={() => setOpen(false)} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
                                 <button type="submit" className="btn-primary" disabled={isPending} style={{ flex: 1 }}>
@@ -120,7 +150,7 @@ export default function IngredientModal({ mode, ingredient }: Props) {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </>
     )
 }

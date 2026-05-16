@@ -23,33 +23,58 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
     async function askAI(q?: string) {
         const prompt = q ?? question
         if (!prompt.trim()) return
-        
-        const newHistory = [...history, { q: prompt, a: '', loading: true }].slice(-5)
-        setHistory(newHistory)
+
+        // Ajoute le message utilisateur avec réponse vide (sera remplie en streaming)
+        setHistory(prev => [...prev, { q: prompt, a: '', loading: true }].slice(-5))
         setLoading(true)
-        
+        if (!q) setQuestion('')
+
         try {
             const res = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: prompt, organizationId, currency, userRole }),
             })
-            const data = await res.json()
-            
-            setHistory(prev => prev.map(item => 
-                item.q === prompt && item.loading 
-                    ? { q: prompt, a: data.answer ?? "Je n'ai pas pu analyser les données.", loading: false }
-                    : item
+
+            if (!res.ok || !res.body) throw new Error('Réponse invalide')
+
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let accumulated = ''
+
+            // Marquer comme "en train de streamer" (plus de spinner, texte apparaît)
+            setHistory(prev => prev.map((item, idx) =>
+                idx === prev.length - 1 ? { ...item, loading: false } : item
             ))
+
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                accumulated += decoder.decode(value, { stream: true })
+                // Mettre à jour le dernier message en temps réel
+                setHistory(prev => prev.map((item, idx) =>
+                    idx === prev.length - 1 ? { ...item, a: accumulated } : item
+                ))
+            }
+
+            // Flush final du decoder
+            const tail = decoder.decode()
+            if (tail) {
+                accumulated += tail
+                setHistory(prev => prev.map((item, idx) =>
+                    idx === prev.length - 1 ? { ...item, a: accumulated } : item
+                ))
+            }
+
         } catch {
-            setHistory(prev => prev.map(item => 
-                item.q === prompt && item.loading 
-                    ? { q: prompt, a: "Erreur de connexion à l'assistant IA.", loading: false }
+            setHistory(prev => prev.map((item, idx) =>
+                idx === prev.length - 1
+                    ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false }
                     : item
             ))
         }
+
         setLoading(false)
-        if (!q) setQuestion('')
     }
 
     // Sécurisation XSS

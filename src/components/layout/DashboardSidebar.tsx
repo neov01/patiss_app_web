@@ -114,13 +114,13 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                 <div>
                     <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.1, fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Pâtiss&apos;App</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                        <div style={{ 
+                        <div style={{
                             width: '6px', height: '6px', borderRadius: '50%',
                             background: networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)',
                             boxShadow: `0 0 8px ${networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)'}`,
                             flexShrink: 0
                         }} />
-                        <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Artisanat Digital</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{organization?.name || 'Artisanat Digital'}</span>
                     </div>
                 </div>
             </div>

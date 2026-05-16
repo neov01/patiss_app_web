@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect, useCallback } from 'react'
 import { Calculator } from 'lucide-react'
 import NumPad from './NumPad'
 
@@ -34,6 +34,34 @@ export default function TouchInput({
     hideIcon = false
 }: TouchInputProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [fontSize, setFontSize] = useState<number | null>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const textRef = useRef<HTMLSpanElement>(null)
+
+    const baseFontSize = parseFloat(style?.fontSize as string) || 1
+    const MIN_FONT_SIZE = 0.55
+
+    const adjustFontSize = useCallback(() => {
+        const container = containerRef.current
+        const text = textRef.current
+        if (!container || !text || !value) {
+            setFontSize(null)
+            return
+        }
+        text.style.fontSize = `${baseFontSize}rem`
+        const cs = getComputedStyle(container)
+        const available = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        const textWidth = text.scrollWidth
+        if (textWidth > available && available > 0) {
+            setFontSize(Math.max(MIN_FONT_SIZE, baseFontSize * (available / textWidth)))
+        } else {
+            setFontSize(null)
+        }
+    }, [value, baseFontSize])
+
+    useLayoutEffect(() => {
+        adjustFontSize()
+    }, [adjustFontSize])
 
     return (
         <>
@@ -68,13 +96,14 @@ export default function TouchInput({
                     e.currentTarget.style.backgroundColor = 'var(--color-well)'
                 }}
             >
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 16px' }}>
+                <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 16px' }}>
                     {value ? (
-                        <span style={{ 
-                            color: 'var(--color-text)', 
+                        <span ref={textRef} style={{
+                            color: 'var(--color-text)',
                             fontWeight: 700,
-                            fontSize: '1rem',
-                            letterSpacing: isPassword ? '0.2rem' : 'normal'
+                            fontSize: fontSize !== null ? `${fontSize}rem` : `${baseFontSize}rem`,
+                            letterSpacing: isPassword ? '0.2rem' : 'normal',
+                            whiteSpace: 'nowrap',
                         }}>
                             {isPassword ? '•'.repeat(value.length) : value}
                         </span>

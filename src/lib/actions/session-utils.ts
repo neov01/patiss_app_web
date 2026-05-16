@@ -57,27 +57,45 @@ export async function closeSingleSession(
 
     const transactions = periodTransactions ?? []
     const orders = periodOrders ?? []
-    
+
     const totalOrders = orders.length
     const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
 
-    let totalCash = 0
-    let totalMobileMoney = 0
+    let totalEspeces = 0
+    let totalOrangeMoney = 0
+    let totalWave = 0
+    let totalMtnMomo = 0
+    let totalMoovMoney = 0
+    let totalAcomptes = 0
+    let totalSoldes = 0
+    let totalVentesDirectes = 0
     let totalPending = 0
 
     // Les finances sont calculées à partir des transactions (Acomptes, Soldes, Ventes Directes)
     for (const tx of transactions) {
+        const amount = Number(tx.amount) || 0
+
+        // Ventilation par type de transaction
+        if (tx.label_type === 'ACOMPTE') totalAcomptes += amount
+        else if (tx.label_type === 'SOLDE') totalSoldes += amount
+        else if (tx.label_type === 'VENTE_DIRECTE') totalVentesDirectes += amount
+
+        // Ventilation par méthode de paiement
         if (tx.payment_details && Object.keys(tx.payment_details).length > 0) {
-            totalCash += (tx.payment_details.especes || 0)
-            totalMobileMoney += (tx.payment_details.mobile_money || 0)
+            // Paiement mixte : les parts sont dans payment_details (clés = valeurs enum)
+            totalEspeces += tx.payment_details['Espèces'] || tx.payment_details['especes'] || 0
+            totalOrangeMoney += tx.payment_details['Orange Money'] || tx.payment_details['mobile_money'] || 0
+            totalWave += tx.payment_details['Wave'] || 0
+            totalMtnMomo += tx.payment_details['MTN MOMO'] || 0
+            totalMoovMoney += tx.payment_details['Moov Money'] || 0
         } else {
-            // Repli vers payment_method si payment_details est vide
-            const method = tx.payment_method?.toLowerCase()
-            if (method === 'especes' || method === 'espèces') {
-                totalCash += Number(tx.amount) || 0
-            } else if (method === 'mobile_money' || method === 'mobile money') {
-                totalMobileMoney += Number(tx.amount) || 0
-            }
+            // Paiement simple : utiliser payment_method directement
+            const method = tx.payment_method
+            if (method === 'Espèces') totalEspeces += amount
+            else if (method === 'Orange Money') totalOrangeMoney += amount
+            else if (method === 'Wave') totalWave += amount
+            else if (method === 'MTN MOMO') totalMtnMomo += amount
+            else if (method === 'Moov Money') totalMoovMoney += amount
         }
     }
 
@@ -90,17 +108,18 @@ export async function closeSingleSession(
         }
     }
 
+    const totalMobileMoney = totalOrangeMoney + totalWave + totalMtnMomo + totalMoovMoney
+    const totalCash = totalEspeces
     const totalRevenue = totalCash + totalMobileMoney
     const currency = org?.currency_symbol ?? ''
 
-    // 3. VÉRIFICATION DES STOCKS BAS
-    const { data: lowStockItems } = await supabaseAdmin
+    // 3. VÉRIFICATION DES STOCKS BAS — filtre côté serveur pour comparer deux colonnes
+    const { data: allIngredients } = await supabaseAdmin
         .from('ingredients')
         .select('name, current_stock, alert_threshold, unit')
         .eq('organization_id', orgId)
-        .filter('current_stock', 'lte', 'alert_threshold')
 
-    const alertItems = lowStockItems ?? []
+    const alertItems = (allIngredients ?? []).filter(i => i.current_stock <= i.alert_threshold)
 
     // 4. CLÔTURE OFFICIELLE EN DB
     const { error: updateError } = await supabaseAdmin
@@ -113,8 +132,10 @@ export async function closeSingleSession(
             total_mobile_money: totalMobileMoney,
             total_orders: totalOrders,
             metrics_snapshot: {
-                totalRevenue, totalCash, totalMobileMoney, totalPending,
-                totalOrders, completedOrders, alertItems,
+                totalRevenue, totalCash, totalMobileMoney,
+                totalEspeces, totalOrangeMoney, totalWave, totalMtnMomo, totalMoovMoney,
+                totalAcomptes, totalSoldes, totalVentesDirectes,
+                totalPending, totalOrders, completedOrders, alertItems,
                 generatedAt: new Date().toISOString()
             }
         })
@@ -152,50 +173,148 @@ export async function closeSingleSession(
     const dateStr = format(today, 'EEEE d MMMM yyyy', { locale: fr })
 
     const alertHtml = alertItems.length > 0
-        ? `<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:16px;border-radius:8px;margin-top:24px;">
-            <h3 style="margin:0 0 12px;color:#856404;">⚠️ Alertes Stock</h3>
+        ? `<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:16px;border-radius:8px;">
+            <h3 style="margin:0 0 12px;color:#856404;font-size:15px;">⚠️ Alertes Stock (${alertItems.length})</h3>
             <ul style="margin:0;padding-left:20px;color:#856404;">
                 ${alertItems.map(i => `<li>${i.name}: <strong>${i.current_stock} ${i.unit}</strong> (seuil: ${i.alert_threshold})</li>`).join('')}
             </ul>
            </div>`
-        : `<div style="background:#d4edda;border-left:4px solid #28a745;padding:16px;border-radius:8px;margin-top:24px;">
+        : `<div style="background:#d4edda;border-left:4px solid #28a745;padding:16px;border-radius:8px;">
             <p style="margin:0;color:#155724;">✅ Tous les stocks sont au-dessus des seuils d'alerte.</p>
            </div>`
+
+    const paymentCardStyle = (bg: string, color: string) =>
+        `background:${bg};border-radius:10px;padding:16px;text-align:center;`
+    const labelStyle = (color: string) =>
+        `margin:0;font-size:11px;font-weight:700;letter-spacing:1px;color:${color};`
+    const amountStyle = (color: string) =>
+        `margin:4px 0 0;font-size:22px;font-weight:800;color:${color};`
 
     const html = `
 <!DOCTYPE html>
 <html lang="fr">
-<body style="margin:0;padding:0;background:#FDF8F3;font-family:sans-serif;">
-<div style="max-width:600px;margin:40px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#C4836A,#C78A4A);padding:32px 40px;">
-        <h1 style="margin:0;color:white;font-size:24px;">🎂 Rapport de Journée</h1>
-        <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);">${org?.name ?? 'Votre Pâtisserie'} — ${dateStr}</p>
+<body style="margin:0;padding:0;background:#FDF8F3;font-family:'Helvetica Neue',Arial,sans-serif;">
+<div style="max-width:620px;margin:32px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+  <!-- EN-TÊTE -->
+  <div style="background:linear-gradient(135deg,#C4836A 0%,#C78A4A 100%);padding:32px 40px;">
+    <h1 style="margin:0;color:white;font-size:26px;font-weight:800;">🎂 Rapport de Journée</h1>
+    <p style="margin:8px 0 0;color:rgba(255,255,255,0.88);font-size:15px;">${org?.name ?? 'Votre Pâtisserie'} — ${dateStr}</p>
+  </div>
+
+  <div style="padding:36px 40px;">
+
+    <!-- TOTAL JOURNÉE -->
+    <div style="background:#FDF8F3;border:2px solid #C4836A;border-radius:14px;padding:24px;text-align:center;margin-bottom:28px;">
+      <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:1px;color:#9C8070;">TOTAL ENCAISSÉ AUJOURD'HUI</p>
+      <p style="margin:6px 0 0;font-size:42px;font-weight:800;color:#C4836A;">${totalRevenue.toLocaleString('fr-FR')} ${currency}</p>
     </div>
-    <div style="padding:40px;">
-        <h2 style="margin:0 0 20px;font-size:18px;color:#2D1B0E;">💰 Résumé Financier</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-            <div style="background:#e6f4ea;border-radius:12px;padding:20px;text-align:center;">
-                <p style="margin:0;font-size:13px;color:#137333;">ESPÈCES</p>
-                <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#137333;">${totalCash.toLocaleString('fr-FR')} ${currency}</p>
-            </div>
-            <div style="background:#e8f0fe;border-radius:12px;padding:20px;text-align:center;">
-                <p style="margin:0;font-size:13px;color:#1967d2;">MOBILE MONEY</p>
-                <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#1967d2;">${totalMobileMoney.toLocaleString('fr-FR')} ${currency}</p>
-            </div>
-        </div>
-        <div style="background:#FDF8F3;border:2px solid #C4836A;border-radius:12px;padding:20px;margin-top:16px;text-align:center;">
-            <p style="margin:0;font-size:14px;color:#9C8070;">TOTAL JOURNÉE</p>
-            <p style="margin:4px 0 0;font-size:36px;font-weight:800;color:#C4836A;">${totalRevenue.toLocaleString('fr-FR')} ${currency}</p>
-        </div>
-        <div style="margin-top:32px;padding-top:24px;border-top:1px solid #f0e8e0;">
-            <h2 style="margin:0 0 16px;font-size:18px;color:#2D1B0E;">📦 Commandes</h2>
-            <p>Total: ${totalOrders} | Livrées: ${completedOrders} | En attente: ${totalOrders - completedOrders}</p>
-        </div>
-        <div style="margin-top:32px;padding-top:24px;border-top:1px solid #f0e8e0;">
-            <h2 style="margin:0 0 16px;font-size:18px;color:#2D1B0E;">🏪 État des Stocks</h2>
-            ${alertHtml}
-        </div>
+
+    <!-- VENTILATION PAR OPÉRATEUR -->
+    <h2 style="margin:0 0 16px;font-size:17px;color:#2D1B0E;">💳 Détail par mode de paiement</h2>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px;">
+      <tr>
+        <td width="50%" style="${paymentCardStyle('#e6f4ea', '#137333')}">
+          <p style="${labelStyle('#137333')}">ESPÈCES</p>
+          <p style="${amountStyle('#137333')}">${totalEspeces.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+        <td width="50%" style="${paymentCardStyle('#fff4e5', '#e65100')}">
+          <p style="${labelStyle('#e65100')}">ORANGE MONEY</p>
+          <p style="${amountStyle('#e65100')}">${totalOrangeMoney.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" style="${paymentCardStyle('#e3f2fd', '#0d47a1')}">
+          <p style="${labelStyle('#0d47a1')}">WAVE</p>
+          <p style="${amountStyle('#0d47a1')}">${totalWave.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+        <td width="50%" style="${paymentCardStyle('#fce4ec', '#880e4f')}">
+          <p style="${labelStyle('#880e4f')}">MTN MOMO</p>
+          <p style="${amountStyle('#880e4f')}">${totalMtnMomo.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+      </tr>
+      <tr>
+        <td width="50%" style="${paymentCardStyle('#e8eaf6', '#283593')}">
+          <p style="${labelStyle('#283593')}">MOOV MONEY</p>
+          <p style="${amountStyle('#283593')}">${totalMoovMoney.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+        <td width="50%"></td>
+      </tr>
+    </table>
+
+    <!-- SOUS-TOTAL MOBILE -->
+    <div style="background:#f5f0ff;border-radius:10px;padding:14px 20px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;color:#4a0072;font-weight:600;">📱 Sous-total Mobile Money</span>
+      <span style="font-size:18px;font-weight:800;color:#4a0072;">${totalMobileMoney.toLocaleString('fr-FR')} ${currency}</span>
     </div>
+
+    <!-- VENTILATION PAR TYPE DE TRANSACTION -->
+    <h2 style="margin:28px 0 16px;font-size:17px;color:#2D1B0E;">📋 Nature des encaissements</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="padding:10px 14px;background:#FFF8E1;border-radius:8px;text-align:center;margin:4px;">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#F57F17;">ACOMPTES</p>
+          <p style="margin:4px 0 0;font-size:20px;font-weight:800;color:#F57F17;">${totalAcomptes.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+        <td style="width:8px;"></td>
+        <td style="padding:10px 14px;background:#E8F5E9;border-radius:8px;text-align:center;">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#2E7D32;">SOLDES</p>
+          <p style="margin:4px 0 0;font-size:20px;font-weight:800;color:#2E7D32;">${totalSoldes.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+        <td style="width:8px;"></td>
+        <td style="padding:10px 14px;background:#E3F2FD;border-radius:8px;text-align:center;">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#1565C0;">VENTES DIRECTES</p>
+          <p style="margin:4px 0 0;font-size:20px;font-weight:800;color:#1565C0;">${totalVentesDirectes.toLocaleString('fr-FR')} ${currency}</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- RESTE À ENCAISSER -->
+    ${totalPending > 0 ? `
+    <div style="background:#fff3cd;border-left:4px solid #ffc107;border-radius:8px;padding:14px 20px;margin-top:16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:13px;color:#856404;font-weight:600;">⏳ Reste à encaisser (soldes dus)</span>
+      <span style="font-size:18px;font-weight:800;color:#856404;">${totalPending.toLocaleString('fr-FR')} ${currency}</span>
+    </div>` : `
+    <div style="background:#d4edda;border-left:4px solid #28a745;border-radius:8px;padding:14px 20px;margin-top:16px;">
+      <p style="margin:0;color:#155724;font-size:13px;font-weight:600;">✅ Aucun solde en attente — toutes les commandes sont soldées.</p>
+    </div>`}
+
+    <!-- COMMANDES -->
+    <div style="margin-top:28px;padding-top:24px;border-top:1px solid #f0e8e0;">
+      <h2 style="margin:0 0 16px;font-size:17px;color:#2D1B0E;">📦 Commandes de la session</h2>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="text-align:center;padding:12px;background:#f9f9f9;border-radius:8px;">
+            <p style="margin:0;font-size:11px;color:#666;font-weight:700;">TOTAL</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:#333;">${totalOrders}</p>
+          </td>
+          <td style="width:8px;"></td>
+          <td style="text-align:center;padding:12px;background:#e8f5e9;border-radius:8px;">
+            <p style="margin:0;font-size:11px;color:#2E7D32;font-weight:700;">LIVRÉES</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:#2E7D32;">${completedOrders}</p>
+          </td>
+          <td style="width:8px;"></td>
+          <td style="text-align:center;padding:12px;background:#fff3e0;border-radius:8px;">
+            <p style="margin:0;font-size:11px;color:#E65100;font-weight:700;">EN ATTENTE</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:#E65100;">${totalOrders - completedOrders}</p>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- STOCKS -->
+    <div style="margin-top:28px;padding-top:24px;border-top:1px solid #f0e8e0;">
+      <h2 style="margin:0 0 16px;font-size:17px;color:#2D1B0E;">🏪 État des Stocks</h2>
+      ${alertHtml}
+    </div>
+
+  </div>
+
+  <!-- PIED DE PAGE -->
+  <div style="background:#f9f4f0;padding:20px 40px;text-align:center;border-top:1px solid #f0e8e0;">
+    <p style="margin:0;color:#9C8070;font-size:13px;">Rapport généré automatiquement par <strong>Pâtiss'App</strong> 🥐</p>
+  </div>
+
 </div>
 </body>
 </html>`

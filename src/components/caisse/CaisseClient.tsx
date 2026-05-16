@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { startOfDay, format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { 
-    ShoppingBag, 
+    ShoppingBag,
     Store,
     Clock,
     Search,
@@ -16,12 +16,15 @@ import {
     CreditCard,
     DollarSign,
     Box,
-    Loader2
+    Loader2,
+    UserCheck,
+    BadgeCheck,
+    Info
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CatalogueModal from './CatalogueModal'
 import DashboardNewOrderButton from '@/components/dashboard/DashboardNewOrderButton'
-import { encaisserTransaction } from '@/lib/actions/caisse'
+import { encaisserTransaction, finaliserCommandeDejaPayee } from '@/lib/actions/caisse'
 import TouchInput from '@/components/ui/TouchInput'
 import { useOffline } from '@/components/providers/OfflineProvider'
 import { getCachedReadyOrders } from '@/lib/offline/db'
@@ -49,9 +52,11 @@ type PanierLine = {
 }
 
 const PAYMENT_METHODS = [
-    { id: 'especes', label: 'Espèces', icon: DollarSign },
-    { id: 'mobile_money', label: 'Mobile Money', icon: CreditCard },
-    { id: 'carte', label: 'Carte Bancaire', icon: CreditCard }
+    { id: 'Espèces', label: 'Espèces', icon: DollarSign },
+    { id: 'Orange Money', label: 'Orange Money', icon: CreditCard },
+    { id: 'Wave', label: 'Wave', icon: CreditCard },
+    { id: 'MTN MOMO', label: 'MTN MOMO', icon: CreditCard },
+    { id: 'Moov Money', label: 'Moov Money', icon: CreditCard },
 ]
 
 export default function CaisseClient({
@@ -73,10 +78,11 @@ export default function CaisseClient({
     const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null)
     const [acompte, setAcompte] = useState(0)
     
-    const [activePayments, setActivePayments] = useState<Record<string, number>>({ especes: 0 })
+    const [activePayments, setActivePayments] = useState<Record<string, number>>({ 'Espèces': 0 })
     const [montantRemisStr, setMontantRemisStr] = useState('')
     
     const [modalCatalogueOpen, setModalCatalogueOpen] = useState(false)
+    const [caisseMode, setCaisseMode] = useState<'commande' | 'vitrine'>('commande')
     const [searchClient, setSearchClient] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     
@@ -266,23 +272,36 @@ export default function CaisseClient({
     
     // Si l'utilisateur a saisi un montant supérieur au total dans le champ espèces,
     // on calcule la monnaie automatiquement à partir de cet extra.
-    const extraEspeces = (activePayments.especes || 0) > 0 ? Math.max(0, sommePayee - totalAEncaisser) : 0
+    const extraEspeces = (activePayments['Espèces'] || 0) > 0 ? Math.max(0, sommePayee - totalAEncaisser) : 0
     const montantRemis = Number(montantRemisStr) || 0
-    const monnaieARendre = montantRemis > 0 ? Math.max(0, montantRemis - (activePayments.especes || 0)) : extraEspeces
+    const monnaieARendre = montantRemis > 0 ? Math.max(0, montantRemis - (activePayments['Espèces'] || 0)) : extraEspeces
 
-    const canSubmit = optimisticPanier.length > 0 && resteAPercevoir === 0 && sommePayee > 0
+    const canSubmit = optimisticPanier.length > 0 && resteAPercevoir === 0 && (sommePayee > 0 || totalAEncaisser === 0)
     
     // -- ACTIONS --
     const handleEncaisser = async () => {
         if (!canSubmit) return
+
+        // Cas commande déjà intégralement payée : juste marquer completed, pas de nouvelle transaction
+        if (totalAEncaisser === 0 && activeOrder?.id) {
+            setIsSubmitting(true)
+            const res = await finaliserCommandeDejaPayee(activeOrder.id)
+            if (res.error) { toast.error(res.error); setIsSubmitting(false); return }
+            toast.success("Commande remise au client !")
+            viderPanier()
+            setIsSubmitting(false)
+            setTimeout(() => window.location.reload(), 800)
+            return
+        }
+
         const primaryMethod = Object.entries(activePayments).sort((a,b) => b[1] - a[1])[0][0]
 
         // Pour l'enregistrement, on s'assure que le total des détails de paiement ne dépasse pas l'en-caisser
         // On réduit le montant espèces si nécessaire (c'est lui qui génère la monnaie)
         const paymentDetailsForDb = { ...activePayments }
         const surplus = Math.max(0, sommePayee - totalAEncaisser)
-        if (surplus > 0 && paymentDetailsForDb.especes) {
-            paymentDetailsForDb.especes = Math.max(0, paymentDetailsForDb.especes - surplus)
+        if (surplus > 0 && paymentDetailsForDb['Espèces']) {
+            paymentDetailsForDb['Espèces'] = Math.max(0, paymentDetailsForDb['Espèces'] - surplus)
         }
 
         const payload = {
@@ -368,6 +387,34 @@ export default function CaisseClient({
                     </div>
                 </div>
 
+                {/* TOGGLE COMMANDE / VITRINE */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                    <button
+                        onClick={() => setCaisseMode('commande')}
+                        style={{
+                            flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600,
+                            cursor: 'pointer', transition: 'all 0.15s',
+                            background: caisseMode === 'commande' ? '#2C1A0E' : 'white',
+                            color: caisseMode === 'commande' ? 'white' : '#2C1A0E',
+                            border: caisseMode === 'commande' ? '1px solid #2C1A0E' : '1px solid #E5DDD5',
+                        }}
+                    >
+                        Commande
+                    </button>
+                    <button
+                        onClick={() => setCaisseMode('vitrine')}
+                        style={{
+                            flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600,
+                            cursor: 'pointer', transition: 'all 0.15s',
+                            background: caisseMode === 'vitrine' ? '#2C1A0E' : 'white',
+                            color: caisseMode === 'vitrine' ? 'white' : '#2C1A0E',
+                            border: caisseMode === 'vitrine' ? '1px solid #2C1A0E' : '1px solid #E5DDD5',
+                        }}
+                    >
+                        Vitrine
+                    </button>
+                </div>
+
                 {/* 2. METRIQUES */}
                 <div className="metrics-container" style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
@@ -389,7 +436,7 @@ export default function CaisseClient({
                     </div>
                 </div>
 
-                {/* 3.1 COMMANDES PRÊTES */}
+                {caisseMode === 'commande' && <>{/* 3.1 COMMANDES PRÊTES */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingBag size={18} color="#C4836A" /> Prêtes à encaisser
                 </h2>
@@ -412,9 +459,16 @@ export default function CaisseClient({
                                     }}
                                     className="card-clickable"
                                 >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '1.05rem' }}>{order.customer_name}</div>
-                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#C4836A' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
+                                            <span style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '1.05rem' }}>{order.customer_name}</span>
+                                            {order.customer_id && (
+                                                <span title="Client CRM identifié" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#EFF6FF', color: '#3B82F6', borderRadius: '99px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                                    <BadgeCheck size={11} /> CRM
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#C4836A', flexShrink: 0 }}>
                                             {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
@@ -473,7 +527,9 @@ export default function CaisseClient({
                     </div>
                 )}
 
-                {/* 4. VENTE VITRINE */}
+                </>}
+
+                {caisseMode === 'vitrine' && <>{/* 4. VENTE VITRINE */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Store size={18} color="#C4836A" /> Vente Rapide — Best-Sellers
                 </h2>
@@ -509,6 +565,8 @@ export default function CaisseClient({
                     <Search size={16} /> Voir tout le catalogue
                 </button>
 
+                </>}
+
                 {/* 5. HISTORIQUE */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={18} color="#C4836A" /> Historique récent
@@ -518,14 +576,21 @@ export default function CaisseClient({
                         <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>Aucune transaction aujourd'hui</div>
                     ) : (
                         initialHistory.map((t, i) => (
-                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
-                                <div>
-                                    <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>{t.client_name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
-                                        {(() => {
-                                            const date = new Date(t.created_at);
-                                            return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
-                                        })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} · {t.payment_method}
+                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    {t.has_crm && (
+                                        <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <UserCheck size={14} color="#3B82F6" />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>{t.client_name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
+                                            {(() => {
+                                                const date = new Date(t.created_at);
+                                                return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
+                                            })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} · {t.payment_method}
+                                        </div>
                                     </div>
                                 </div>
                                 <div style={{ fontWeight: 700, color: t.is_order ? '#10B981' : '#2D1B0E' }}>
@@ -662,62 +727,128 @@ export default function CaisseClient({
                         <span style={{ color: totalAEncaisser > 0 ? '#D97757' : '#10B981' }}>{totalAEncaisser.toLocaleString('fr-FR')} {currency}</span>
                     </div>
 
-                    {/* Modes de paiement — Ventilation */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                    {/* Modes de paiement — Ventilation (masqué si commande déjà soldée) */}
+                    {totalAEncaisser > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#9C8070', marginBottom: '4px' }}>Répartition du paiement</div>
-                        
-                        {PAYMENT_METHODS.map(m => {
-                            const currentVal = activePayments[m.id] || 0
-                            const isActive = currentVal > 0
-                            
+
+                        {/* Lignes de paiement existantes */}
+                        {Object.entries(activePayments).map(([method, amount]) => {
+                            const methodInfo = PAYMENT_METHODS.find(m => m.id === method)
+                            if (!methodInfo) return null
+
                             return (
-                                <div key={m.id} style={{ 
-                                    display: 'flex', alignItems: 'center', gap: '12px', background: 'white', 
-                                    padding: '10px', borderRadius: '12px', border: isActive ? '2px solid #D97757' : '1px solid #E5E7EB'
+                                <div key={method} style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px', background: 'white',
+                                    padding: '10px', borderRadius: '12px', border: amount > 0 ? '2px solid #D97757' : '1px solid #E5E7EB'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '130px' }}>
-                                        <m.icon size={18} color={isActive ? '#D97757' : '#9CA3AF'} />
-                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isActive ? '#2D1B0E' : '#6B7280' }}>{m.label}</span>
-                                    </div>
-                                    
-                                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {/* Dropdown mode de paiement */}
+                                    <select
+                                        value={method}
+                                        onChange={(e) => {
+                                            const newMethod = e.target.value
+                                            setActivePayments(prev => {
+                                                const { [method]: val, ...rest } = prev
+                                                return { ...rest, [newMethod]: val }
+                                            })
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            padding: '6px 8px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #E5E7EB',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            background: 'white'
+                                        }}
+                                    >
+                                        {PAYMENT_METHODS.map(m => (
+                                            <option key={m.id} value={m.id}>{m.label}</option>
+                                        ))}
+                                    </select>
+
+                                    {/* Input montant */}
+                                    <div style={{ flex: 0.8 }}>
                                         <TouchInput
-                                            value={currentVal.toString()}
+                                            value={amount.toString()}
                                             onChange={(val) => {
                                                 const v = Math.max(0, parseFloat(val) || 0)
-                                                setActivePayments(prev => ({ ...prev, [m.id]: v }))
+                                                setActivePayments(prev => ({ ...prev, [method]: v }))
                                             }}
                                             allowDecimal={true}
-                                            title={`Paiement ${m.label}`}
                                             placeholder="0"
-                                            style={{ 
-                                                flex: 1,
+                                            style={{
                                                 minHeight: '36px',
-                                                border: 'none', 
+                                                border: 'none',
                                                 background: '#F9FAFB',
-                                                fontSize: '0.9rem'
+                                                fontSize: '0.9rem',
+                                                textAlign: 'right'
                                             }}
                                         />
-                                        <button 
-                                            onClick={() => {
-                                                const currentOtherTotal = Object.entries(activePayments)
-                                                    .filter(([key]) => key !== m.id)
-                                                    .reduce((s, [_, v]) => s + v, 0)
-                                                const needed = Math.max(0, totalAEncaisser - currentOtherTotal)
-                                                setActivePayments(prev => ({ ...prev, [m.id]: needed }))
-                                            }}
-                                            style={{ 
-                                                background: '#FEF3EC', border: 'none', color: '#D97757', 
-                                                padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 900, cursor: 'pointer'
-                                            }}
-                                        >
-                                            MAX
-                                        </button>
                                     </div>
+
+                                    {/* Bouton MAX */}
+                                    <button
+                                        onClick={() => {
+                                            const otherTotal = Object.entries(activePayments)
+                                                .filter(([key]) => key !== method)
+                                                .reduce((s, [_, v]) => s + v, 0)
+                                            const needed = Math.max(0, totalAEncaisser - otherTotal)
+                                            setActivePayments(prev => ({ ...prev, [method]: needed }))
+                                        }}
+                                        style={{
+                                            background: '#FEF3EC', border: 'none', color: '#D97757',
+                                            padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        MAX
+                                    </button>
+
+                                    {/* Bouton supprimer */}
+                                    <button
+                                        onClick={() => {
+                                            setActivePayments(prev => {
+                                                const { [method]: _, ...rest } = prev
+                                                return rest
+                                            })
+                                        }}
+                                        style={{
+                                            background: '#FEE2E2', border: 'none', color: '#DC2626',
+                                            padding: '6px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             )
                         })}
-                    </div>
+
+                        {/* Bouton ajouter un mode de paiement */}
+                        {Object.keys(activePayments).length < PAYMENT_METHODS.length && (
+                            <button
+                                onClick={() => {
+                                    const usedMethods = Object.keys(activePayments)
+                                    const availableMethod = PAYMENT_METHODS.find(m => !usedMethods.includes(m.id))
+                                    if (availableMethod) {
+                                        setActivePayments(prev => ({ ...prev, [availableMethod.id]: 0 }))
+                                    }
+                                }}
+                                style={{
+                                    padding: '10px',
+                                    background: '#F0F9FF',
+                                    border: '2px dashed #3B82F6',
+                                    borderRadius: '12px',
+                                    color: '#1E40AF',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                + Ajouter un mode de paiement
+                            </button>
+                        )}
+                    </div>}
 
                     {/* Reste à percevoir (Alerte si non soldé) */}
                     {resteAPercevoir > 0 && totalAEncaisser > 0 && (
@@ -741,15 +872,37 @@ export default function CaisseClient({
                         </div>
                     )}
 
-                    <button 
-                        className="btn-primary" 
+                    {/* Rappel acompte pour commandes déjà soldées */}
+                    {totalAEncaisser === 0 && acompte > 0 && (
+                        <div style={{
+                            marginBottom: '16px', padding: '14px 16px', borderRadius: '14px',
+                            background: '#ECFDF5', border: '1.5px solid #10B981',
+                            display: 'flex', alignItems: 'center', gap: '10px'
+                        }}>
+                            <Info size={18} color="#10B981" style={{ flexShrink: 0 }} />
+                            <div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Commande intégralement réglée</div>
+                                <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '2px' }}>
+                                    Acompte versé à la prise : <strong>{acompte.toLocaleString('fr-FR')} {currency}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <button
+                        className="btn-primary"
                         onClick={handleEncaisser}
                         disabled={!canSubmit || isSubmitting}
                         style={{ width: '100%', height: '54px', fontSize: '1.1rem', marginBottom: '12px',
                             opacity: (!canSubmit || isSubmitting) ? 0.5 : 1
                         }}
                     >
-                        {isSubmitting ? <Loader2 className="animate-spin" size={24} /> : `Encaisser ${totalAEncaisser.toLocaleString('fr-FR')} ${currency}`}
+                        {isSubmitting
+                            ? <Loader2 className="animate-spin" size={24} />
+                            : totalAEncaisser === 0
+                                ? 'Confirmer la remise'
+                                : `Encaisser ${totalAEncaisser.toLocaleString('fr-FR')} ${currency}`
+                        }
                     </button>
                     {optimisticPanier.length > 0 && (
                         <button onClick={viderPanier} className="btn-secondary" style={{ width: '100%', color: '#9C8070' }}>

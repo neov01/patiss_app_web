@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search } from 'lucide-react'
+import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/utils/image-compression'
@@ -10,6 +10,9 @@ import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
 import TimeDigiPad from '@/components/ui/TimeDigiPad'
 import TouchSelect from '@/components/ui/TouchSelect'
+import CatalogueModal from '@/components/caisse/CatalogueModal'
+import { CRMSelector } from '@/components/caisse/CRMSelector'
+import { usePhoneCRMLookup, type CRMMatch } from '@/hooks/usePhoneCRMLookup'
 
 interface Product { id: string; name: string; selling_price: number; current_stock: number | null }
 
@@ -27,6 +30,7 @@ interface Props {
     onClose: () => void
     products: Product[] // Initial products for fallback/default
     currency: string
+    organizationId: string
 }
 
 const STATUS_OPTIONS = [
@@ -55,9 +59,10 @@ const PAYMENT_METHODS = [
     { value: 'Orange Money', label: '🟠 Orange Money' },
     { value: 'Wave', label: '🌊 Wave' },
     { value: 'MTN MOMO', label: '🍌 MTN MOMO' },
+    { value: 'Moov Money', label: '🔵 Moov Money' },
 ]
 
-export default function NewOrderModal({ open, onClose, products: initialProducts, currency }: Props) {
+export default function NewOrderModal({ open, onClose, products: initialProducts, currency, organizationId }: Props) {
     const [isPending, start] = useTransition()
     
     // Auto Order Number
@@ -84,19 +89,27 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     const [imageFile, setImageFile] = useState<File | null>(null)
     
     // Financials
-    const [deliveryFee, setDeliveryFee] = useState(0)
     const [deposit, setDeposit] = useState(0)
     const [depositPaymentMethod, setDepositPaymentMethod] = useState('Espèces')
+    const [paymentType, setPaymentType] = useState<'ACOMPTE' | 'SOLDE'>('ACOMPTE')
+
+    // CRM Customer Link
+    const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null)
+    const [crmCustomerName, setCrmCustomerName] = useState<string | null>(null)
+
+    // CRM auto-lookup par téléphone
+    const { match: crmPhoneMatch, isLooking: isCrmLooking } = usePhoneCRMLookup(clientPhone)
 
     // Search Inventory
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState<Product[]>([])
     const [isSearching, setIsSearching] = useState(false)
+    const [catalogModalOpen, setCatalogModalOpen] = useState(false)
     const searchRef = useRef<HTMLDivElement>(null)
 
     // Calculate totals
     const subtotal = orderItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0)
-    const total = subtotal + deliveryFee
+    const total = subtotal
     const balance = Math.max(0, total - deposit)
 
     useEffect(() => {
@@ -106,6 +119,25 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
             setOrderNumber(`CMD-${year}-${rand}`)
         }
     }, [open])
+
+    // Effacer le lien CRM si le téléphone est modifié après la liaison
+    const prevPhoneRef = useRef<string>('')
+    useEffect(() => {
+        if (clientPhone !== prevPhoneRef.current) {
+            prevPhoneRef.current = clientPhone
+            if (crmCustomerId) {
+                setCrmCustomerId(null)
+                setCrmCustomerName(null)
+            }
+        }
+    }, [clientPhone])
+
+    // Quand mode Soldé : le dépôt suit automatiquement le total
+    useEffect(() => {
+        if (paymentType === 'SOLDE') {
+            setDeposit(total)
+        }
+    }, [paymentType, total])
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -191,9 +223,11 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         setOrderItems([])
         setCustomizationNotes('')
         setImageFile(null)
-        setDeliveryFee(0)
         setDeposit(0)
         setDepositPaymentMethod('Espèces')
+        setPaymentType('ACOMPTE')
+        setCrmCustomerId(null)
+        setCrmCustomerName(null)
     }
 
     function handleClose() {
@@ -273,6 +307,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 order_number: orderNumber,
                 status,
                 priority,
+                customer_id: crmCustomerId || undefined,
                 customer_name: clientName,
                 customer_contact: clientPhone,
                 reception_type: receptionType,
@@ -280,7 +315,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 delivery_address: receptionType === 'livraison' ? deliveryAddress : undefined,
                 order_channel: receptionType === 'retrait' ? orderChannel : undefined,
                 subtotal,
-                delivery_fee: deliveryFee,
+                delivery_fee: 0,
                 total_amount: total,
                 deposit_amount: deposit,
                 balance,
@@ -303,6 +338,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     if (!open) return null
 
     return (
+        <>
         <div className="modal-overlay" onClick={handleClose} style={{ zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="modal-content" style={{ maxWidth: '42rem', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '0' }} onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
@@ -351,6 +387,20 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
+                        {/* CRM SELECTOR */}
+                        <div>
+                            <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '6px' }}>Lier à un client CRM</label>
+                            <CRMSelector
+                                selectedCustomer={crmCustomerId ? { id: crmCustomerId, name: crmCustomerName || '' } : null}
+                                onCustomerSelected={(id, name) => {
+                                    setCrmCustomerId(id)
+                                    setCrmCustomerName(name)
+                                    if (!clientName.trim()) setClientName(name)
+                                }}
+                                onClear={() => { setCrmCustomerId(null); setCrmCustomerName(null) }}
+                            />
+                        </div>
+
                         {/* CLIENT & LOGISTIQUE */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '8px' }}>
                             <div>
@@ -370,7 +420,18 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     title="Numéro de téléphone"
                                     isPhone={true}
                                     icon={<Phone size={16} style={{ color: '#d97757' }} />}
-                                    style={{ borderColor: '#d4a87a' }}
+                                    style={{ borderColor: crmCustomerId ? '#10B981' : '#d4a87a' }}
+                                />
+                                <CrmPhoneMatchBadge
+                                    match={crmPhoneMatch}
+                                    isLooking={isCrmLooking}
+                                    isLinked={!!crmCustomerId && crmCustomerId === crmPhoneMatch?.id}
+                                    onLink={() => {
+                                        if (!crmPhoneMatch) return
+                                        setCrmCustomerId(crmPhoneMatch.id)
+                                        setCrmCustomerName(crmPhoneMatch.name)
+                                        if (!clientName.trim()) setClientName(crmPhoneMatch.name)
+                                    }}
                                 />
                             </div>
 
@@ -436,9 +497,19 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }} ref={searchRef}>
                                 <div style={{ position: 'relative', flex: 1 }}>
                                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
-                                    <input className="input" style={{ paddingLeft: '36px' }} placeholder="Rechercher un produit..."
+                                    <input className="input" style={{ paddingLeft: '36px', paddingRight: '44px' }} placeholder="Rechercher un produit..."
                                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                                    {isSearching && <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
+                                    <button type="button"
+                                        onClick={() => setCatalogModalOpen(true)}
+                                        style={{
+                                            position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                                            background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 8px',
+                                            color: 'var(--color-muted)', display: 'flex', alignItems: 'center'
+                                        }}
+                                        title="Voir le catalogue">
+                                        <Grid size={18} />
+                                    </button>
+                                    {isSearching && <Loader2 size={16} className="animate-spin" style={{ position: 'absolute', right: '44px', top: '50%', transform: 'translateY(-50%)' }} />}
                                     {searchResults.length > 0 && (
                                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', zIndex: 20, marginTop: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
                                             {searchResults.map(res => {
@@ -493,9 +564,10 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                             onChange={v => handleUpdateItem(idx, 'quantity', parseInt(v) || 1)}
                                             allowDecimal={false}
                                             title={`Quantité : ${item.name || 'Produit'}`}
+                                            hideIcon={true}
                                             style={{ padding: '6px 8px', height: '32px', textAlign: 'center' }}
                                         />
-                                        <TouchInput value={item.unit_price.toString()} onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)} style={{ padding: '6px 8px', height: '32px', textAlign: 'right' }} />
+                                        <TouchInput value={item.unit_price.toString()} onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)} hideIcon={true} style={{ padding: '6px 8px', height: '32px', textAlign: 'right' }} />
                                         <button type="button" onClick={() => handleRemoveItem(idx)} className="btn-ghost" style={{ padding: '0', minHeight: '32px', color: '#D94F38' }}>
                                             <X size={16} />
                                         </button>
@@ -526,21 +598,52 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     <span>Sous-total</span>
                                     <span>{subtotal.toLocaleString('fr-FR')} {currency}</span>
                                 </div>
+
+                                {/* Toggle Acompte / Soldé */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Frais de livraison</span>
-                                    <div style={{ width: '100px' }}>
-                                        <TouchInput value={deliveryFee.toString()} onChange={v => setDeliveryFee(parseFloat(v) || 0)} style={{ height: '32px', padding: '4px 8px', textAlign: 'right' }} />
+                                    <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Paiement reçu</span>
+                                    <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPaymentType('ACOMPTE'); setDeposit(0) }}
+                                            style={{
+                                                padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700,
+                                                borderRadius: '6px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                                                background: paymentType === 'ACOMPTE' ? '#F59E0B' : 'transparent',
+                                                color: paymentType === 'ACOMPTE' ? 'white' : 'var(--color-muted)',
+                                            }}
+                                        >
+                                            Acompte reçu
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPaymentType('SOLDE'); setDeposit(total) }}
+                                            style={{
+                                                padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700,
+                                                borderRadius: '6px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                                                background: paymentType === 'SOLDE' ? '#10B981' : 'transparent',
+                                                color: paymentType === 'SOLDE' ? 'white' : 'var(--color-muted)',
+                                            }}
+                                        >
+                                            Soldé
+                                        </button>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Acompte reçu</span>
-                                    <div style={{ width: '100px' }}>
-                                        <TouchInput value={deposit.toString()} onChange={v => setDeposit(parseFloat(v) || 0)} style={{ height: '32px', padding: '4px 8px', textAlign: 'right' }} />
+
+                                {/* Montant de l'acompte — masqué si Soldé (auto-rempli) */}
+                                {paymentType === 'ACOMPTE' && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Montant acompte</span>
+                                        <div style={{ width: '100px' }}>
+                                            <TouchInput value={deposit.toString()} onChange={v => setDeposit(parseFloat(v) || 0)} style={{ height: '32px', padding: '4px 8px', textAlign: 'right' }} />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {/* Méthode de paiement — visible dès qu'il y a un montant */}
                                 {deposit > 0 && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Paiement acompte</span>
+                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Méthode</span>
                                         <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px', flexWrap: 'wrap' }}>
                                             {PAYMENT_METHODS.map(m => (
                                                 <button
@@ -565,6 +668,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                         </div>
                                     </div>
                                 )}
+
                                 <div style={{ height: '1px', background: 'var(--color-border)', margin: '2px 0' }}></div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '0.95rem', color: '#d4a87a' }}>
                                     <span>Solde restant</span>
@@ -588,6 +692,89 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                 </form>
             </div>
+
+        </div>
+
+        <CatalogueModal
+            open={catalogModalOpen}
+            onClose={() => setCatalogModalOpen(false)}
+            onAddToCart={(product: any) => {
+                handleAddItem(product)
+                setCatalogModalOpen(false)
+            }}
+            organizationId={organizationId}
+            currency={currency}
+        />
+        </>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Composant local : badge de correspondance CRM sous le champ téléphone
+// ---------------------------------------------------------------------------
+
+interface CrmPhoneMatchBadgeProps {
+    match: CRMMatch | null
+    isLooking: boolean
+    isLinked: boolean
+    onLink: () => void
+}
+
+function CrmPhoneMatchBadge({ match, isLooking, isLinked, onLink }: CrmPhoneMatchBadgeProps) {
+    if (isLooking) {
+        return (
+            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px',
+                          color: 'var(--color-muted)', fontSize: '0.75rem' }}>
+                <Loader2 size={12} className="animate-spin" />
+                <span>Vérification CRM…</span>
+            </div>
+        )
+    }
+
+    if (!match) return null
+
+    // Déjà lié → pill vert de confirmation
+    if (isLinked) {
+        return (
+            <div className="animate-slide-up" style={{
+                marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '8px 12px', background: 'var(--color-secondary-container)',
+                borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600,
+                color: 'var(--color-secondary)',
+            }}>
+                <CheckCircle size={14} />
+                <span>Client CRM lié · {match.name}</span>
+                {(match.loyalty_points ?? 0) > 0 && (
+                    <span style={{ marginLeft: 'auto', background: '#FEF3C7', color: '#92400E',
+                                   padding: '2px 8px', borderRadius: '99px', fontSize: '0.7rem' }}>
+                        ★ {match.loyalty_points} pts
+                    </span>
+                )}
+            </div>
+        )
+    }
+
+    // Correspondance trouvée, pas encore liée → badge amber avec bouton "Associer"
+    return (
+        <div className="animate-slide-up" style={{
+            marginTop: '6px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', padding: '8px 12px',
+            background: '#FEF3C7', borderRadius: '10px', fontSize: '0.8rem',
+            border: '1px solid #FDE68A',
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px',
+                          fontWeight: 600, color: '#92400E' }}>
+                <UserCheck size={14} />
+                <span>👤 {match.name}</span>
+                <span style={{ fontWeight: 400, color: '#B45309' }}>— Client trouvé</span>
+            </div>
+            <button type="button" onClick={onLink} style={{
+                padding: '4px 12px', borderRadius: '99px', border: 'none',
+                background: '#92400E', color: 'white',
+                fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+            }}>
+                Associer
+            </button>
         </div>
     )
 }

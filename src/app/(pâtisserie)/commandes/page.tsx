@@ -33,6 +33,7 @@ export default async function CommandesPage() {
             orders={(orders as any[]) ?? []}
             products={products ?? []}
             currency={currency}
+            organizationId={orgId}
         />
     )
 }

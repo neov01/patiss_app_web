@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2 } from 'lucide-react'
+import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2 } from 'lucide-react'
 import { updateOrderStatus, deleteOrder } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer from './OrderDrawer'
@@ -16,9 +16,11 @@ interface OrderWithItems {
     order_number: string | null
     customer_name: string
     customer_contact: string | null
+    customer_id: string | null
     pickup_date: string
     status: string
     priority: string | null
+    payment_status: string | null
     total_amount: number
     deposit_amount: number
     custom_image_url: string | null
@@ -39,18 +41,21 @@ const STATUS_LABELS: Record<string, { label: string; next: string; color: string
 const ACTIVE_STATUSES = ['pending', 'production', 'ready']
 const PAGE_SIZE = 20
 
-export default function OrdersClient({ 
-    orders, 
-    products, 
-    currency
-}: { 
-    orders: OrderWithItems[]; 
-    products: Product[]; 
+export default function OrdersClient({
+    orders,
+    products,
+    currency,
+    organizationId
+}: {
+    orders: OrderWithItems[];
+    products: Product[];
     currency: string;
+    organizationId: string;
 }) {
     const [showModal, setShowModal] = useState(false)
     const [isPending, start] = useTransition()
     const [statusFilter, setStatusFilter] = useState('active')
+    const [paymentFilter, setPaymentFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [orderToDelete, setOrderToDelete] = useState<{id: string, name: string} | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -59,10 +64,16 @@ export default function OrdersClient({
 
     // Filtrage instantané en mémoire — pas de round-trip serveur
     const filtered = useMemo(() => {
-        if (statusFilter === 'all') return orders
-        if (statusFilter === 'active') return orders.filter(o => ACTIVE_STATUSES.includes(o.status))
-        return orders.filter(o => o.status === statusFilter)
-    }, [orders, statusFilter])
+        let result = orders
+        if (statusFilter === 'active') result = result.filter(o => ACTIVE_STATUSES.includes(o.status))
+        else if (statusFilter !== 'all') result = result.filter(o => o.status === statusFilter)
+
+        if (paymentFilter === 'solde') result = result.filter(o => o.payment_status === 'SOLDEE')
+        else if (paymentFilter === 'acompte') result = result.filter(o => o.payment_status === 'PARTIEL')
+        else if (paymentFilter === 'crm') result = result.filter(o => !!o.customer_id)
+
+        return result
+    }, [orders, statusFilter, paymentFilter])
 
     // Pagination client
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -135,7 +146,7 @@ export default function OrdersClient({
             </div>
 
             {/* Filtres — switching instantané */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap', overflowX: 'auto' }}>
                 {['active', 'all', 'pending', 'production', 'ready', 'completed', 'cancelled'].map(s => (
                     <button key={s} onClick={() => handleFilterChange(s)}
                         className={statusFilter === s ? 'btn-primary' : 'btn-secondary'}
@@ -165,6 +176,27 @@ export default function OrdersClient({
                 ))}
             </div>
 
+            {/* Filtres paiement & CRM */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                {[
+                    { id: 'all', label: 'Tous paiements' },
+                    { id: 'solde', label: '✓ Soldé à la prise' },
+                    { id: 'acompte', label: '💳 Acompte en attente' },
+                    { id: 'crm', label: '🎯 Clients CRM' },
+                ].map(f => (
+                    <button key={f.id}
+                        onClick={() => { setPaymentFilter(f.id); setCurrentPage(1) }}
+                        style={{
+                            padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '99px',
+                            border: paymentFilter === f.id ? 'none' : '1.5px solid var(--color-border)',
+                            background: paymentFilter === f.id ? '#2D1B0E' : 'transparent',
+                            color: paymentFilter === f.id ? 'white' : 'var(--color-muted)',
+                            cursor: 'pointer', whiteSpace: 'nowrap'
+                        }}
+                    >{f.label}</button>
+                ))}
+            </div>
+
             {/* Liste des commandes */}
             {paginated.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-muted)' }}>
@@ -172,7 +204,7 @@ export default function OrdersClient({
                     <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Aucune commande</p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                     {paginated.map(order => {
                         const s = STATUS_LABELS[order.status] ?? STATUS_LABELS.pending
                         const pickupDate = new Date(order.pickup_date)
@@ -193,7 +225,13 @@ export default function OrdersClient({
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                                             <span style={{ fontSize: '1rem', fontWeight: 700 }}>{order.customer_name}</span>
                                             <span className={`badge badge-${order.status}`}>{s.label}</span>
-                                            {order.deposit_amount > 0 && <span className="badge" style={{ background: '#FEF3EC', color: '#D97757' }}><Wallet size={12} style={{ display: 'inline', marginRight: 4 }}/>Acompte : {Number(order.deposit_amount).toLocaleString('fr-FR')} {currency}</span>}
+                                            {order.payment_status === 'SOLDEE' && order.deposit_amount > 0
+                                                ? <span className="badge" style={{ background: '#D1FAE5', color: '#065F46', display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={11} /> Soldé à la prise</span>
+                                                : order.payment_status === 'PARTIEL'
+                                                    ? <span className="badge" style={{ background: '#FEF3EC', color: '#D97757', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Wallet size={11} />Acompte : {Number(order.deposit_amount).toLocaleString('fr-FR')} {currency}</span>
+                                                    : null
+                                            }
+                                            {order.customer_id && <span className="badge" style={{ background: '#EFF6FF', color: '#3B82F6', display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> CRM</span>}
                                             {isToday && <span className="badge" style={{ background: '#FEF3C7', color: '#92400E' }}>📅 Aujourd&apos;hui</span>}
                                         </div>
                                         <div style={{ display: 'flex', gap: '16px', color: 'var(--color-muted)', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -298,11 +336,12 @@ export default function OrdersClient({
             )}
 
             {/* Modal Nouvelle Commande */}
-            <NewOrderModal 
-                open={showModal} 
-                onClose={() => setShowModal(false)} 
-                products={products} 
-                currency={currency} 
+            <NewOrderModal
+                open={showModal}
+                onClose={() => setShowModal(false)}
+                products={products}
+                currency={currency}
+                organizationId={organizationId}
             />
 
             {/* Modal de Confirmation de Suppression */}

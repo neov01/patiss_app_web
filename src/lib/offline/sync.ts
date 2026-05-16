@@ -36,7 +36,12 @@ export async function syncPendingData(): Promise<SyncResult> {
     failedOrders: 0
   }
 
-  // 0. Vérifier et forcer le rafraîchissement de la session JWT pour éviter les 401
+  // 0. Only refresh session when network is available — calling refreshSession()
+  //    offline throws "Failed to fetch" with no caller to catch it.
+  if (!navigator.onLine) {
+    return result
+  }
+
   try {
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -44,7 +49,7 @@ export async function syncPendingData(): Promise<SyncResult> {
       await supabase.auth.refreshSession()
     }
   } catch (err) {
-    console.warn('[Offline Sync] Erreur lors du contrôle de la session', err)
+    console.warn('[Offline Sync] Session check failed', err)
   }
 
   // 1. Synchroniser les transactions avec isolation des échecs
@@ -97,7 +102,6 @@ export async function syncPendingData(): Promise<SyncResult> {
         deposit_amount: 0,
         balance: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
         customization_notes: order.customization_notes,
-        delivery_fee: 0,
         items: order.items.map(i => ({
           id: i.id,         // UUID item client-side → idempotence
           product_id: i.product_id || undefined,

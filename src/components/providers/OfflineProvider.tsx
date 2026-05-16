@@ -151,6 +151,23 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     await cacheReadyOrders(orders)
   }, [])
 
+  // Last-resort: suppress "Failed to fetch" unhandled rejections from Supabase
+  // auto-refresh that slip through before the custom fetch wrapper intercepts.
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg = event.reason?.message ?? String(event.reason ?? '')
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('Load failed') ||
+        msg.includes('AuthRetryableFetchError')
+      ) {
+        event.preventDefault()
+      }
+    }
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+  }, [])
+
   const forceSync = useCallback(async () => {
     if (isOffline) {
       toast.error('Synchronisation impossible — pas de connexion')

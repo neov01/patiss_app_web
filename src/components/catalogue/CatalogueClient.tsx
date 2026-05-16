@@ -95,7 +95,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
       </div>
 
       {/* Filtres par catégories */}
-      <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', paddingLeft: '2px' }}>
         {CATEGORIES.map(cat => (
           <button
             key={cat}
@@ -108,9 +108,9 @@ export default function CatalogueClient({ products, currency, availableIngredien
               fontWeight: 700,
               transition: 'all 0.2s',
               cursor: 'pointer',
-              border: activeCategory === cat ? 'none' : '1.5px solid var(--color-border)',
-              background: activeCategory === cat ? 'var(--color-rose-dark)' : '#fff',
-              color: activeCategory === cat ? '#fff' : 'var(--color-muted)',
+              border: activeCategory === cat ? 'none' : '1.5px solid var(--color-border, #E5E7EB)',
+              background: activeCategory === cat ? 'var(--color-rose-dark, #C4836A)' : '#fff',
+              color: activeCategory === cat ? '#fff' : 'var(--color-muted, #9C8070)',
               boxShadow: activeCategory === cat ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
             }}
           >

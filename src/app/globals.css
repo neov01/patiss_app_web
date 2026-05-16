@@ -9,25 +9,25 @@
   --color-secondary-container: #CDEAD0;
   
   /* ── Surface Philosophy (No-Line Rule) ── */
-  --color-bg:       #FAF9F6; /* Surface Base */
-  --color-well:     #F4F3F1; /* Surface Container Low (Recessed) */
+  --color-bg:       #EDE6DC; /* Surface Base — beige doux, 91% luminosité */
+  --color-well:     #F5EEE4; /* Surface Container Low (Recessed) */
   --color-lift:     #FFFFFF; /* Surface Container Lowest (Cards) */
-  --color-surface-variant: #E3E2E0; /* For subtle pockets */
-  
+  --color-surface-variant: #E0D8CE; /* For subtle pockets */
+
   /* ── Neutrals ── */
   --color-text:     #1A1C1A; /* Charcoal */
   --color-muted:    #51443C;
-  --color-border:   rgba(131, 116, 107, 0.15); /* Ghost Border (15% opacity) */
+  --color-border:   rgba(131, 116, 107, 0.28); /* 28% opacity — frontières de sections visibles */
 
   /* ── Status ── */
   --color-success:  #4B6450;
   --color-warning:  #C08A63;
   --color-error:    #BA1A1A;
 
-  /* ── Shadows (Ambient/Natural) ── */
-  --shadow-sm:  0 2px 8px rgba(26,28,26,0.04);
-  --shadow-md:  0 8px 32px rgba(26,28,26,0.06);
-  --shadow-lg:  0 12px 48px rgba(26,28,26,0.08);
+  /* ── Shadows (Warm, Ambient) ── */
+  --shadow-sm:  0 2px 8px rgba(45,27,14,0.08), 0 1px 3px rgba(45,27,14,0.06);
+  --shadow-md:  0 8px 24px rgba(45,27,14,0.12), 0 4px 8px rgba(45,27,14,0.08);
+  --shadow-lg:  0 16px 48px rgba(45,27,14,0.16), 0 8px 16px rgba(45,27,14,0.10);
 
   /* ── Radius (The Pill Standard) ── */
   --radius-sm:  12px;
