@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { FileText, Save, Clock } from "lucide-react";
 import { Customer } from "./types";
 
@@ -21,11 +20,7 @@ export default function CustomerNotes({
   hasChanges
 }: CustomerNotesProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col h-full space-y-6"
-    >
+    <div className="flex flex-col h-full space-y-6">
       <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -60,6 +55,6 @@ export default function CustomerNotes({
           Dernière mise à jour par Chef Antoine
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

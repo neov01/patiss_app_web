@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { Star, Plus, Gift, AlertTriangle } from "lucide-react";
 import { Customer } from "./types";
 
@@ -13,11 +12,7 @@ export default function CustomerPreferences({ customer }: CustomerPreferencesPro
   const preferences = customer?.preferences;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
+    <div className="space-y-8">
       <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
         <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
           <Star size={14} className="text-amber-400" />
@@ -90,6 +85,6 @@ export default function CustomerPreferences({ customer }: CustomerPreferencesPro
           </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

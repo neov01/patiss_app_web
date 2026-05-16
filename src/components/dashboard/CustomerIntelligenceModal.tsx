@@ -19,7 +19,6 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import { createOrder } from "@/lib/actions/orders";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -271,14 +270,9 @@ export default function CustomerIntelligenceModal({
         onClick={onClose}
       />
 
+      {isOpen && (
       <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none overflow-hidden`}>
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+          <div
               className="relative w-full max-w-[950px] max-h-[90vh] bg-[#FDFDFB] rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col md:flex-row pointer-events-auto border border-white"
             >
               <button onClick={onClose} className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -516,10 +510,9 @@ export default function CustomerIntelligenceModal({
                 formatCurrency={formatCurrency}
                 isPending={createOrderMutation.isPending}
               />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
       </div>
+      )}
     </>
   );
 }

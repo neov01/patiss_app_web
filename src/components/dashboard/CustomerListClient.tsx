@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { motion, AnimatePresence } from "framer-motion";
 import CustomerIntelligenceModal from "./CustomerIntelligenceModal";
 
 interface CustomerRFM {
@@ -363,14 +362,8 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
       </div>
 
       {/* Floating Bulk Action Bar */}
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-6 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl border border-slate-700"
-          >
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-6 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl border border-slate-700">
             <div className="flex items-center gap-3 pr-6 border-r border-slate-700">
               <div className="bg-slate-700 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
                 {selectedIds.length}
@@ -401,9 +394,8 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                 <XCircle size={20} />
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       <CustomerIntelligenceModal 
         isOpen={!!selectedCustomer}

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingCart, Search as SearchIcon, ShoppingBag } from "lucide-react";
 import { Product, Customer } from "./types";
 import { toast } from "sonner";
@@ -43,15 +42,9 @@ export default function QuickProductSelectionOverlay({
     });
   };
 
+  if (!isOpen) return null;
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: 100 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 100 }}
-          className="absolute inset-0 z-50 bg-white flex flex-col"
-        >
+    <div className="absolute inset-0 z-50 bg-white flex flex-col">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-[#DC5F4A]/10 p-2 rounded-xl text-[#DC5F4A]">
@@ -116,8 +109,6 @@ export default function QuickProductSelectionOverlay({
               ))}
             </div>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </div>
   );
 }
