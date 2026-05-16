@@ -21,7 +21,6 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createOrder } from "@/lib/actions/orders";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
 
 // --- Sub-components ---
 import { Customer, Order, Product } from "./crm/types";
@@ -204,7 +203,7 @@ export default function CustomerIntelligenceModal({
     const orderNumber = `CMD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     
     const orderData = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       order_number: orderNumber,
       customer_name: customer.name,
       customer_contact: customer.phone || customer.email || "",
@@ -217,7 +216,7 @@ export default function CustomerIntelligenceModal({
       deposit_amount: 0,
       items: [
         {
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           product_id: product.id,
           name: product.name,
           quantity: 1,
