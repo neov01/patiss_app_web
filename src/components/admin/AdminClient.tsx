@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
     Building2, Users, AlertTriangle, ChevronRight, X,
     Check, RefreshCw, Calendar, Loader2, KeyRound, ShieldAlert,
-    ShieldCheck, Crown, Plus, ChevronDown, LayoutDashboard, ArrowLeft
+    ShieldCheck, Crown, Plus, ChevronDown, LayoutDashboard, ArrowLeft,
+    Download, Filter, BarChart2, Mail, TrendingUp, Clock, CheckSquare,
+    Square
 } from 'lucide-react'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import {
     updateOrganization,
     updateUserRole,
@@ -113,6 +116,23 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
 
+    // B — Filtres + tri
+    const [filterStatus, setFilterStatus] = useState<'all' | 'actif' | 'expire' | 'risk'>('all')
+    const [filterTier, setFilterTier] = useState<string>('all')
+    const [sortBy, setSortBy] = useState<'name' | 'expiration' | 'usage'>('name')
+    const [showFilters, setShowFilters] = useState(false)
+
+    // D — Vue analytique
+    const [viewMode, setViewMode] = useState<'list' | 'analytics'>('list')
+
+    // G — Sélection en masse
+    const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set())
+    const [isBulkRenewing, setIsBulkRenewing] = useState(false)
+
+    // E — Activité réelle (Support tab)
+    const [realActivity, setRealActivity] = useState<Array<{ type: string; msg: string; date: string }>>([])
+    const [loadingActivity, setLoadingActivity] = useState(false)
+
 
     // Creation Form State
     const [newOrgForm, setNewOrgForm] = useState({
@@ -167,10 +187,49 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     }
 
 
-    // KPIs
-    const totalActive = orgs.filter(o => subscriptionStatus(o.subscription_end_date).label !== 'Expiré').length
+    // A — KPIs enrichis
+    const totalActive = orgs.filter(o => {
+        const s = subscriptionStatus(o.subscription_end_date).label
+        return s !== 'Expiré'
+    }).length
     const atRisk = orgs.filter(o => subscriptionStatus(o.subscription_end_date).label.startsWith('Expire')).length
     const totalUsers = profiles.length
+    const expiringSoon30 = orgs.filter(o => {
+        if (!o.subscription_end_date) return false
+        const diff = Math.ceil((new Date(o.subscription_end_date).getTime() - Date.now()) / 86400000)
+        return diff >= 0 && diff <= 30
+    }).length
+    const avgUsagePct = orgs.length > 0
+        ? Math.round(orgs.reduce((acc, o) => acc + (o.member_count / (o.max_users || 1)), 0) / orgs.length * 100)
+        : 0
+
+    // B — filteredOrgs (filtre + tri)
+    const filteredOrgs = useMemo(() => {
+        const result = orgs.filter(o => {
+            const matchSearch = o.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (o.contact_email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+            const s = subscriptionStatus(o.subscription_end_date).label
+            let matchStatus = true
+            if (filterStatus === 'actif') matchStatus = s === 'Actif' || s === 'Illimité'
+            else if (filterStatus === 'expire') matchStatus = s === 'Expiré'
+            else if (filterStatus === 'risk') matchStatus = s.startsWith('Expire')
+            const matchTier = filterTier === 'all' || (o.tier || 'Basic') === filterTier
+            return matchSearch && matchStatus && matchTier
+        })
+        result.sort((a, b) => {
+            if (sortBy === 'expiration') {
+                if (!a.subscription_end_date && !b.subscription_end_date) return 0
+                if (!a.subscription_end_date) return -1
+                if (!b.subscription_end_date) return 1
+                return new Date(a.subscription_end_date).getTime() - new Date(b.subscription_end_date).getTime()
+            }
+            if (sortBy === 'usage') {
+                return (b.member_count / (b.max_users || 1)) - (a.member_count / (a.max_users || 1))
+            }
+            return a.name.localeCompare(b.name)
+        })
+        return result
+    }, [orgs, searchQuery, filterStatus, filterTier, sortBy])
 
     const handleCreateOrg = () => {
         if (!newOrgForm.org_name || !newOrgForm.gerant_full_name || !newOrgForm.gerant_email.trim() || newOrgForm.gerant_pin.length !== 4) {
@@ -329,6 +388,101 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
         })
     }
 
+    // F — Export CSV
+    const handleExportCSV = () => {
+        const headers = ['Nom', 'Email Contact', 'Tier', 'Statut', 'Membres', 'Max', 'Expiration']
+        const rows = filteredOrgs.map(o => [
+            `"${o.name}"`,
+            o.contact_email || '',
+            o.tier || 'Basic',
+            subscriptionStatus(o.subscription_end_date).label,
+            o.member_count,
+            o.max_users || 5,
+            formatDate(o.subscription_end_date),
+        ])
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+        const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }))
+        const a = document.createElement('a')
+        a.href = url; a.download = `patisseries_${new Date().toISOString().split('T')[0]}.csv`; a.click()
+        URL.revokeObjectURL(url)
+    }
+
+    // G — Renouvellement en masse
+    const toggleSelectOrg = (id: string) => {
+        setSelectedOrgIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id); else next.add(id)
+            return next
+        })
+    }
+    const toggleSelectAll = () => {
+        if (selectedOrgIds.size === filteredOrgs.length) {
+            setSelectedOrgIds(new Set())
+        } else {
+            setSelectedOrgIds(new Set(filteredOrgs.map(o => o.id)))
+        }
+    }
+    const handleBulkRenew = async (months: number) => {
+        if (selectedOrgIds.size === 0) return
+        setIsBulkRenewing(true)
+        for (const orgId of Array.from(selectedOrgIds)) {
+            const org = orgs.find(o => o.id === orgId)
+            if (!org) continue
+            const newDate = addMonths(org.subscription_end_date, months)
+            await updateOrganization(orgId, {
+                name: org.name,
+                currency_symbol: org.currency_symbol,
+                subscription_end_date: newDate,
+                tier: org.tier || 'Basic',
+                max_users: org.max_users || 5,
+                contact_email: org.contact_email || null,
+                contact_phone: org.contact_phone || null,
+            })
+            setOrgs(prev => prev.map(o => o.id === orgId ? { ...o, subscription_end_date: newDate } : o))
+        }
+        setIsBulkRenewing(false)
+        setSelectedOrgIds(new Set())
+        toast.success(`${selectedOrgIds.size} pâtisseries renouvelées (+${months} mois) ✓`)
+    }
+
+    // H — Email de rappel
+    const handleSendReminder = (org: Org) => {
+        if (!org.contact_email) { toast.error('Aucun email de contact défini'); return }
+        const days = org.subscription_end_date
+            ? Math.ceil((new Date(org.subscription_end_date).getTime() - Date.now()) / 86400000)
+            : null
+        const subject = encodeURIComponent(`Rappel : Votre abonnement Pâtiss'App expire bientôt`)
+        const body = encodeURIComponent(
+            `Bonjour,\n\nNous vous contactons pour vous rappeler que votre abonnement Pâtiss'App pour « ${org.name} » ${days !== null ? `expire dans ${days} jour(s) (${formatDate(org.subscription_end_date)})` : 'arrive à échéance prochainement'}.\n\nPour renouveler votre licence et continuer à bénéficier de tous vos outils, contactez-nous dès maintenant.\n\nCordialement,\nL'équipe Pâtiss'App`
+        )
+        window.open(`mailto:${org.contact_email}?subject=${subject}&body=${body}`, '_blank')
+    }
+
+    // E — Charger l'activité réelle (Support tab)
+    useEffect(() => {
+        if (tab !== 'support' || !selectedOrg) return
+        setLoadingActivity(true)
+        const supabase = createSupabaseClient()
+        Promise.all([
+            supabase.from('orders').select('id, order_number, created_at').eq('organization_id', selectedOrg.id).order('created_at', { ascending: false }).limit(3),
+            supabase.from('transactions').select('id, amount, created_at').eq('organization_id', selectedOrg.id).order('created_at', { ascending: false }).limit(3),
+        ]).then(([ordersRes, txRes]) => {
+            const items: Array<{ type: string; msg: string; date: string; ts: number }> = []
+            for (const o of ordersRes.data ?? []) {
+                items.push({ type: 'Order', msg: `Commande ${o.order_number || '#' + o.id.slice(0, 6)}`, date: o.created_at!, ts: new Date(o.created_at!).getTime() })
+            }
+            for (const t of txRes.data ?? []) {
+                items.push({ type: 'Vente', msg: `Encaissement ${Number(t.amount).toLocaleString('fr-FR')} FCFA`, date: t.created_at!, ts: new Date(t.created_at!).getTime() })
+            }
+            items.sort((a, b) => b.ts - a.ts)
+            setRealActivity(items.slice(0, 6).map(i => ({
+                type: i.type,
+                msg: i.msg,
+                date: new Date(i.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            })))
+        }).finally(() => setLoadingActivity(false))
+    }, [tab, selectedOrg?.id])
+
     const handleDeleteOrg = () => {
         if (!selectedOrg) return
         startTransition(async () => {
@@ -349,119 +503,283 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
 
     return (
         <div style={{ paddingBottom: '64px' }}>
-            {/* Header with Stats */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '20px' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: 900, margin: 0, color: '#2D1B0E', letterSpacing: '-0.02em' }}>Super Admin</h1>
-                    <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.9rem', fontWeight: 500 }}>
-                        Gestion des pâtisseries et licences SaaS
-                    </p>
+            {/* A — Header avec KPIs enrichis */}
+            <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 900, margin: 0, color: '#2D1B0E', letterSpacing: '-0.02em' }}>Super Admin</h1>
+                        <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.9rem', fontWeight: 500 }}>Gestion des pâtisseries et licences SaaS</p>
+                    </div>
+                    <button onClick={() => setViewMode(v => v === 'list' ? 'analytics' : 'list')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: viewMode === 'analytics' ? '#FEF3EC' : 'white', color: viewMode === 'analytics' ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+                        <BarChart2 size={16} /> {viewMode === 'analytics' ? 'Vue liste' : 'Analytique'}
+                    </button>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <div className="stat-pill">🏢 {totalActive} Actives</div>
-                    <div className="stat-pill" style={{ color: '#D97757', background: '#FEF3EC' }}>⚠️ {atRisk} Alertes</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                    {[
+                        { icon: '🏢', label: 'Actives', value: totalActive, color: '#4C9E6A', bg: '#E8F5EE' },
+                        { icon: '⚠️', label: 'Expire < 7j', value: atRisk, color: '#D97757', bg: '#FEF3EC' },
+                        { icon: '📅', label: 'Expire < 30j', value: expiringSoon30, color: '#C08A63', bg: '#FDF5EC' },
+                        { icon: '👥', label: 'Utilisateurs', value: totalUsers, color: '#6A9CC4', bg: '#EEF4FA' },
+                        { icon: '📊', label: 'Usage moyen', value: `${avgUsagePct}%`, color: '#815431', bg: '#F5EEE4' },
+                    ].map(k => (
+                        <div key={k.label} style={{ background: k.bg, borderRadius: '16px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>{k.icon}</span>
+                            <div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 900, color: k.color }}>{k.value}</div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: k.color, opacity: 0.7, textTransform: 'uppercase' }}>{k.label}</div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Selection Bar */}
-            <div style={{
-                background: 'white',
-                padding: '20px',
-                borderRadius: '24px',
-                boxShadow: '0 10px 30px rgba(45,27,14,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                marginBottom: '32px',
-                border: '1px solid rgba(217,119,87,0.1)'
-            }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                    <div style={{ position: 'relative' }}>
-                        <input
-                            type="text"
-                            placeholder="Rechercher une pâtisserie (nom, contact...)"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="input"
-                            style={{ 
-                                paddingLeft: '44px', 
-                                height: '52px', 
-                                border: '2px solid #FEF3EC',
-                                fontWeight: 600
-                            }}
-                        />
-                        <LayoutDashboard size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#d97757' }} />
+            {/* B — Barre de recherche + filtres */}
+            <div style={{ background: 'white', padding: '16px 20px', borderRadius: '24px', boxShadow: '0 10px 30px rgba(45,27,14,0.05)', marginBottom: '24px', border: '1px solid rgba(217,119,87,0.1)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                        <input type="text" placeholder="Rechercher une pâtisserie (nom, contact...)"
+                            value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                            className="input" style={{ paddingLeft: '44px', height: '48px', border: '2px solid #FEF3EC', fontWeight: 600 }} />
+                        <LayoutDashboard size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#d97757' }} />
                     </div>
+                    <button onClick={() => setShowFilters(v => !v)}
+                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: `1.5px solid ${showFilters ? '#D97757' : 'var(--color-border)'}`, background: showFilters ? '#FEF3EC' : 'white', color: showFilters ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                        <Filter size={15} /> Filtres
+                    </button>
+                    <button onClick={handleExportCSV}
+                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                        <Download size={15} /> CSV
+                    </button>
+                    <button onClick={() => setIsCreateModalOpen(true)} className="btn-primary" style={{ padding: '0 20px', height: '48px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Plus size={18} /> Nouvelle Pâtisserie
+                    </button>
                 </div>
 
-                <button onClick={() => setIsCreateModalOpen(true)} className="btn-primary" style={{ padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Plus size={20} />
-                    <span style={{ fontWeight: 700 }}>Nouvelle Pâtisserie</span>
-                </button>
+                {showFilters && (
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Statut :</span>
+                        {(['all', 'actif', 'risk', 'expire'] as const).map(s => (
+                            <button key={s} onClick={() => setFilterStatus(s)}
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterStatus === s ? '#D97757' : 'var(--color-border)', background: filterStatus === s ? '#FEF3EC' : 'white', color: filterStatus === s ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                {s === 'all' ? 'Tous' : s === 'actif' ? 'Actif' : s === 'risk' ? '⚠️ À risque' : 'Expiré'}
+                            </button>
+                        ))}
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginLeft: '8px' }}>Plan :</span>
+                        {(['all', 'Basic', 'Premium', 'Premium + IA'] as const).map(t => (
+                            <button key={t} onClick={() => setFilterTier(t)}
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterTier === t ? '#6A9CC4' : 'var(--color-border)', background: filterTier === t ? '#EEF4FA' : 'white', color: filterTier === t ? '#6A9CC4' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                {t === 'all' ? 'Tous' : t}
+                            </button>
+                        ))}
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginLeft: '8px' }}>Trier par :</span>
+                        {([['name', 'Nom'], ['expiration', 'Expiration'], ['usage', 'Usage']] as const).map(([val, lbl]) => (
+                            <button key={val} onClick={() => setSortBy(val)}
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: sortBy === val ? '#815431' : 'var(--color-border)', background: sortBy === val ? '#F5EEE4' : 'white', color: sortBy === val ? '#815431' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                {lbl}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Main Content Area */}
             {!selectedOrg ? (
                 <div className="animate-fadeIn">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Toutes les Pâtisseries</h3>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--color-muted)', fontWeight: 600 }}>{orgs.length} clients au total</div>
+                    {/* D — Vue analytique */}
+                    {viewMode === 'analytics' ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            {/* Répartition par tier */}
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Répartition par Plan</h4>
+                                {['Basic', 'Premium', 'Premium + IA'].map(tier => {
+                                    const count = orgs.filter(o => (o.tier || 'Basic') === tier).length
+                                    const pct = orgs.length > 0 ? Math.round(count / orgs.length * 100) : 0
+                                    const colors: Record<string, string> = { 'Basic': '#6A9CC4', 'Premium': '#D97757', 'Premium + IA': '#4C9E6A' }
+                                    return (
+                                        <div key={tier} style={{ marginBottom: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{tier}</span>
+                                                <span style={{ fontSize: '0.82rem', color: 'var(--color-muted)', fontWeight: 600 }}>{count} org · {pct}%</span>
+                                            </div>
+                                            <div style={{ height: '8px', background: '#F5F5F5', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', width: `${pct}%`, background: colors[tier], borderRadius: '4px', transition: 'width 0.5s' }} />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            {/* Expirations par mois (prochains 6 mois) */}
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Expirations à venir (6 mois)</h4>
+                                {Array.from({ length: 6 }, (_, i) => {
+                                    const d = new Date(); d.setMonth(d.getMonth() + i)
+                                    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                                    const count = orgs.filter(o => o.subscription_end_date?.startsWith(ym)).length
+                                    const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                                    const maxCount = Math.max(...Array.from({ length: 6 }, (_, j) => {
+                                        const dd = new Date(); dd.setMonth(dd.getMonth() + j)
+                                        const yym = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}`
+                                        return orgs.filter(o => o.subscription_end_date?.startsWith(yym)).length
+                                    }), 1)
+                                    return (
+                                        <div key={ym} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', width: '42px', textAlign: 'right' }}>{label}</span>
+                                            <div style={{ flex: 1, height: '20px', background: '#F5F5F5', borderRadius: '6px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', width: `${(count / maxCount) * 100}%`, background: count > 2 ? '#D94F38' : '#D97757', borderRadius: '6px', transition: 'width 0.5s', display: 'flex', alignItems: 'center', paddingLeft: count > 0 ? '6px' : 0 }}>
+                                                    {count > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white' }}>{count}</span>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            {/* Stats usage */}
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Taux d'occupation des licences</h4>
+                                {orgs.slice(0, 8).map(o => {
+                                    const pct = Math.round((o.member_count / (o.max_users || 1)) * 100)
+                                    const color = pct >= 90 ? '#D94F38' : pct >= 60 ? '#D97757' : '#4C9E6A'
+                                    return (
+                                        <div key={o.id} style={{ marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</span>
+                                                <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>{o.member_count}/{o.max_users || 5}</span>
+                                            </div>
+                                            <div style={{ height: '6px', background: '#F5F5F5', borderRadius: '3px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: color, borderRadius: '3px' }} />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            {/* Résumé statut */}
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Résumé des Statuts</h4>
+                                {[
+                                    { label: 'Actives', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Actif').length, color: '#4C9E6A' },
+                                    { label: 'Illimitées', count: orgs.filter(o => !o.subscription_end_date).length, color: '#6A9CC4' },
+                                    { label: 'À risque (< 7j)', count: atRisk, color: '#D97757' },
+                                    { label: 'Expirées', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Expiré').length, color: '#D94F38' },
+                                ].map(s => (
+                                    <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #F5F5F5' }}>
+                                        <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{s.label}</span>
+                                        <span style={{ fontSize: '1rem', fontWeight: 900, color: s.color }}>{s.count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                    <>
+                    {/* C — Header liste + sélection en masse */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>
+                            Toutes les Pâtisseries
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-muted)', marginLeft: '10px' }}>{filteredOrgs.length} / {orgs.length}</span>
+                        </h3>
+                        {/* G — Actions en masse */}
+                        {selectedOrgIds.size > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FEF3EC', padding: '8px 14px', borderRadius: '14px' }}>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#D97757' }}>{selectedOrgIds.size} sélectionnée{selectedOrgIds.size > 1 ? 's' : ''}</span>
+                                {[1, 3, 6, 12].map(m => (
+                                    <button key={m} onClick={() => handleBulkRenew(m)} disabled={isBulkRenewing}
+                                        style={{ padding: '5px 12px', borderRadius: '10px', border: 'none', background: '#D97757', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}>
+                                        {isBulkRenewing ? '…' : `+${m}M`}
+                                    </button>
+                                ))}
+                                <button onClick={() => setSelectedOrgIds(new Set())}
+                                    style={{ padding: '4px 8px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#D97757', cursor: 'pointer' }}>
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ background: 'white', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid #EEE' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                                 <tr style={{ background: '#FDFCFB', borderBottom: '1px solid #EEE' }}>
-                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Pâtisserie</th>
-                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Statut / Plan</th>
-                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Usage</th>
-                                    <th style={{ textAlign: 'left', padding: '16px 24px', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Expiration</th>
-                                    <th style={{ width: '40px' }}></th>
+                                    <th style={{ padding: '14px 16px', width: '40px' }}>
+                                        <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D97757', display: 'flex' }}>
+                                            {selectedOrgIds.size === filteredOrgs.length && filteredOrgs.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                                        </button>
+                                    </th>
+                                    {['Pâtisserie', 'Statut / Plan', 'Usage', 'Expiration', ''].map(h => (
+                                        <th key={h} style={{ textAlign: 'left', padding: '14px 16px', fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase' }}>{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {orgs
-                                    .filter(o => o.name.toLowerCase().includes(searchQuery.toLowerCase()) || o.contact_email?.toLowerCase().includes(searchQuery.toLowerCase()))
-                                    .map(o => {
-                                        const status = subscriptionStatus(o.subscription_end_date)
-                                        return (
-                                            <tr key={o.id} onClick={() => handleOrgSelect(o.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #F5F5F5', transition: 'background 0.2s' }} className="table-row-hover">
-                                                <td style={{ padding: '16px 24px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#FEF3EC', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem' }}>
-                                                            {initials(o.name)}
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontWeight: 700, color: '#2D1B0E' }}>{o.name}</div>
-                                                            <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{o.contact_email || 'Pas d\'email contact'}</div>
-                                                        </div>
+                                {filteredOrgs.map(o => {
+                                    const status = subscriptionStatus(o.subscription_end_date)
+                                    const daysLeft = o.subscription_end_date
+                                        ? Math.ceil((new Date(o.subscription_end_date).getTime() - Date.now()) / 86400000)
+                                        : null
+                                    const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
+                                    const isSelected = selectedOrgIds.has(o.id)
+                                    return (
+                                        <tr key={o.id}
+                                            style={{ borderBottom: '1px solid #F5F5F5', transition: 'background 0.15s', background: isSelected ? '#FEF3EC' : isExpiringSoon ? '#FFFBF5' : 'white' }}
+                                            className="table-row-hover">
+                                            <td style={{ padding: '14px 16px' }} onClick={e => { e.stopPropagation(); toggleSelectOrg(o.id) }}>
+                                                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D97757', display: 'flex' }}>
+                                                    {isSelected ? <CheckSquare size={17} /> : <Square size={17} style={{ color: '#CCC' }} />}
+                                                </button>
+                                            </td>
+                                            <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: '#FEF3EC', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', flexShrink: 0 }}>
+                                                        {initials(o.name)}
                                                     </div>
-                                                </td>
-                                                <td style={{ padding: '16px 24px' }}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: status.bg, color: status.color, padding: '2px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700, width: 'fit-content' }}>
-                                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: status.color }} />
-                                                            {status.label.toUpperCase()}
-                                                        </div>
-                                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6A9CC4' }}>{o.tier || 'Basic'}</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '0.875rem' }}>{o.name}</div>
+                                                        <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>{o.contact_email || 'Pas d\'email contact'}</div>
                                                     </div>
-                                                </td>
-                                                <td style={{ padding: '16px 24px' }}>
-                                                    <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{o.member_count} / {o.max_users || 5}</div>
-                                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>Utilisateurs</div>
-                                                </td>
-                                                <td style={{ padding: '16px 24px', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
+                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: status.bg, color: status.color, padding: '2px 10px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 700, marginBottom: '4px' }}>
+                                                    <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: status.color }} />
+                                                    {status.label.toUpperCase()}
+                                                </div>
+                                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6A9CC4' }}>{o.tier || 'Basic'}</div>
+                                            </td>
+                                            <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{o.member_count} / {o.max_users || 5}</div>
+                                                <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Utilisateurs</div>
+                                            </td>
+                                            {/* C — Alerte expiration visible */}
+                                            <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
+                                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: isExpiringSoon ? '#D97757' : 'inherit' }}>
                                                     {formatDate(o.subscription_end_date)}
-                                                </td>
-                                                <td style={{ paddingRight: '24px', textAlign: 'right', color: '#D97757' }}>
-                                                    <ChevronRight size={20} />
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
+                                                </div>
+                                                {isExpiringSoon && (
+                                                    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: daysLeft! <= 7 ? '#D94F38' : '#D97757' }}>
+                                                        ⚠️ {daysLeft}j restants
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                                    {/* H — Email de rappel */}
+                                                    {o.contact_email && isExpiringSoon && (
+                                                        <button onClick={e => { e.stopPropagation(); handleSendReminder(o) }}
+                                                            title="Envoyer un rappel par email"
+                                                            style={{ padding: '5px', borderRadius: '8px', border: 'none', background: '#EEF4FA', color: '#6A9CC4', cursor: 'pointer', display: 'flex' }}>
+                                                            <Mail size={14} />
+                                                        </button>
+                                                    )}
+                                                    <ChevronRight size={18} color="#D97757" style={{ cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>
+                    </>
+                    )}
                 </div>
             ) : (
                 <div className="animate-fadeIn">
@@ -735,19 +1053,24 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     </div>
                                 </div>
 
-                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px' }}>Activité Récente</h4>
+                                {/* E — Activité réelle */}
+                                <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Clock size={16} /> Activité Récente
+                                    {loadingActivity && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-muted)' }} />}
+                                </h4>
                                 <div style={{ border: '1px solid #EEE', borderRadius: '16px', overflow: 'hidden' }}>
-                                    {[
-                                        { type: 'Session', msg: 'Session ouverte par Gérant', date: 'il y a 3h' },
-                                        { type: 'Order', msg: 'Nouvelle commande #CMD-402', date: 'il y a 4h' },
-                                        { type: 'Alert', msg: 'Alerte stock : Farine T55', date: 'il y a 1j' },
-                                    ].map((l, i) => (
-                                        <div key={i} style={{ padding: '12px 20px', borderBottom: i === 2 ? 'none' : '1px solid #F5F5F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    {realActivity.length === 0 && !loadingActivity ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+                                            Aucune activité récente enregistrée.
+                                        </div>
+                                    ) : realActivity.map((l, i) => (
+                                        <div key={i} style={{ padding: '12px 20px', borderBottom: i < realActivity.length - 1 ? '1px solid #F5F5F5' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.type === 'Alert' ? '#D94F38' : '#4C9E6A' }} />
-                                                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{l.msg}</span>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.type === 'Vente' ? '#4C9E6A' : '#6A9CC4', flexShrink: 0 }} />
+                                                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{l.msg}</span>
+                                                <span style={{ fontSize: '0.7rem', background: l.type === 'Vente' ? '#E8F5EE' : '#EEF4FA', color: l.type === 'Vente' ? '#4C9E6A' : '#6A9CC4', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>{l.type}</span>
                                             </div>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>{l.date}</span>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{l.date}</span>
                                         </div>
                                     ))}
                                 </div>

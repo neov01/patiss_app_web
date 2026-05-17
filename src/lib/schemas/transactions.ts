@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // ─── Labels de type de transaction ───
-export const TransactionLabelType = z.enum(['ACOMPTE', 'SOLDE', 'VENTE_DIRECTE'])
+export const TransactionLabelType = z.enum(['ACOMPTE', 'SOLDE', 'VENTE_DIRECTE', 'REMBOURSEMENT'])
 export type TransactionLabelType = z.infer<typeof TransactionLabelType>
 
 // ─── Statut de paiement d'une commande ───

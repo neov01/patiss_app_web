@@ -115,3 +115,41 @@ export async function getCustomerOrders(customerId: string) {
   if (error) return { error: error.message };
   return { data };
 }
+
+export async function updateCustomerProfile(
+  customerId: string,
+  data: { name: string; phone?: string; email?: string | null }
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .update({ name: data.name.trim(), phone: data.phone?.trim() || null, email: data.email?.trim() || null })
+    .eq("id", customerId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/clients");
+  return { success: true };
+}
+
+export async function updateCustomerPreferences(
+  customerId: string,
+  preferences: Record<string, any>
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .update({ preferences })
+    .eq("id", customerId);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function deleteCustomer(customerId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .delete()
+    .eq("id", customerId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/clients");
+  return { success: true };
+}

@@ -68,8 +68,9 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             
             // 3. Redirection sécurisée
             router.replace(`/kiosk?orgId=${profile.organization_id}`)
-        } catch (err: any) {
-            console.error('Kiosk switch error:', err)
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error('Kiosk switch error:', msg)
             toast.error('Erreur lors du passage au mode kiosque. Votre session est toujours active par sécurité.', { id: toastId })
         } finally {
             setIsSwitchingToKiosk(false)

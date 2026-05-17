@@ -227,7 +227,7 @@ export async function impersonateUser(orgId: string) {
     const { data: linkData, error: lErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: targetUser.email,
-      options: { redirectTo: `${siteUrl}/dashboard` }
+      options: { redirectTo: `${siteUrl}/auth/impersonate` }
     })
 
     if (lErr || !linkData.properties?.action_link) {

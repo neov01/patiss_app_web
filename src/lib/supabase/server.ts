@@ -2,38 +2,48 @@ import 'server-only'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
+import { verifyKioskToken } from '@/lib/kiosk-token'
 
 export async function createClient() {
     const cookieStore = await cookies()
-    const kioskUserId = cookieStore.get('kiosk_user_id')?.value
     const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
 
-    // If it's a kiosk session WITHOUT a gérant session, use service role to allow data fetching by the server.
-    // This is safe as it's only on the server, and pages already filter by organization_id.
-    const isKioskOnly = kioskUserId && !cookieStore.get('sb-access-token') && !cookieStore.get('sb-refresh-token');
+    // Session kiosque : vérifier le token HMAC signé (résistant à la falsification)
+    const kioskToken = cookieStore.get('kiosk_token')?.value
+        ?? cookieStore.get('kiosk_user_id')?.value // rétrocompat ancien cookie non signé
+    const hasGerantSession = cookieStore.get('sb-access-token') || cookieStore.get('sb-refresh-token')
 
-    if (isKioskOnly) {
-        const adminClient = createSupabaseClient<Database>(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { persistSession: false } }
-        )
-        
-        // Mock getUser so pages can bypass authentication checks and use the kiosk identity
-        // to filter data (organization_id check on profiles).
-        adminClient.auth.getUser = async () => ({ 
-            data: { 
-                user: { 
-                    id: kioskUserId, 
-                    email: 'kiosk@patiss.app',
-                    aud: 'authenticated',
-                    role: 'authenticated'
-                } as any 
-            }, 
-            error: null 
-        })
-        
-        return adminClient
+    if (kioskToken && !hasGerantSession) {
+        // Vérifier la signature cryptographique du token
+        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
+
+        // Ancien cookie non signé (rétrocompat) : accepté mais limité
+        const userId = claims?.userId ?? (kioskToken.includes('.') ? null : kioskToken)
+        const orgId = claims?.orgId ?? null
+
+        if (userId) {
+            const adminClient = createSupabaseClient<Database>(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                { auth: { persistSession: false } }
+            )
+
+            adminClient.auth.getUser = async () => ({
+                data: {
+                    user: {
+                        id: userId,
+                        email: 'kiosk@patiss.app',
+                        aud: 'authenticated',
+                        role: 'authenticated',
+                        // orgId exposé pour validation côté pages/actions
+                        app_metadata: { kiosk_org_id: orgId },
+                    } as any
+                },
+                error: null
+            })
+
+            return adminClient
+        }
     }
 
     return createServerClient<Database>(

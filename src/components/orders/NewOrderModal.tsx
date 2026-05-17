@@ -344,44 +344,40 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 <form onSubmit={handleSubmit}>
 
                     {/* EN-TÊTE — une seule ligne */}
-                    <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-background)', zIndex: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, whiteSpace: 'nowrap' }}>Nouvelle commande</h2>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontFamily: 'monospace', marginRight: 'auto' }}>#{orderNumber}</span>
+                    <div style={{ padding: '12px 16px', borderBottom: '1.5px solid var(--color-border)', position: 'sticky', top: 0, background: 'var(--color-lift)', zIndex: 10 }}>
+                        {/* Ligne 1 : titre + numéro + fermer */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)' }}>Nouvelle commande</h2>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontFamily: 'monospace', background: 'var(--color-well)', padding: '2px 8px', borderRadius: '99px' }}>#{orderNumber}</span>
+                            </div>
+                            <button type="button" onClick={handleClose} className="btn-ghost" style={{ padding: '4px', flexShrink: 0 }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        {/* Ligne 2 : statut + priorité */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <TouchSelect
                                 value={status}
                                 onChange={setStatus}
                                 options={STATUS_OPTIONS}
                                 title="Statut de la commande"
-                                style={{ width: 'auto', padding: '0 10px', minHeight: '30px', borderRadius: '20px', fontSize: '0.8rem' }}
+                                style={{ flex: 1, minHeight: '32px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', padding: '0 10px' }}
                             />
-                            <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+                            <div style={{ display: 'flex', background: 'var(--color-well)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px', flexShrink: 0 }}>
                                 {PRIORITY_OPTIONS.map(opt => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() => setPriority(opt.value)}
+                                    <button key={opt.value} type="button" onClick={() => setPriority(opt.value)}
                                         style={{
-                                            flex: 1,
-                                            padding: '4px 8px',
-                                            fontSize: '0.78rem',
-                                            fontWeight: 700,
-                                            borderRadius: '6px',
-                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            padding: '4px 10px', fontSize: '0.75rem', fontWeight: 700,
+                                            borderRadius: '8px', border: 'none', cursor: 'pointer',
+                                            transition: 'all 0.15s',
                                             background: priority === opt.value ? opt.color : 'transparent',
                                             color: priority === opt.value ? 'white' : 'var(--color-muted)',
-                                            boxShadow: priority === opt.value ? `0 4px 12px ${opt.color}44` : 'none',
-                                            border: 'none',
-                                            whiteSpace: 'nowrap'
+                                            whiteSpace: 'nowrap',
                                         }}
-                                    >
-                                        {opt.label}
-                                    </button>
+                                    >{opt.label}</button>
                                 ))}
                             </div>
-                            <button type="button" onClick={handleClose} className="btn-ghost" style={{ padding: '4px', flexShrink: 0 }}>
-                                <X size={20} />
-                            </button>
                         </div>
                     </div>
 
@@ -389,7 +385,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
                         {/* CRM SELECTOR */}
                         <div>
-                            <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '6px' }}>Lier à un client CRM</label>
+                            <label className="label">Lier à un client CRM <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.78rem' }}>(optionnel)</span></label>
                             <CRMSelector
                                 selectedCustomer={crmCustomerId ? { id: crmCustomerId, name: crmCustomerName || '' } : null}
                                 onCustomerSelected={(id, name) => {
@@ -406,8 +402,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             <div>
                                 <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Client *</label>
                                 <div style={{ position: 'relative' }}>
-                                    <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
-                                    <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={clientName}
+                                    <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
+                                    <input className="input" style={{ paddingLeft: '36px', borderColor: 'var(--color-primary)' }} value={clientName}
                                         onChange={e => setClientName(e.target.value)} placeholder="Nom du client" required inputMode="text" autoComplete="name" />
                                 </div>
                             </div>
@@ -420,7 +416,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     title="Numéro de téléphone"
                                     isPhone={true}
                                     icon={<Phone size={16} style={{ color: '#d97757' }} />}
-                                    style={{ borderColor: crmCustomerId ? '#10B981' : '#d4a87a' }}
+                                    style={{ borderColor: crmCustomerId ? '#10B981' : 'var(--color-primary)' }}
                                 />
                                 <CrmPhoneMatchBadge
                                     match={crmPhoneMatch}
@@ -436,17 +432,21 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             </div>
 
                             <div style={{ gridColumn: '1 / -1' }}>
-                                <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', borderRadius: '8px', padding: '4px' }}>
-                                    <button type="button" onClick={() => setReceptionType('retrait')}
-                                        style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
-                                        background: receptionType === 'retrait' ? '#d4a87a' : 'transparent', color: receptionType === 'retrait' ? 'white' : 'var(--color-muted)' }}>
-                                        🏠 Retrait en boutique
-                                    </button>
-                                    <button type="button" onClick={() => setReceptionType('livraison')}
-                                        style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', fontWeight: 600, transition: 'all 0.2s',
-                                        background: receptionType === 'livraison' ? '#d4a87a' : 'transparent', color: receptionType === 'livraison' ? 'white' : 'var(--color-muted)' }}>
-                                        🚚 Livraison
-                                    </button>
+                                <div style={{ display: 'flex', background: 'var(--color-well)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '3px' }}>
+                                    {[
+                                        { val: 'retrait', label: '🏠 Retrait en boutique' },
+                                        { val: 'livraison', label: '🚚 Livraison' },
+                                    ].map(({ val, label }) => (
+                                        <button key={val} type="button" onClick={() => setReceptionType(val as any)}
+                                            style={{
+                                                flex: 1, padding: '7px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '0.875rem',
+                                                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                                                background: receptionType === val ? 'var(--color-primary)' : 'transparent',
+                                                color: receptionType === val ? 'white' : 'var(--color-muted)',
+                                            }}>
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
@@ -472,8 +472,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 <div>
                                     <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Adresse de livraison *</label>
                                     <div style={{ position: 'relative' }}>
-                                        <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#d4a87a' }} />
-                                        <input className="input" style={{ paddingLeft: '36px', borderColor: '#d4a87a' }} value={deliveryAddress}
+                                        <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
+                                        <input className="input" style={{ paddingLeft: '36px', borderColor: 'var(--color-primary)' }} value={deliveryAddress}
                                             onChange={e => setDeliveryAddress(e.target.value)} placeholder="Quartier, rue..." required={receptionType === 'livraison'} inputMode="text" autoComplete="street-address" />
                                     </div>
                                 </div>
@@ -547,14 +547,14 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     )}
                                 </div>
                                 <button type="button" onClick={handleAddManual}
-                                    style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0 14px', height: '42px', background: 'transparent', color: '#d4a87a', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0, cursor: 'pointer' }}>
+                                    style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0 14px', height: '42px', background: 'transparent', color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0, cursor: 'pointer' }}>
                                     +
                                 </button>
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {orderItems.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-surface-secondary)', padding: '6px', borderRadius: '8px' }}>
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inv.</span>}
                                             <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px' }} required />
@@ -582,7 +582,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 <textarea className="input" rows={2} value={customizationNotes} onChange={e => setCustomizationNotes(e.target.value)}
                                     placeholder="Texte sur le gâteau, couleurs, allergies, instructions spéciales..." style={{ resize: 'none', flex: 1 }}></textarea>
                                 <label
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--color-surface-secondary)', color: imageFile ? '#d4a87a' : 'var(--color-muted)', flexShrink: 0 }}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--color-well)', color: imageFile ? 'var(--color-primary)' : 'var(--color-muted)', flexShrink: 0 }}
                                     title={imageFile ? imageFile.name : "Ajouter une photo d'inspiration"}
                                 >
                                     <ImageIcon size={18} />
@@ -592,101 +592,73 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                         </div>
 
                         {/* RÉCAP FINANCIER */}
-                        <div style={{ background: 'var(--color-surface-secondary)', borderRadius: '12px', padding: '12px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
-                                    <span>Sous-total</span>
-                                    <span>{subtotal.toLocaleString('fr-FR')} {currency}</span>
-                                </div>
+                        <div style={{ background: 'var(--color-well)', borderRadius: 'var(--radius-md)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+                                <span>Sous-total</span>
+                                <span style={{ fontWeight: 700 }}>{subtotal.toLocaleString('fr-FR')} {currency}</span>
+                            </div>
 
-                                {/* Toggle Acompte / Soldé */}
+                            {/* Toggle Acompte / Soldé */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Paiement reçu</span>
+                                <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px' }}>
+                                    <button type="button" onClick={() => { setPaymentType('ACOMPTE'); setDeposit(0) }}
+                                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'ACOMPTE' ? 'var(--color-warning)' : 'transparent', color: paymentType === 'ACOMPTE' ? 'white' : 'var(--color-muted)' }}>
+                                        Acompte reçu
+                                    </button>
+                                    <button type="button" onClick={() => { setPaymentType('SOLDE'); setDeposit(total) }}
+                                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'SOLDE' ? 'var(--color-secondary)' : 'transparent', color: paymentType === 'SOLDE' ? 'white' : 'var(--color-muted)' }}>
+                                        Soldé
+                                    </button>
+                                </div>
+                            </div>
+
+                            {paymentType === 'ACOMPTE' && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Paiement reçu</span>
-                                    <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setPaymentType('ACOMPTE'); setDeposit(0) }}
-                                            style={{
-                                                padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700,
-                                                borderRadius: '6px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: paymentType === 'ACOMPTE' ? '#F59E0B' : 'transparent',
-                                                color: paymentType === 'ACOMPTE' ? 'white' : 'var(--color-muted)',
-                                            }}
-                                        >
-                                            Acompte reçu
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setPaymentType('SOLDE'); setDeposit(total) }}
-                                            style={{
-                                                padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700,
-                                                borderRadius: '6px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                                                background: paymentType === 'SOLDE' ? '#10B981' : 'transparent',
-                                                color: paymentType === 'SOLDE' ? 'white' : 'var(--color-muted)',
-                                            }}
-                                        >
-                                            Soldé
-                                        </button>
+                                    <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Montant acompte</span>
+                                    <div style={{ width: '110px' }}>
+                                        <TouchInput value={deposit.toString()} onChange={v => setDeposit(parseFloat(v) || 0)} style={{ height: '34px', padding: '4px 8px', textAlign: 'right' }} />
                                     </div>
                                 </div>
+                            )}
 
-                                {/* Montant de l'acompte — masqué si Soldé (auto-rempli) */}
-                                {paymentType === 'ACOMPTE' && (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Montant acompte</span>
-                                        <div style={{ width: '100px' }}>
-                                            <TouchInput value={deposit.toString()} onChange={v => setDeposit(parseFloat(v) || 0)} style={{ height: '32px', padding: '4px 8px', textAlign: 'right' }} />
-                                        </div>
+                            {deposit > 0 && (
+                                <div>
+                                    <label className="label" style={{ marginBottom: '4px' }}>Mode de paiement</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                        {PAYMENT_METHODS.map(m => (
+                                            <button key={m.value} type="button" onClick={() => setDepositPaymentMethod(m.value)}
+                                                style={{
+                                                    padding: '5px 10px', fontSize: '0.75rem', fontWeight: 700,
+                                                    borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.15s',
+                                                    border: '1.5px solid', borderColor: depositPaymentMethod === m.value ? 'var(--color-primary)' : 'var(--color-border)',
+                                                    background: depositPaymentMethod === m.value ? '#FDE8E0' : 'var(--color-lift)',
+                                                    color: depositPaymentMethod === m.value ? 'var(--color-primary)' : 'var(--color-muted)',
+                                                }}>
+                                                {m.label}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
-
-                                {/* Méthode de paiement — visible dès qu'il y a un montant */}
-                                {deposit > 0 && (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Méthode</span>
-                                        <div style={{ display: 'flex', background: 'var(--color-background)', borderRadius: '8px', padding: '3px', gap: '2px', flexWrap: 'wrap' }}>
-                                            {PAYMENT_METHODS.map(m => (
-                                                <button
-                                                    key={m.value}
-                                                    type="button"
-                                                    onClick={() => setDepositPaymentMethod(m.value)}
-                                                    style={{
-                                                        padding: '5px 10px',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 700,
-                                                        borderRadius: '6px',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s',
-                                                        background: depositPaymentMethod === m.value ? '#d4a87a' : 'transparent',
-                                                        color: depositPaymentMethod === m.value ? 'white' : 'var(--color-muted)',
-                                                    }}
-                                                >
-                                                    {m.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div style={{ height: '1px', background: 'var(--color-border)', margin: '2px 0' }}></div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '0.95rem', color: '#d4a87a' }}>
-                                    <span>Solde restant</span>
-                                    <span>{balance.toLocaleString('fr-FR')} {currency}</span>
                                 </div>
+                            )}
+
+                            <div style={{ height: '1px', background: 'var(--color-border)' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
+                                <span>Solde restant</span>
+                                <span>{balance.toLocaleString('fr-FR')} {currency}</span>
                             </div>
                         </div>
 
                     </div>
 
                     {/* FOOTER */}
-                    <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '8px', background: 'var(--color-background)', position: 'sticky', bottom: 0 }}>
+                    <div style={{ padding: '12px 16px', borderTop: '1.5px solid var(--color-border)', display: 'flex', gap: '8px', background: 'var(--color-lift)', position: 'sticky', bottom: 0 }}>
                         <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
                         <button type="submit" className="btn-primary"
                             disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate}
-                            style={{ flex: 2, background: '#d4a87a', color: 'white' }}>
+                            style={{ flex: 2 }}>
                             {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
-                            {isPending ? 'Création...' : 'Créer la commande'}
+                            {isPending ? 'Création…' : 'Créer la commande'}
                         </button>
                     </div>
 

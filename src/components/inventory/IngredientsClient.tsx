@@ -158,7 +158,7 @@ export default function IngredientsClient({
                         {initialIngredients.length} matières premières au total
                     </p>
                 </div>
-                <IngredientModal mode="create" />
+                <IngredientModal mode="create" existingNames={initialIngredients.map((i: any) => i.name)} />
             </div>
 
             {/* Cartes KPI */}
@@ -454,7 +454,7 @@ export default function IngredientsClient({
                                                                         Commander
                                                                     </a>
                                                                 )}
-                                                                <StockMovementModal ingredientId={ing.id} ingredientName={ing.name} />
+                                                                <StockMovementModal ingredientId={ing.id} ingredientName={ing.name} currentStock={ing.current_stock} unit={ing.unit} />
                                                                 <IngredientModal mode="edit" ingredient={ing} />
                                                                 <button
                                                                     onClick={() => handleToggleStatus(ing, true)}
@@ -538,7 +538,7 @@ export default function IngredientsClient({
                                                         Commander
                                                     </a>
                                                 )}
-                                                <StockMovementModal ingredientId={ing.id} ingredientName={ing.name} />
+                                                <StockMovementModal ingredientId={ing.id} ingredientName={ing.name} currentStock={ing.current_stock} unit={ing.unit} />
                                                 <IngredientModal mode="edit" ingredient={ing} />
                                                 <button
                                                     onClick={() => handleToggleStatus(ing, true)}

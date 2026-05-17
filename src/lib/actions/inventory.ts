@@ -8,6 +8,7 @@ export async function createInventoryLog(formData: {
     ingredient_id: string
     quantity_change: number
     reason: 'production' | 'waste' | 'purchase' | 'adjustment'
+    note?: string
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -28,6 +29,7 @@ export async function createInventoryLog(formData: {
         ingredient_id: formData.ingredient_id,
         quantity_change: formData.quantity_change,
         reason: formData.reason,
+        note: formData.note || null,
         created_by: user.id,
     })
 

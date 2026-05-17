@@ -8,7 +8,7 @@ import { CustomerSchema, CustomerFormValues, normalizeFrenchPhone } from "@/lib/
 import { createOrUpdateCustomer, searchCustomers } from "@/lib/actions/customers";
 
 interface CRMSelectorProps {
-  onCustomerSelected: (customerId: string, name: string) => void;
+  onCustomerSelected: (customerId: string, name: string, phone?: string) => void;
   selectedCustomer: { id: string; name: string } | null;
   onClear: () => void;
 }
@@ -49,7 +49,7 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
     try {
       const result = await createOrUpdateCustomer(data);
       if (result.customerId) {
-        onCustomerSelected(result.customerId, data.name);
+        onCustomerSelected(result.customerId, data.name, data.phone);
         setIsOpen(false);
         form.reset();
       } else {
@@ -134,7 +134,7 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
                     <button
                       key={c.id}
                       onClick={() => {
-                        onCustomerSelected(c.id, c.name);
+                        onCustomerSelected(c.id, c.name, c.phone ?? undefined);
                         setIsOpen(false);
                       }}
                       className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors text-left"

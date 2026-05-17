@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   X,
@@ -17,10 +17,16 @@ import {
   Zap,
   ArrowRight,
   MoreHorizontal,
+  Pencil,
+  Check,
+  Trash2,
+  Archive,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createOrder } from "@/lib/actions/orders";
+import { updateCustomerProfile, updateCustomerPreferences, deleteCustomer } from "@/lib/actions/customers";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 // --- Sub-components ---
 import { Customer, Order, Product } from "./crm/types";
@@ -43,12 +49,23 @@ export default function CustomerIntelligenceModal({
 }: CustomerIntelligenceModalProps) {
   const queryClient = useQueryClient();
   const supabase = createClient();
-  
+  const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const [activeTab, setActiveTab] = useState<"timeline" | "preferences" | "notes" | "analytique">("timeline");
   const [localNotes, setLocalNotes] = useState("");
   const [showQR, setShowQR] = useState(false);
   const [isSelectingProduct, setIsSelectingProduct] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Edit profile state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", email: "" });
+
+  // Menu ⋯ state
+  const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -137,10 +154,11 @@ export default function CustomerIntelligenceModal({
     enabled: isSelectingProduct,
   });
 
-  // Sync local notes when customer data is loaded
+  // Sync local notes + edit form when customer data is loaded
   useEffect(() => {
     if (customer) {
       setLocalNotes(customer.preferences?.notes || "");
+      setEditForm({ name: customer.name || "", phone: customer.phone || "", email: customer.email || "" });
     }
   }, [customer]);
 
@@ -150,8 +168,22 @@ export default function CustomerIntelligenceModal({
       setActiveTab("timeline" as const);
       setShowQR(false);
       setIsSelectingProduct(false);
+      setIsEditing(false);
+      setShowMenu(false);
+      setConfirmDelete(false);
+      setConfirmArchive(false);
     }
   }, [isOpen]);
+
+  // Close menu on click outside
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMenu]);
 
   // --- Mutations ---
 
@@ -170,6 +202,51 @@ export default function CustomerIntelligenceModal({
     onError: (error: Error) => {
       toast.error(`Erreur: ${error.message}`);
     }
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!clientId) return;
+      const res = await updateCustomerProfile(clientId, editForm);
+      if (res.error) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      toast.success("Profil mis à jour !");
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["customer", clientId] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!clientId || !customer) return;
+      const currentPrefs = typeof customer.preferences === "object" ? customer.preferences : {};
+      const res = await updateCustomerPreferences(clientId, { ...currentPrefs, archived: true });
+      if (res.error) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      toast.success("Client archivé.");
+      setConfirmArchive(false);
+      onClose();
+      router.refresh();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!clientId) return;
+      const res = await deleteCustomer(clientId);
+      if (res.error) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      toast.success("Client supprimé définitivement.");
+      setConfirmDelete(false);
+      onClose();
+      router.refresh();
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const updateNotesMutation = useMutation({
@@ -304,13 +381,56 @@ export default function CustomerIntelligenceModal({
                         </div>
                       </div>
 
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
-                        {customer?.name || "Client Inconnu"}
-                      </h2>
-                      <p className="text-sm font-bold text-slate-400 mt-1 flex items-center gap-1">
-                        <Phone size={14} className="text-slate-300" />
-                        {customer?.phone || "Non renseigné"}
-                      </p>
+                      {isEditing ? (
+                        <div className="w-full space-y-2">
+                          <input
+                            className="w-full px-3 py-2 text-lg font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            value={editForm.name}
+                            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                            placeholder="Nom complet"
+                          />
+                          <input
+                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            value={editForm.phone}
+                            onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                            placeholder="Téléphone"
+                            type="tel"
+                          />
+                          <input
+                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            value={editForm.email}
+                            onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                            placeholder="Email (optionnel)"
+                            type="email"
+                          />
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              onClick={() => updateProfileMutation.mutate()}
+                              disabled={updateProfileMutation.isPending || !editForm.name.trim()}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-[#DC5F4A] text-white py-2 rounded-xl text-xs font-black transition-all hover:bg-[#C5533F] disabled:opacity-50"
+                            >
+                              <Check size={14} />
+                              {updateProfileMutation.isPending ? "Sauvegarde…" : "Sauvegarder"}
+                            </button>
+                            <button
+                              onClick={() => setIsEditing(false)}
+                              className="px-3 py-2 bg-slate-100 text-slate-500 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">
+                            {customer?.name || "Client Inconnu"}
+                          </h2>
+                          <p className="text-sm font-bold text-slate-400 mt-1 flex items-center gap-1">
+                            <Phone size={14} className="text-slate-300" />
+                            {customer?.phone || "Non renseigné"}
+                          </p>
+                        </>
+                      )}
 
                       <div className="flex flex-wrap gap-2 mt-4">
                         <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getBadgeColors(customer?.rfm_segment)}`}>
@@ -367,9 +487,40 @@ export default function CustomerIntelligenceModal({
                         <MessageCircle size={18} />
                         WhatsApp
                       </button>
-                      <button className="p-3 bg-slate-50 text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all">
-                        <MoreHorizontal size={20} />
-                      </button>
+                      <div className="relative" ref={menuRef}>
+                        <button
+                          onClick={() => setShowMenu(v => !v)}
+                          className="p-3 bg-slate-50 text-slate-400 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all"
+                        >
+                          <MoreHorizontal size={20} />
+                        </button>
+                        {showMenu && (
+                          <div className="absolute bottom-full mb-2 right-0 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-20 min-w-[180px]">
+                            <button
+                              onClick={() => { setIsEditing(true); setShowMenu(false); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                              <Pencil size={14} className="text-slate-400" />
+                              Modifier le profil
+                            </button>
+                            <button
+                              onClick={() => { setConfirmArchive(true); setShowMenu(false); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                            >
+                              <Archive size={14} />
+                              Archiver le client
+                            </button>
+                            <div className="mx-3 my-1 border-t border-slate-100" />
+                            <button
+                              onClick={() => { setConfirmDelete(true); setShowMenu(false); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                              Supprimer le client
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -475,6 +626,13 @@ export default function CustomerIntelligenceModal({
                         {activeTab === "preferences" && (
                           <CustomerPreferences
                             customer={customer || null}
+                            onUpdatePreferences={async (newPrefs) => {
+                              if (!clientId) return;
+                              const res = await updateCustomerPreferences(clientId, newPrefs);
+                              if (res.error) { toast.error("Erreur de sauvegarde"); return; }
+                              toast.success("Préférences sauvegardées !");
+                              queryClient.invalidateQueries({ queryKey: ["customer", clientId] });
+                            }}
                           />
                         )}
 
@@ -493,8 +651,48 @@ export default function CustomerIntelligenceModal({
                 </div>
               )}
 
+              {/* Confirmation archivage */}
+              {confirmArchive && (
+                <div className="absolute inset-0 z-30 bg-black/40 flex items-center justify-center rounded-[32px]">
+                  <div className="bg-white rounded-2xl p-6 mx-6 shadow-xl max-w-sm w-full">
+                    <p className="font-black text-slate-800 text-lg mb-2">Archiver ce client ?</p>
+                    <p className="text-sm text-slate-500 mb-5">Le client sera masqué de la liste CRM mais ses données seront conservées.</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setConfirmArchive(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
+                      <button
+                        onClick={() => archiveMutation.mutate()}
+                        disabled={archiveMutation.isPending}
+                        className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-black hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        {archiveMutation.isPending ? "Archivage…" : "Archiver"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation suppression */}
+              {confirmDelete && (
+                <div className="absolute inset-0 z-30 bg-black/40 flex items-center justify-center rounded-[32px]">
+                  <div className="bg-white rounded-2xl p-6 mx-6 shadow-xl max-w-sm w-full">
+                    <p className="font-black text-red-600 text-lg mb-2">Supprimer définitivement ?</p>
+                    <p className="text-sm text-slate-500 mb-5">Cette action est irréversible. Les commandes et transactions existantes seront conservées mais plus liées à ce client.</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
+                      <button
+                        onClick={() => deleteMutation.mutate()}
+                        disabled={deleteMutation.isPending}
+                        className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-black hover:bg-red-600 disabled:opacity-50"
+                      >
+                        {deleteMutation.isPending ? "Suppression…" : "Supprimer"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Overlays */}
-              <QRCodeOverlay 
+              <QRCodeOverlay
                 show={showQR} 
                 onClose={() => setShowQR(false)} 
                 customer={customer || null} 

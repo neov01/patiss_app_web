@@ -6,6 +6,8 @@ import { Search, Edit, Trash2, Loader2, Package } from 'lucide-react'
 import { deleteProduct } from '@/lib/actions/products'
 import { toast } from 'sonner'
 import ProductModal from './ProductModal'
+import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
+import { useProductFilter } from '@/hooks/useProductFilter'
 
 interface Product {
   id: string
@@ -18,35 +20,27 @@ interface Product {
   image_url?: string | null
 }
 
+interface Ingredient {
+  id: string
+  name: string
+  unit: string
+  cost_per_unit: number
+}
+
 interface CatalogueClientProps {
   products: Product[]
   currency: string
-  availableIngredients: any[]
-}
-
-const CATEGORIES = ['Tous', 'Gâteaux', 'Viennoiseries', 'Petits fours', 'Boissons', 'Autres']
-
-const CATEGORY_ICONS: Record<string, string> = {
-  'Gâteaux': '🎂',
-  'Viennoiseries': '🥐',
-  'Petits fours': '🍪',
-  'Boissons': '🧃',
-  'Autres': '📦'
+  availableIngredients: Ingredient[]
 }
 
 export default function CatalogueClient({ products, currency, availableIngredients }: CatalogueClientProps) {
   const router = useRouter()
-  const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('Tous')
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
 
-  const filteredProducts = (products || []).filter(p => {
-    const matchesSearch = p.name?.toLowerCase().includes(search.toLowerCase())
-    const matchesCategory = activeCategory === 'Tous' || p.category === activeCategory
-    return matchesSearch && matchesCategory
-  })
+  const { search, setSearch, activeCategory, setActiveCategory, filtered: filteredProducts } =
+    useProductFilter(products ?? [])
 
   const handleDelete = async () => {
     if (!productToDelete) return
@@ -96,7 +90,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
 
       {/* Filtres par catégories */}
       <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', paddingLeft: '2px' }}>
-        {CATEGORIES.map(cat => (
+        {PRODUCT_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
@@ -245,7 +239,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
         open={!!editingProduct}
         onClose={() => setEditingProduct(null)}
         availableIngredients={availableIngredients}
-        productToEdit={editingProduct}
+        productToEdit={editingProduct ?? undefined}
         onSuccess={() => {
           setEditingProduct(null)
           router.refresh()

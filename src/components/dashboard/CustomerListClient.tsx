@@ -1,16 +1,17 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { 
-  Search, Trophy, AlertTriangle, UserCheck, Star, Users, 
+import {
+  Search, Trophy, AlertTriangle, UserCheck, Star, Users,
   Gift, Crown, MessageSquare, Plus, Download, Trash2,
   Calendar, ShoppingBag, CheckCircle2, XCircle, Clock,
   ArrowUpRight, ArrowDownRight, ChevronRight, MoreHorizontal,
-  Check
+  Check, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import CustomerIntelligenceModal from "./CustomerIntelligenceModal";
+import CustomerCreateModal from "./CustomerCreateModal";
 
 interface CustomerRFM {
   customer_id: string;
@@ -29,6 +30,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRFM | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: 'monetary' | 'frequency' | 'last_purchase_at'; dir: 'asc' | 'desc' }>({ key: 'monetary', dir: 'desc' });
 
   const handleExportCSV = (customers: CustomerRFM[]) => {
     const headers = ['Nom', 'Téléphone', 'Segment', 'CA Total (FCFA)', 'Commandes', 'Points fidélité', 'Dernier passage']
@@ -71,13 +73,14 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
   };
 
   const filtered = useMemo(() => {
-    return initialCustomers.filter((c) => {
+    const base = initialCustomers.filter((c) => {
+      // Cacher les clients archivés
+      if ((c as any).preferences?.archived) return false;
       const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || "").includes(search);
       const matchSegment = filterSegment === "Tous" || c.rfm_segment === filterSegment;
-      
+
       let matchQuickFilter = true;
       if (activeQuickFilter === "🎂 Anniversaire") {
-        // Dummy logic for demo
         matchQuickFilter = c.name.length % 5 === 0;
       } else if (activeQuickFilter === "⚠️ Risque") {
         matchQuickFilter = c.rfm_segment === "À Risque";
@@ -87,7 +90,33 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
 
       return matchSearch && matchSegment && matchQuickFilter;
     });
-  }, [initialCustomers, search, filterSegment, activeQuickFilter]);
+
+    return [...base].sort((a, b) => {
+      let av: number, bv: number;
+      if (sort.key === 'last_purchase_at') {
+        av = a.last_purchase_at ? new Date(a.last_purchase_at).getTime() : 0;
+        bv = b.last_purchase_at ? new Date(b.last_purchase_at).getTime() : 0;
+      } else {
+        av = (a[sort.key] as number) || 0;
+        bv = (b[sort.key] as number) || 0;
+      }
+      return sort.dir === 'asc' ? av - bv : bv - av;
+    });
+  }, [initialCustomers, search, filterSegment, activeQuickFilter, sort]);
+
+  function toggleSort(key: typeof sort.key) {
+    setSort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'desc' }
+    );
+  }
+
+  function SortIcon({ col }: { col: typeof sort.key }) {
+    if (sort.key !== col) return <ArrowUpDown size={12} className="inline ml-1 opacity-30" />;
+    return sort.dir === 'asc'
+      ? <ArrowUp size={12} className="inline ml-1 text-slate-800" />
+      : <ArrowDown size={12} className="inline ml-1 text-slate-800" />;
+  }
 
   const segments = ["Tous", "Champion", "Fidèle", "Prometteur", "Occasionnel", "À Risque", "Perdu"];
   const quickFilters = [
@@ -136,10 +165,22 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
 
   return (
     <div className="space-y-6">
-      {/* Status Header Badge (Reduced Boutique Ouverte) */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Boutique Ouverte</span>
+      {/* Status Header Badge + Actions */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Boutique Ouverte</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleExportCSV(filtered)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:border-slate-300 transition-all"
+          >
+            <Download size={15} />
+            Exporter CSV
+          </button>
+          <CustomerCreateModal />
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -281,9 +322,15 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                 </th>
                 <th className="px-6 py-4">Client</th>
                 <th className="px-6 py-4">Segment</th>
-                <th className="px-6 py-4 text-right">CA Total</th>
-                <th className="px-6 py-4 text-right">Fidélité</th>
-                <th className="px-6 py-4">Dernier Passage</th>
+                <th className="px-6 py-4 text-right cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('monetary')}>
+                  CA Total <SortIcon col="monetary" />
+                </th>
+                <th className="px-6 py-4 text-right cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('frequency')}>
+                  Fidélité <SortIcon col="frequency" />
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('last_purchase_at')}>
+                  Dernier Passage <SortIcon col="last_purchase_at" />
+                </th>
                 <th className="px-6 py-4 w-10"></th>
               </tr>
             </thead>

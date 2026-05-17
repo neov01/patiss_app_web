@@ -1,8 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { env } from '@/lib/env'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
+const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
+
+// Rate-limiter simple : 10 requêtes / 5 minutes par organisation
+const _rateLimiter = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT = 10
+const RATE_WINDOW_MS = 5 * 60 * 1000
+
+function checkRateLimit(orgId: string): boolean {
+    const now = Date.now()
+    const entry = _rateLimiter.get(orgId)
+    if (!entry || now > entry.resetAt) {
+        _rateLimiter.set(orgId, { count: 1, resetAt: now + RATE_WINDOW_MS })
+        return true
+    }
+    if (entry.count >= RATE_LIMIT) return false
+    entry.count++
+    return true
+}
 
 // Cache in-process du contexte financier (5 min par organisation)
 const _ctxCache = new Map<string, { data: unknown; ts: number }>()
@@ -119,6 +137,17 @@ export async function POST(req: NextRequest) {
             return new Response('Organisation non identifiée.', { status: 200 })
         }
 
+        // Validation de l'entrée utilisateur
+        if (typeof question !== 'string') {
+            return new Response('Question invalide.', { status: 400 })
+        }
+        const trimmedQuestion = question.trim().slice(0, 500)
+
+        // Rate-limiting par organisation
+        if (!checkRateLimit(organizationId)) {
+            return new Response('⏳ Trop de requêtes. Attendez quelques minutes avant de réessayer.', { status: 429 })
+        }
+
         const today = new Date().toISOString().split('T')[0]
 
         // Contexte financier avec cache 5 min (évite de rescanner 12 mois à chaque question)
@@ -164,18 +193,12 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel({
             model: 'gemini-flash-latest',
             systemInstruction,
-            safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            ]
         })
 
         const prompt = `Contexte complet de la pâtisserie (JSON) :
 ${JSON.stringify(context, (k, v) => v === null ? undefined : v, 2)}
 
-Question : ${question}`
+Question : ${trimmedQuestion}`
 
         // Streaming → le texte apparaît dès le premier token (~200 ms)
         const result = await model.generateContentStream(prompt)

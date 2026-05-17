@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { X, Search, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useOffline } from '@/components/providers/OfflineProvider'
+import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
+import { useProductFilter } from '@/hooks/useProductFilter'
 
 type Product = {
     id: string
@@ -13,16 +15,6 @@ type Product = {
     selling_price: number
     current_stock: number | null
     category: string | null
-}
-
-const CATEGORIES = ['Tous', 'Gâteaux', 'Viennoiseries', 'Petits fours', 'Boissons', 'Autres']
-
-const CATEGORY_ICONS: Record<string, string> = {
-    'Gâteaux': '🎂',
-    'Viennoiseries': '🥐',
-    'Petits fours': '🍪',
-    'Boissons': '🧃',
-    'Autres': '📦'
 }
 
 export default function CatalogueModal({
@@ -34,16 +26,14 @@ export default function CatalogueModal({
 }: {
     open: boolean
     onClose: () => void
-    onAddToCart: (r: any) => void
+    onAddToCart: (r: Product) => void
     organizationId: string
     currency: string
 }) {
-    const [search, setSearch] = useState('')
-    const [activeCat, setActiveCat] = useState('Tous')
     const inputRef = useRef<HTMLInputElement>(null)
     const { isOffline } = useOffline()
 
-    const { data: products = [], isLoading: loading } = useQuery({
+    const { data: rawProducts = [], isLoading: loading } = useQuery({
         queryKey: ['catalog', organizationId],
         queryFn: async () => {
             const supabase = createClient()
@@ -70,17 +60,20 @@ export default function CatalogueModal({
         return () => document.removeEventListener('keydown', handleKeyDown)
     }, [open, onClose])
 
+    const { search, setSearch, activeCategory: activeCat, setActiveCategory: setActiveCat, filtered } =
+        useProductFilter(rawProducts)
+
     if (!open) return null
 
-    const filtered = products.filter(r => {
-        const matchesCat = activeCat === 'Tous' || r.category === activeCat
-        const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase())
-        return matchesCat && matchesSearch
-    })
-
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="catalogue-modal-title"
+            style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
             <div
+                aria-hidden="true"
                 style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(45,27,14,0.6)', backdropFilter: 'blur(4px)' }}
                 onClick={onClose}
             />
@@ -93,8 +86,12 @@ export default function CatalogueModal({
             }}>
                 {/* HEADER */}
                 <div style={{ padding: '20px 24px', background: 'white', borderBottom: '1px solid var(--color-border, #FDE8DB)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #2D1B0E)', margin: 0 }}>Catalogue Produits</h2>
-                    <button onClick={onClose} style={{ border: 'none', background: 'var(--color-blush, #FEF3EC)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark, #C4836A)' }}>
+                    <h2 id="catalogue-modal-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #2D1B0E)', margin: 0 }}>Catalogue Produits</h2>
+                    <button
+                        onClick={onClose}
+                        aria-label="Fermer le catalogue"
+                        style={{ border: 'none', background: 'var(--color-blush, #FEF3EC)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark, #C4836A)' }}
+                    >
                         <X size={18} />
                     </button>
                 </div>
@@ -106,7 +103,8 @@ export default function CatalogueModal({
                         <Search size={18} color="#9C8070" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                         <input
                             ref={inputRef}
-                            type="text"
+                            type="search"
+                            aria-label="Rechercher un produit"
                             placeholder="Rechercher un produit (croissant, tarte...)"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
@@ -126,7 +124,7 @@ export default function CatalogueModal({
 
                     {/* Pills catégories — même style que la page */}
                     <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', paddingLeft: '2px', scrollbarWidth: 'none' }}>
-                        {CATEGORIES.map(cat => (
+                        {PRODUCT_CATEGORIES.map(cat => (
                             <button key={cat} onClick={() => setActiveCat(cat)}
                                 style={{
                                     whiteSpace: 'nowrap',

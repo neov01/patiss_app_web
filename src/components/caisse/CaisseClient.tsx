@@ -76,6 +76,7 @@ export default function CaisseClient({
     const [activeOrder, setActiveOrder] = useState<any | null>(null)
     const [activeClient, setActiveClient] = useState<string | null>(null)
     const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null)
+    const [activeClientPhone, setActiveClientPhone] = useState<string | null>(null)
     const [acompte, setAcompte] = useState(0)
     
     const [activePayments, setActivePayments] = useState<Record<string, number>>({ 'Espèces': 0 })
@@ -235,6 +236,7 @@ export default function CaisseClient({
         setActiveOrder(null)
         setActiveClient(null)
         setActiveCustomerId(null)
+        setActiveClientPhone(null)
         setAcompte(0)
         setMontantRemisStr('')
         setActivePayments({ especes: 0 })
@@ -246,6 +248,7 @@ export default function CaisseClient({
         setActiveOrder(null)
         setActiveClient(null)
         setActiveCustomerId(null)
+        setActiveClientPhone(null)
         setAcompte(0)
     }
 
@@ -309,6 +312,7 @@ export default function CaisseClient({
             order_id: activeOrder?.id || null,
             customer_id: activeCustomerId,
             client_name: activeClient || 'Vente vitrine',
+            client_phone: activeClientPhone ?? undefined,
             amount: totalAEncaisser,
             payment_method: primaryMethod,
             payment_details: paymentDetailsForDb,
@@ -618,9 +622,10 @@ export default function CaisseClient({
                     <div style={{ marginBottom: '16px' }}>
                         <CRMSelector
                             selectedCustomer={activeClient ? { id: activeCustomerId || '', name: activeClient } : null}
-                            onCustomerSelected={(id, name) => {
+                            onCustomerSelected={(id, name, phone) => {
                                 setActiveCustomerId(id)
                                 setActiveClient(name)
+                                setActiveClientPhone(phone ?? null)
                             }}
                             onClear={detachClient}
                         />

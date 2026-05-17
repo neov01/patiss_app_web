@@ -8,8 +8,10 @@
 import {
   getPendingTransactions,
   removePendingTransaction,
+  updatePendingTransactionRetry,
   getPendingOrders,
   removePendingOrder,
+  MAX_OFFLINE_RETRIES,
   type PendingTransaction,
   type PendingOrder
 } from './db'
@@ -20,6 +22,7 @@ import { createClient } from '@/lib/supabase/client'
 export type SyncResult = {
   syncedTransactions: number
   failedTransactions: number
+  deadTransactions: number  // transactions > MAX_RETRIES, nécessitent attention manuelle
   syncedOrders: number
   failedOrders: number
 }
@@ -32,6 +35,7 @@ export async function syncPendingData(): Promise<SyncResult> {
   const result: SyncResult = {
     syncedTransactions: 0,
     failedTransactions: 0,
+    deadTransactions: 0,
     syncedOrders: 0,
     failedOrders: 0
   }
@@ -52,19 +56,25 @@ export async function syncPendingData(): Promise<SyncResult> {
     console.warn('[Offline Sync] Session check failed', err)
   }
 
-  // 1. Synchroniser les transactions avec isolation des échecs
+  // 1. Synchroniser les transactions avec dead-letter queue
   const pendingTx = await getPendingTransactions()
-  
+
   await Promise.allSettled(pendingTx.map(async (tx) => {
+    // Transactions en dead-letter (trop d'échecs) : compter mais ne pas retry
+    if ((tx.retryCount ?? 0) >= MAX_OFFLINE_RETRIES) {
+      result.deadTransactions++
+      return
+    }
+
     try {
       const res = await encaisserTransaction({
-        id: tx.id,         // UUID client-side → idempotence sur Supabase
+        id: tx.id,
         order_id: tx.order_id,
         client_name: tx.client_name,
         amount: tx.amount,
         payment_method: tx.payment_method,
         payment_details: tx.payment_details,
-        items: tx.items    // contient déjà les id items
+        items: tx.items
       })
 
       if (!res.error) {
@@ -72,10 +82,13 @@ export async function syncPendingData(): Promise<SyncResult> {
         result.syncedTransactions++
       } else {
         console.warn('[Sync] Transaction rejetée par le serveur:', res.error)
+        await updatePendingTransactionRetry(tx.offlineId!, res.error)
         result.failedTransactions++
       }
     } catch (err) {
-      console.error('[Sync] Erreur réseau sur transaction:', err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('[Sync] Erreur réseau sur transaction:', errMsg)
+      await updatePendingTransactionRetry(tx.offlineId!, errMsg)
       result.failedTransactions++
     }
   }))
