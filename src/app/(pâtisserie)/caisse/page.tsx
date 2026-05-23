@@ -38,7 +38,7 @@ export default async function CaissePage() {
     // 2. Commandes du jour (Pipeline + Prêtes)
     const { data: pipelineOrders } = await supabase
         .from('orders')
-        .select('id, order_number, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
+        .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
         .eq('organization_id', orgId)
         .in('status', ['pending', 'production', 'ready'])
         .gte('pickup_date', todayStart) // Optimisation : uniquement les commandes d'aujourd'hui et futures
@@ -47,26 +47,31 @@ export default async function CaissePage() {
     // 3. Métriques du jour (Ventes & Recettes)
     const { data: todayTransactions } = await supabase
         .from('transactions')
-        .select('id, client_name, amount, payment_method, order_id, created_at, transaction_items(quantity)')
+        .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, transaction_items(quantity)')
         .eq('organization_id', orgId)
         .gte('created_at', todayStart)
         .order('created_at', { ascending: false })
 
-    // CA du jour
+    // CA du jour (inclut acomptes + soldes = argent réellement reçu)
     const caDuJour = (todayTransactions || []).reduce((acc, t) => acc + Number(t.amount), 0)
-    const commandesEncaissees = (todayTransactions || []).filter(t => t.order_id !== null).length
+    // Compter uniquement les SOLDE (pas les ACOMPTE) pour éviter de compter 2x la même commande
+    const commandesEncaissees = (todayTransactions || []).filter(t => t.order_id !== null && (t as any).label_type === 'SOLDE').length
     const ventesVitrine = (todayTransactions || []).filter(t => t.order_id === null).length
-    
-    // Historique (les 10 dernières)
-    const recentHistory = (todayTransactions || []).slice(0, 10).map(t => ({
-        id: t.id,
-        client_name: t.client_name,
-        amount: t.amount,
-        payment_method: t.payment_method,
-        created_at: t.created_at,
-        is_order: t.order_id !== null,
-        nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0)
-    }))
+
+    // Historique (les 10 dernières) — exclure les ACOMPTE (sous-événements des commandes)
+    const recentHistory = (todayTransactions || [])
+        .filter(t => (t as any).label_type !== 'ACOMPTE')
+        .slice(0, 10)
+        .map(t => ({
+            id: t.id,
+            client_name: t.client_name,
+            amount: t.amount,
+            payment_method: t.payment_method,
+            created_at: t.created_at,
+            is_order: t.order_id !== null,
+            has_crm: !!(t as any).customer_id,
+            nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0)
+        }))
 
     // 4. Best-sellers (sur 30 jours, via RPC haute performance)
     const { data: rpcBestSellers } = await (supabase.rpc as any)('get_best_sellers_v2', {

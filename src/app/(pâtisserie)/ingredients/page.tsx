@@ -1,14 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import IngredientsClient from '@/components/inventory/IngredientsClient'
 
-const PAGE_SIZE = 20
-
-export default async function IngredientsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-    const { page: pageParam } = await searchParams
-    const currentPage = Number(pageParam) || 1
-    const from = (currentPage - 1) * PAGE_SIZE
-    const to = from + PAGE_SIZE - 1
-
+export default async function IngredientsPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
@@ -18,38 +11,34 @@ export default async function IngredientsPage({ searchParams }: { searchParams: 
         .select('organization_id, organizations(currency_symbol)')
         .eq('id', user.id)
         .single()
-    
+
     const orgId = profile?.organization_id!
 
-    // On récupère tout (actifs et inactifs) pour que le client puisse filtrer
-    const [ingredientsRes] = await Promise.all([
-        supabase.from('ingredients')
-            .select('*', { count: 'exact' })
-            .eq('organization_id', orgId)
-            .order('name')
-            .range(from, to)
-    ])
-
-    // On récupère le nombre d'alertes uniquement sur les actifs
-    const { data: allAlerts } = await supabase
+    const { data: ingredients } = await supabase
         .from('ingredients')
-        .select('id')
+        .select('*')
         .eq('organization_id', orgId)
-        .eq('is_active', true)
-        .filter('current_stock', 'lt', 'alert_threshold' as any)
+        .order('name')
 
-    const ingredients = ingredientsRes.data || []
-    const totalCount = ingredientsRes.count || 0
-    const alertCount = allAlerts?.length || 0
+    const ingredientIds = (ingredients || []).map(i => i.id)
+    const usageMap: Record<string, number> = {}
+    if (ingredientIds.length > 0) {
+        const { data: usage } = await supabase
+            .from('product_ingredients')
+            .select('ingredient_id')
+            .in('ingredient_id', ingredientIds)
+        for (const row of usage || []) {
+            usageMap[row.ingredient_id] = (usageMap[row.ingredient_id] || 0) + 1
+        }
+    }
+
     const currency = (profile?.organizations as any)?.currency_symbol || ''
 
     return (
-        <IngredientsClient 
-            initialIngredients={ingredients}
-            totalCount={totalCount}
-            alertCount={alertCount}
+        <IngredientsClient
+            initialIngredients={ingredients || []}
+            usageCounts={usageMap}
             currency={currency}
-            currentPage={currentPage}
         />
     )
 }

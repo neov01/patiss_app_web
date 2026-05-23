@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect, useCallback } from 'react'
 import { Calculator } from 'lucide-react'
 import NumPad from './NumPad'
 
@@ -34,6 +34,34 @@ export default function TouchInput({
     hideIcon = false
 }: TouchInputProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const [fontSize, setFontSize] = useState<number | null>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const textRef = useRef<HTMLSpanElement>(null)
+
+    const baseFontSize = parseFloat(style?.fontSize as string) || 1
+    const MIN_FONT_SIZE = 0.55
+
+    const adjustFontSize = useCallback(() => {
+        const container = containerRef.current
+        const text = textRef.current
+        if (!container || !text || !value) {
+            setFontSize(null)
+            return
+        }
+        text.style.fontSize = `${baseFontSize}rem`
+        const cs = getComputedStyle(container)
+        const available = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        const textWidth = text.scrollWidth
+        if (textWidth > available && available > 0) {
+            setFontSize(Math.max(MIN_FONT_SIZE, baseFontSize * (available / textWidth)))
+        } else {
+            setFontSize(null)
+        }
+    }, [value, baseFontSize])
+
+    useLayoutEffect(() => {
+        adjustFontSize()
+    }, [adjustFontSize])
 
     return (
         <>
@@ -45,54 +73,56 @@ export default function TouchInput({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    minHeight: '44px',
+                    minHeight: '48px',
                     userSelect: 'none',
-                    background: 'white',
+                    background: 'var(--color-well)',
                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     position: 'relative',
                     overflow: 'hidden',
-                    border: '1px solid #E5E7EB',
+                    borderRadius: 'var(--radius-md)',
+                    border: 'none',
                     ...style
                 }}
                 onMouseDown={e => {
                     e.currentTarget.style.transform = 'scale(0.98)'
-                    e.currentTarget.style.backgroundColor = '#FAF9F6'
+                    e.currentTarget.style.backgroundColor = 'var(--color-surface-variant)'
                 }}
                 onMouseUp={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = 'white'
+                    e.currentTarget.style.backgroundColor = 'var(--color-well)'
                 }}
                 onMouseLeave={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = 'white'
+                    e.currentTarget.style.backgroundColor = 'var(--color-well)'
                 }}
             >
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 16px' }}>
                     {value ? (
-                        <span style={{ 
-                            color: '#2D1B0E', 
+                        <span ref={textRef} style={{
+                            color: 'var(--color-text)',
                             fontWeight: 700,
-                            fontSize: '1rem',
-                            letterSpacing: isPassword ? '0.2rem' : 'normal'
+                            fontSize: fontSize !== null ? `${fontSize}rem` : `${baseFontSize}rem`,
+                            letterSpacing: isPassword ? '0.2rem' : 'normal',
+                            whiteSpace: 'nowrap',
                         }}>
                             {isPassword ? '•'.repeat(value.length) : value}
                         </span>
                     ) : (
-                        <span style={{ color: '#9C8070', opacity: 0.5, fontStyle: 'italic' }}>{placeholder}</span>
+                        <span style={{ color: 'var(--color-muted)', opacity: 0.5, fontStyle: 'italic' }}>{placeholder}</span>
                     )}
                 </div>
                 {!hideIcon && (
                     <div style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        background: '#FEF3EC',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '10px',
+                        background: 'var(--color-primary-container)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginLeft: '8px'
+                        marginRight: '8px'
                     }}>
-                        {icon || <Calculator size={16} style={{ color: '#d97757' }} />}
+                        {icon || <Calculator size={18} style={{ color: 'var(--color-primary)' }} />}
                     </div>
                 )}
             </div>

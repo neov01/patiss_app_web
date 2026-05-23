@@ -31,11 +31,21 @@ export default function SessionMaster({
     role: string
 }) {
     const [loading, setLoading] = useState(false)
+    const [showConfirm, setShowConfirm] = useState(false)
     const pathname = usePathname()
     const isOpen = !!initialSession
     const sessionId = initialSession?.id || null
 
-    const handleToggle = async () => {
+    const handleToggle = () => {
+        if (isOpen) {
+            setShowConfirm(true)
+        } else {
+            doToggle()
+        }
+    }
+
+    const doToggle = async () => {
+        setShowConfirm(false)
         setLoading(true)
         const res = await toggleSession(orgId, userId, sessionId)
         if (res.success) {
@@ -121,6 +131,60 @@ export default function SessionMaster({
                     </div>
                 )}
                 
+                {/* Confirmation dialog — clôture only */}
+                {showConfirm && (
+                    <div style={{
+                        position: 'fixed', inset: 0, zIndex: 9999,
+                        background: 'rgba(0,0,0,0.45)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '24px'
+                    }}>
+                        <div style={{
+                            background: '#fff', borderRadius: '20px',
+                            padding: '32px', maxWidth: '420px', width: '100%',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{
+                                width: '64px', height: '64px', borderRadius: '50%',
+                                background: '#fce8e6', margin: '0 auto 20px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '2rem'
+                            }}>🔒</div>
+                            <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem', fontWeight: 800, color: '#1a1a2e' }}>
+                                Clôturer la journée ?
+                            </h2>
+                            <p style={{ margin: '0 0 28px', fontSize: '0.95rem', color: '#666', lineHeight: 1.5 }}>
+                                La caisse sera fermée et aucune vente ne pourra être enregistrée jusqu'à la prochaine ouverture.
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    onClick={() => setShowConfirm(false)}
+                                    style={{
+                                        flex: 1, padding: '14px', borderRadius: '12px',
+                                        border: '2px solid #e0e0e0', background: '#fff',
+                                        fontSize: '1rem', fontWeight: 700, cursor: 'pointer', color: '#444'
+                                    }}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={doToggle}
+                                    disabled={loading}
+                                    style={{
+                                        flex: 1, padding: '14px', borderRadius: '12px',
+                                        border: 'none', background: '#ea4335',
+                                        fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
+                                        opacity: loading ? 0.7 : 1
+                                    }}
+                                >
+                                    Oui, clôturer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Content wrapper with disabled visual state ONLY if shouldLock is true */}
                 <div style={{ 
                     flex: 1, 

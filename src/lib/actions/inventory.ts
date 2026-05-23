@@ -8,6 +8,7 @@ export async function createInventoryLog(formData: {
     ingredient_id: string
     quantity_change: number
     reason: 'production' | 'waste' | 'purchase' | 'adjustment'
+    note?: string
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -28,6 +29,7 @@ export async function createInventoryLog(formData: {
         ingredient_id: formData.ingredient_id,
         quantity_change: formData.quantity_change,
         reason: formData.reason,
+        note: formData.note || null,
         created_by: user.id,
     })
 
@@ -45,6 +47,8 @@ export async function createIngredient(formData: {
     cost_per_unit: number
     alert_threshold: number
     current_stock?: number
+    supplier_name?: string | null
+    supplier_phone?: string | null
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -67,6 +71,8 @@ export async function createIngredient(formData: {
         cost_per_unit: formData.cost_per_unit,
         alert_threshold: formData.alert_threshold,
         current_stock: formData.current_stock ?? 0,
+        supplier_name: formData.supplier_name?.trim() || null,
+        supplier_phone: formData.supplier_phone?.trim() || null,
     }).select().single()
 
     if (error) return { error: error.message }
@@ -80,6 +86,8 @@ export async function updateIngredient(id: string, formData: {
     unit: string
     cost_per_unit: number
     alert_threshold: number
+    supplier_name?: string | null
+    supplier_phone?: string | null
 }) {
     // Bloquer si l'abonnement est expiré
     try {
@@ -94,6 +102,8 @@ export async function updateIngredient(id: string, formData: {
         unit: formData.unit,
         cost_per_unit: formData.cost_per_unit,
         alert_threshold: formData.alert_threshold,
+        supplier_name: formData.supplier_name?.trim() || null,
+        supplier_phone: formData.supplier_phone?.trim() || null,
     }).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/ingredients')

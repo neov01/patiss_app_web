@@ -8,8 +8,10 @@
 import {
   getPendingTransactions,
   removePendingTransaction,
+  updatePendingTransactionRetry,
   getPendingOrders,
   removePendingOrder,
+  MAX_OFFLINE_RETRIES,
   type PendingTransaction,
   type PendingOrder
 } from './db'
@@ -20,6 +22,7 @@ import { createClient } from '@/lib/supabase/client'
 export type SyncResult = {
   syncedTransactions: number
   failedTransactions: number
+  deadTransactions: number  // transactions > MAX_RETRIES, nécessitent attention manuelle
   syncedOrders: number
   failedOrders: number
 }
@@ -32,11 +35,17 @@ export async function syncPendingData(): Promise<SyncResult> {
   const result: SyncResult = {
     syncedTransactions: 0,
     failedTransactions: 0,
+    deadTransactions: 0,
     syncedOrders: 0,
     failedOrders: 0
   }
 
-  // 0. Vérifier et forcer le rafraîchissement de la session JWT pour éviter les 401
+  // 0. Only refresh session when network is available — calling refreshSession()
+  //    offline throws "Failed to fetch" with no caller to catch it.
+  if (!navigator.onLine) {
+    return result
+  }
+
   try {
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
@@ -44,22 +53,28 @@ export async function syncPendingData(): Promise<SyncResult> {
       await supabase.auth.refreshSession()
     }
   } catch (err) {
-    console.warn('[Offline Sync] Erreur lors du contrôle de la session', err)
+    console.warn('[Offline Sync] Session check failed', err)
   }
 
-  // 1. Synchroniser les transactions avec isolation des échecs
+  // 1. Synchroniser les transactions avec dead-letter queue
   const pendingTx = await getPendingTransactions()
-  
+
   await Promise.allSettled(pendingTx.map(async (tx) => {
+    // Transactions en dead-letter (trop d'échecs) : compter mais ne pas retry
+    if ((tx.retryCount ?? 0) >= MAX_OFFLINE_RETRIES) {
+      result.deadTransactions++
+      return
+    }
+
     try {
       const res = await encaisserTransaction({
-        id: tx.id,         // UUID client-side → idempotence sur Supabase
+        id: tx.id,
         order_id: tx.order_id,
         client_name: tx.client_name,
         amount: tx.amount,
         payment_method: tx.payment_method,
         payment_details: tx.payment_details,
-        items: tx.items    // contient déjà les id items
+        items: tx.items
       })
 
       if (!res.error) {
@@ -67,10 +82,13 @@ export async function syncPendingData(): Promise<SyncResult> {
         result.syncedTransactions++
       } else {
         console.warn('[Sync] Transaction rejetée par le serveur:', res.error)
+        await updatePendingTransactionRetry(tx.offlineId!, res.error)
         result.failedTransactions++
       }
     } catch (err) {
-      console.error('[Sync] Erreur réseau sur transaction:', err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('[Sync] Erreur réseau sur transaction:', errMsg)
+      await updatePendingTransactionRetry(tx.offlineId!, errMsg)
       result.failedTransactions++
     }
   }))
@@ -97,7 +115,6 @@ export async function syncPendingData(): Promise<SyncResult> {
         deposit_amount: 0,
         balance: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
         customization_notes: order.customization_notes,
-        delivery_fee: 0,
         items: order.items.map(i => ({
           id: i.id,         // UUID item client-side → idempotence
           product_id: i.product_id || undefined,

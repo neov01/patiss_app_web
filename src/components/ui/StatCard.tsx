@@ -18,58 +18,87 @@ interface StatCardProps {
 
 export default function StatCard({
     title, value, subtitle, trend, trendLabel,
-    icon: Icon, iconColor = '#C4836A', onClick, loading, accent = '#E8B4A0',
+    icon: Icon, iconColor = 'var(--color-primary)', onClick, loading, accent = 'var(--color-primary)',
     style, className,
 }: StatCardProps) {
     if (loading) {
         return (
-            <div className={`card ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '12px', ...style }}>
-                <div className="skeleton" style={{ height: '14px', width: '60%' }} />
-                <div className="skeleton" style={{ height: '32px', width: '80%' }} />
-                <div className="skeleton" style={{ height: '12px', width: '40%' }} />
+            <div className={`card ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px', ...style }}>
+                <div className="skeleton" style={{ height: '18px', width: '40%' }} />
+                <div className="skeleton" style={{ height: '36px', width: '70%' }} />
+                <div className="skeleton" style={{ height: '14px', width: '50%' }} />
             </div>
         )
     }
 
     const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus
-    const trendColor = trend === 'up' ? '#4C9E6A' : trend === 'down' ? '#D94F38' : '#9C8070'
+    
+    // Semantic colors for badges
+    const badgeBg = trend === 'up' ? 'var(--color-secondary-container)' : trend === 'down' ? 'var(--color-error-container)' : 'var(--color-surface-container-high)'
+    const badgeText = trend === 'up' ? 'var(--color-on-secondary-container)' : trend === 'down' ? 'var(--color-on-error-container)' : 'var(--color-on-surface-variant)'
 
     return (
         <div
             className={`card ${onClick ? 'card-clickable' : ''} ${className || ''}`}
             onClick={onClick}
-            style={{ cursor: onClick ? 'pointer' : 'default', ...style }}
+            style={{ 
+                cursor: onClick ? 'pointer' : 'default', 
+                padding: '32px',
+                position: 'relative',
+                overflow: 'hidden',
+                background: 'var(--color-surface-container-lowest)',
+                border: 'none',
+                ...style 
+            }}
         >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {title}
-                </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', position: 'relative', zIndex: 1 }}>
                 {Icon && (
-                    <div style={{
-                        width: '36px', height: '36px', borderRadius: '10px',
-                        background: accent + '40',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    <Icon size={28} style={{ color: iconColor }} />
+                )}
+                {trend && (
+                    <div style={{ 
+                        background: badgeBg, 
+                        color: badgeText, 
+                        fontSize: '10px', 
+                        fontWeight: 800, 
+                        padding: '4px 10px', 
+                        borderRadius: '9999px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
                     }}>
-                        <Icon size={18} style={{ color: iconColor }} />
+                        <TrendIcon size={10} strokeWidth={3} />
+                        {trendLabel}
                     </div>
                 )}
             </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1, marginBottom: '8px' }}>
-                {value}
+            
+            <div style={{ position: 'relative', zIndex: 1 }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-outline)', marginBottom: '4px', textTransform: 'none' }}>
+                    {title}
+                </p>
+                <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--color-text)', fontFamily: 'var(--font-display)', margin: 0, lineHeight: 1.2 }}>
+                    {value}
+                </h3>
+                {subtitle && (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '8px' }}>
+                        {subtitle}
+                    </p>
+                )}
             </div>
-            {(subtitle || trend) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {trend && (
-                        <TrendIcon size={14} style={{ color: trendColor }} />
-                    )}
-                    {trendLabel && (
-                        <span style={{ fontSize: '0.75rem', color: trendColor, fontWeight: 600 }}>{trendLabel}</span>
-                    )}
-                    {subtitle && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{subtitle}</span>
-                    )}
-                </div>
-            )}
+
+            {/* Accent blob */}
+            <div style={{ 
+                position: 'absolute', 
+                bottom: '-16px', 
+                right: '-16px', 
+                width: '96px', 
+                height: '96px', 
+                background: `${accent}08`, 
+                borderRadius: '50%',
+                filter: 'blur(32px)',
+                transition: 'background 0.3s'
+            }} className="accent-blob" />
         </div>
     )
 }

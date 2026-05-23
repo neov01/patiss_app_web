@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // ─── Labels de type de transaction ───
-export const TransactionLabelType = z.enum(['ACOMPTE', 'SOLDE', 'VENTE_DIRECTE'])
+export const TransactionLabelType = z.enum(['ACOMPTE', 'SOLDE', 'VENTE_DIRECTE', 'REMBOURSEMENT'])
 export type TransactionLabelType = z.infer<typeof TransactionLabelType>
 
 // ─── Statut de paiement d'une commande ───
@@ -9,7 +9,7 @@ export const PaymentStatus = z.enum(['EN_ATTENTE', 'PARTIEL', 'SOLDEE'])
 export type PaymentStatus = z.infer<typeof PaymentStatus>
 
 // ─── Méthodes de paiement ───
-export const PaymentMethod = z.enum(['Espèces', 'Mobile Money', 'Carte Bancaire'])
+export const PaymentMethod = z.enum(['Espèces', 'Orange Money', 'Wave', 'MTN MOMO', 'Moov Money'])
 export type PaymentMethod = z.infer<typeof PaymentMethod>
 
 // ─── Schéma de validation pour créer une transaction ───

@@ -26,6 +26,7 @@ const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'gerant', 'vendeur', 'patissier'] },
     { href: '/caisse', label: 'Caisse', icon: Store, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/dashboard/clients', label: 'Clients', icon: Users, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, roles: ['super_admin', 'gerant', 'patissier', 'vendeur'] },
     { href: '/ingredients', label: 'Ingrédients', icon: Package, roles: ['super_admin', 'gerant', 'patissier'] },
     { href: '/inventaire', label: 'Inventaire', icon: ClipboardList, roles: ['super_admin', 'gerant', 'patissier'] },
@@ -67,8 +68,9 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             
             // 3. Redirection sécurisée
             router.replace(`/kiosk?orgId=${profile.organization_id}`)
-        } catch (err: any) {
-            console.error('Kiosk switch error:', err)
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err)
+            console.error('Kiosk switch error:', msg)
             toast.error('Erreur lors du passage au mode kiosque. Votre session est toujours active par sécurité.', { id: toastId })
         } finally {
             setIsSwitchingToKiosk(false)
@@ -100,62 +102,78 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
     const SidebarContent = () => (
         <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px 12px' }}>
             {/* Logo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 8px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 12px', marginBottom: '32px' }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: '38px', height: '38px', borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #C4836A, #C78A4A)', flexShrink: 0,
+                    width: '42px', height: '42px', borderRadius: '14px',
+                    background: 'linear-gradient(135deg, var(--color-primary-container), var(--color-primary))',
+                    boxShadow: '0 4px 12px rgba(129, 84, 49, 0.2)',
+                    flexShrink: 0,
                 }}>
-                    <CakeSlice size={20} color="white" strokeWidth={1.5} />
+                    <CakeSlice size={22} color="white" strokeWidth={1.5} />
                 </div>
                 <div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#2D1B0E', lineHeight: 1.2 }}>Pâtiss&apos;App</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <div style={{ 
+                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.1, fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Pâtiss&apos;App</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                        <div style={{
                             width: '6px', height: '6px', borderRadius: '50%',
-                            background: networkStatus === 'online' ? '#22C55E' : networkStatus === 'unstable' ? '#F59E0B' : '#EF4444',
-                            boxShadow: `0 0 6px ${networkStatus === 'online' ? '#22C55E' : networkStatus === 'unstable' ? '#F59E0B' : '#EF4444'}`,
+                            background: networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)',
+                            boxShadow: `0 0 8px ${networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)'}`,
                             flexShrink: 0
                         }} />
-                        <span style={{ fontSize: '0.7rem', color: '#9C8070', lineHeight: 1.2 }}>{organization?.name ?? ''}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{organization?.name || 'Artisanat Digital'}</span>
                     </div>
                 </div>
             </div>
 
             {/* Nav links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
                 {filtered.map(item => {
                     const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
                     return (
                         <Link key={item.href} href={item.href}
                             className={`sidebar-link${active ? ' active' : ''}`}
                             onClick={() => setOpen(false)}
+                            style={{ 
+                                background: active ? 'var(--color-secondary-container)' : 'transparent',
+                                color: active ? 'var(--color-secondary)' : 'var(--color-muted)',
+                                padding: '12px 20px',
+                                borderRadius: '99px',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            }}
                         >
-                            <item.icon size={18} strokeWidth={1.75} />
-                            {item.label}
+                            <item.icon size={20} strokeWidth={active ? 2.2 : 1.75} />
+                            <span style={{ fontWeight: active ? 700 : 500 }}>{item.label}</span>
                         </Link>
                     )
                 })}
 
                 {profile.role_slug === 'gerant' && profile.organization_id && (
-                    <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+                    <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
                         <button
                             onClick={handleSwitchToKiosk}
                             disabled={isSwitchingToKiosk}
-                            className="sidebar-link"
+                            className="group"
                             style={{ 
                                 width: '100%',
-                                background: '#FEF3EC', 
-                                color: '#D97757', 
+                                background: 'var(--color-primary)', 
+                                color: 'white', 
+                                padding: '16px',
+                                borderRadius: '20px',
                                 fontWeight: 800,
                                 border: 'none',
                                 cursor: isSwitchingToKiosk ? 'not-allowed' : 'pointer',
-                                textAlign: 'left',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '10px',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: '0 8px 16px rgba(129, 84, 49, 0.15)',
                                 opacity: isSwitchingToKiosk ? 0.7 : 1
                             }}
                         >
-                            <Store size={18} strokeWidth={2} />
-                            {isSwitchingToKiosk ? 'Déconnexion...' : 'Ouvrir le Kiosque'}
+                            <Store size={20} strokeWidth={2} />
+                            <span style={{ fontSize: '0.9rem' }}>{isSwitchingToKiosk ? 'Mode Kiosque...' : 'Ouvrir le Kiosque'}</span>
                         </button>
                     </div>
                 )}
@@ -164,17 +182,17 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             {/* Escape Hatch Banner if Impersonating */}
             {adminProfile && adminProfile.id !== profile.id && (
                 <div style={{
-                    margin: '12px 8px', padding: '12px', background: '#FEF3EC',
-                    border: '1.5px solid #FDE8DB', borderRadius: '16px',
+                    margin: '12px 8px', padding: '12px', background: 'var(--color-well)',
+                    border: '1.5px solid var(--color-border)', borderRadius: '16px',
                 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#D97757', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Lock size={12} /> MODE KIOSQUE
                     </div>
                     <button
                         onClick={handleLogout}
                         style={{
-                            width: '100%', padding: '8px', background: 'white', border: '1.5px solid #FDE8DB',
-                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700, color: '#2D1B0E',
+                            width: '100%', padding: '8px', background: 'var(--color-lift)', border: '1.5px solid var(--color-border)',
+                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text)',
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                         }}
                     >
@@ -217,10 +235,10 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                         )}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#2D1B0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {profile.full_name}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#9C8070', textTransform: 'capitalize' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', textTransform: 'capitalize' }}>
                             {profile.role_slug}
                         </div>
                     </div>
@@ -237,10 +255,11 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
         <>
             {/* Desktop sidebar */}
             <aside style={{
-                width: '220px', flexShrink: 0,
-                background: 'white', borderRight: '1.5px solid var(--color-border)',
+                width: '260px', flexShrink: 0,
+                background: 'var(--color-well)',
                 position: 'sticky', top: 0, height: '100dvh', overflowY: 'auto',
                 display: 'none',
+                padding: '12px',
             }} className="sidebar-desktop">
                 <SidebarContent />
             </aside>
@@ -253,25 +272,25 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-around',
                 height: '70px', paddingBottom: 'env(safe-area-inset-bottom)'
             }} className="sidebar-mobile-bar">
-                <Link href="/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/dashboard' ? 'var(--color-rose-dark)' : '#9C8070' }}>
+                <Link href="/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/dashboard' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                     <LayoutDashboard size={24} strokeWidth={pathname === '/dashboard' ? 2.5 : 2} />
                     <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/dashboard' ? 700 : 500 }}>Dashboard</span>
                 </Link>
                 {filtered.some(i => i.href === '/caisse') && (
-                  <Link href="/caisse" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/caisse' ? 'var(--color-rose-dark)' : '#9C8070' }}>
+                  <Link href="/caisse" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/caisse' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                       <Store size={24} strokeWidth={pathname === '/caisse' ? 2.5 : 2} />
                       <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/caisse' ? 700 : 500 }}>Caisse</span>
                   </Link>
                 )}
                 {filtered.some(i => i.href === '/commandes') && (
-                  <Link href="/commandes" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/commandes' ? 'var(--color-rose-dark)' : '#9C8070' }}>
+                  <Link href="/commandes" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/commandes' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                       <ShoppingBag size={24} strokeWidth={pathname === '/commandes' ? 2.5 : 2} />
                       <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/commandes' ? 700 : 500 }}>Commandes</span>
                   </Link>
                 )}
-                <button onClick={() => setOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: open ? 'var(--color-rose-dark)' : '#9C8070', cursor: 'pointer', padding: 0 }}>
-                    <Menu size={24} strokeWidth={open ? 2.5 : 2} color={open ? 'var(--color-rose-dark)' : '#9C8070'} />
-                    <span style={{ fontSize: '0.65rem', fontWeight: open ? 700 : 500, color: open ? 'var(--color-rose-dark)' : '#9C8070' }}>Plus</span>
+                <button onClick={() => setOpen(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: open ? 'var(--color-primary)' : 'var(--color-muted)', cursor: 'pointer', padding: 0 }}>
+                    <Menu size={24} strokeWidth={open ? 2.5 : 2} color={open ? 'var(--color-primary)' : 'var(--color-muted)'} />
+                    <span style={{ fontSize: '0.65rem', fontWeight: open ? 700 : 500, color: open ? 'var(--color-primary)' : 'var(--color-muted)' }}>Plus</span>
                 </button>
             </div>
 

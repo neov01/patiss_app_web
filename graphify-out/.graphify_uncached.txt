@@ -1,0 +1,7 @@
+PROJECT_SNAPSHOT.md
+README.md
+GEMINI.md
+HANDOFF.md
+docs/ARCHITECTURE.md
+public/icons/icon-192.png
+public/icons/icon-512.png

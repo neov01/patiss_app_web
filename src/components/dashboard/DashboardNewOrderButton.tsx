@@ -75,6 +75,7 @@ export default function DashboardNewOrderButton({ organizationId, currency, isFl
                 onClose={() => setOpen(false)}
                 products={products}
                 currency={currency}
+                organizationId={organizationId}
             />
         </>
     )

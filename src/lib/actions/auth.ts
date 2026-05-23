@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
+import { createKioskToken } from '@/lib/kiosk-token'
 
 export async function loginWithPin(profileId: string, pin: string) {
     const { createClient: createAdminClient } = await import('@supabase/supabase-js')
@@ -13,37 +14,39 @@ export async function loginWithPin(profileId: string, pin: string) {
 
     const { data: profile, error } = await supabaseAdmin
         .from('profiles')
-        .select('pin_code, full_name, role_slug, is_active, theme_color, auto_lock_seconds')
+        .select('pin_code, full_name, role_slug, is_active, theme_color, auto_lock_seconds, organization_id')
         .eq('id', profileId)
         .single()
- 
+
     if (error || !profile) return { error: 'Profil introuvable.' }
     if (!profile.is_active) return { error: 'Profil inactif.' }
     if (!profile.pin_code) return { error: 'Aucun code PIN configuré pour ce profil.' }
-    
+    if (!profile.organization_id) return { error: 'Profil sans organisation.' }
+
     const isMatch = await bcrypt.compare(pin, profile.pin_code)
     if (!isMatch) return { error: 'Code PIN incorrect.' }
 
+    // Token signé HMAC contenant userId + orgId pour prévenir toute falsification
+    const token = createKioskToken(profileId, profile.organization_id)
+
     const cookieStore = await cookies()
-    cookieStore.set('kiosk_user_id', profileId, {
+    cookieStore.set('kiosk_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         maxAge: 60 * 60 * 8, // 8 heures max
     })
+    // Supprimer l'ancien cookie non signé si présent
+    cookieStore.set('kiosk_user_id', '', { path: '/', maxAge: 0 })
 
     return { success: true, profile }
 }
 
 export async function logoutKiosk() {
     const cookieStore = await cookies()
-    // Explicitly delete with all common options to ensure removal
-    cookieStore.set('kiosk_user_id', '', {
-        path: '/',
-        maxAge: 0,
-        expires: new Date(0),
-    })
+    cookieStore.set('kiosk_token', '', { path: '/', maxAge: 0, expires: new Date(0) })
+    cookieStore.set('kiosk_user_id', '', { path: '/', maxAge: 0, expires: new Date(0) })
     return { success: true }
 }
 

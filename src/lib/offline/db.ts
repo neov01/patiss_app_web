@@ -10,6 +10,8 @@
 const DB_NAME = 'patissapp-offline'
 const DB_VERSION = 2
 
+export const MAX_OFFLINE_RETRIES = 3
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
@@ -131,6 +133,9 @@ export type PendingTransaction = {
     unit_price: number
   }>
   createdAt: string // ISO string
+  retryCount?: number
+  lastError?: string
+  failedAt?: string // ISO string — renseigné quand retryCount >= MAX_RETRIES
 }
 
 export async function queueTransaction(tx: Omit<PendingTransaction, 'offlineId' | 'createdAt'>): Promise<number> {
@@ -169,6 +174,32 @@ export async function removePendingTransaction(offlineId: number): Promise<void>
     const request = store.delete(offlineId)
     request.onsuccess = () => resolve()
     request.onerror = () => reject(request.error)
+  })
+}
+
+export async function updatePendingTransactionRetry(
+  offlineId: number,
+  error: string
+): Promise<void> {
+  const db = await openDB()
+  const tx = db.transaction('pendingTransactions', 'readwrite')
+  const store = tx.objectStore('pendingTransactions')
+
+  return new Promise((resolve, reject) => {
+    const getReq = store.get(offlineId)
+    getReq.onsuccess = () => {
+      const record: PendingTransaction = getReq.result
+      if (!record) { resolve(); return }
+      record.retryCount = (record.retryCount ?? 0) + 1
+      record.lastError = error
+      if (record.retryCount >= MAX_OFFLINE_RETRIES) {
+        record.failedAt = new Date().toISOString()
+      }
+      store.put(record)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    }
+    getReq.onerror = () => reject(getReq.error)
   })
 }
 

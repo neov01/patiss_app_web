@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { ArrowUpDown, X, Loader2, Minus, Plus } from 'lucide-react'
 import TouchInput from '@/components/ui/TouchInput'
@@ -9,6 +10,8 @@ import { createInventoryLog } from '@/lib/actions/inventory'
 interface Props {
     ingredientId: string
     ingredientName: string
+    currentStock?: number
+    unit?: string
 }
 
 const REASONS = [
@@ -18,22 +21,32 @@ const REASONS = [
     { value: 'adjustment', label: '⚖ Ajustement', positive: true },
 ] as const
 
-export default function StockMovementModal({ ingredientId, ingredientName }: Props) {
+const NOTE_PLACEHOLDERS: Record<string, string> = {
+    purchase: 'Ex: livraison fournisseur Moulin Belle Côte',
+    waste: 'Ex: gâteau tombé, produit périmé…',
+    production: 'Ex: production croissants du matin',
+    adjustment: 'Ex: correction inventaire mensuel',
+}
+
+export default function StockMovementModal({ ingredientId, ingredientName, currentStock, unit }: Props) {
     const [open, setOpen] = useState(false)
     const [isPending, start] = useTransition()
     const [reason, setReason] = useState<'purchase' | 'waste' | 'production' | 'adjustment'>('purchase')
     const [quantity, setQuantity] = useState(0)
+    const [note, setNote] = useState('')
 
     const reasonInfo = REASONS.find(r => r.value === reason)!
+    const finalQty = reasonInfo.positive ? Math.abs(quantity) : -Math.abs(quantity)
+    const newStock = currentStock !== undefined ? currentStock + finalQty : undefined
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         start(async () => {
-            const finalQty = reasonInfo.positive ? Math.abs(quantity) : -Math.abs(quantity)
             const result = await createInventoryLog({
                 ingredient_id: ingredientId,
                 quantity_change: finalQty,
                 reason,
+                note: note.trim() || undefined,
             })
             if ('error' in result && result.error) {
                 toast.error(result.error)
@@ -41,8 +54,16 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                 toast.success('Mouvement de stock enregistré !')
                 setOpen(false)
                 setQuantity(0)
+                setNote('')
             }
         })
+    }
+
+    function handleClose() {
+        setOpen(false)
+        setQuantity(0)
+        setNote('')
+        setReason('purchase')
     }
 
     return (
@@ -50,16 +71,30 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
             <button onClick={() => setOpen(true)} className="btn-ghost" style={{ minHeight: '36px', padding: '0 8px', color: '#C4836A' }}>
                 <ArrowUpDown size={16} />
             </button>
-            {open && (
-                <div className="modal-overlay" onClick={() => setOpen(false)}>
+            {open && createPortal(
+                <div className="modal-overlay" onClick={handleClose}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Mouvement de stock</h2>
-                            <button onClick={() => setOpen(false)} className="btn-ghost" style={{ minHeight: '36px', padding: '0 10px' }}><X size={18} /></button>
+                            <button onClick={handleClose} className="btn-ghost" style={{ minHeight: '36px', padding: '0 10px' }}><X size={18} /></button>
                         </div>
-                        <p style={{ color: 'var(--color-muted)', fontWeight: 600, marginBottom: '20px', fontSize: '0.9rem' }}>
-                            📦 {ingredientName}
-                        </p>
+
+                        {/* Nom + stock actuel */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
+                            <p style={{ color: 'var(--color-muted)', fontWeight: 600, margin: 0, fontSize: '0.9rem' }}>
+                                📦 {ingredientName}
+                            </p>
+                            {currentStock !== undefined && (
+                                <span style={{
+                                    background: '#FDF8F3', border: '1.5px solid #E8C9B0',
+                                    borderRadius: '99px', padding: '4px 12px',
+                                    fontSize: '0.8rem', fontWeight: 700, color: '#8A5C3A',
+                                }}>
+                                    Stock actuel : {currentStock} {unit ?? ''}
+                                </span>
+                            )}
+                        </div>
+
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div>
                                 <label className="label">Type de mouvement</label>
@@ -80,10 +115,11 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                                     ))}
                                 </div>
                             </div>
+
                             <div>
                                 <label className="label">Quantité ({reasonInfo.positive ? '+' : '-'})</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF8F3', borderRadius: '12px', border: '1.5px solid var(--color-border)', overflow: 'hidden' }}>
-                                    <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))} 
+                                    <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))}
                                         style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderRight: '1.5px solid var(--color-border)' }}>
                                         <Minus size={20} />
                                     </button>
@@ -96,14 +132,39 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                                         hideIcon={true}
                                         style={{ border: 'none', background: 'transparent', textAlign: 'center', fontSize: '1.2rem', fontWeight: 700, flex: 1, minHeight: '44px', borderRadius: 0 }}
                                     />
-                                    <button type="button" onClick={() => setQuantity(quantity + 1)} 
+                                    <button type="button" onClick={() => setQuantity(quantity + 1)}
                                         style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderLeft: '1.5px solid var(--color-border)' }}>
                                         <Plus size={20} />
                                     </button>
                                 </div>
+
+                                {/* Aperçu nouveau stock */}
+                                {newStock !== undefined && quantity > 0 && (
+                                    <p style={{
+                                        margin: '8px 0 0', fontSize: '0.82rem', fontWeight: 700,
+                                        color: newStock >= 0 ? '#4C9E6A' : '#D94F38',
+                                    }}>
+                                        → Nouveau stock : {newStock.toFixed(newStock % 1 === 0 ? 0 : 1)} {unit ?? ''}
+                                        {newStock < 0 && ' ⚠️ stock négatif'}
+                                    </p>
+                                )}
                             </div>
+
+                            {/* Note optionnelle */}
+                            <div>
+                                <label className="label">Note <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.8rem' }}>(optionnel)</span></label>
+                                <textarea
+                                    className="input"
+                                    value={note}
+                                    onChange={e => setNote(e.target.value)}
+                                    placeholder={NOTE_PLACEHOLDERS[reason]}
+                                    rows={2}
+                                    style={{ resize: 'none', fontSize: '0.875rem', lineHeight: 1.5 }}
+                                />
+                            </div>
+
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="button" onClick={() => setOpen(false)} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
+                                <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1 }}>Annuler</button>
                                 <button type="submit" className="btn-primary" disabled={isPending || quantity === 0} style={{ flex: 1 }}>
                                     {isPending ? <Loader2 size={16} className="animate-spin" /> : null}
                                     {isPending ? 'Enregistrement…' : 'Valider'}
@@ -112,7 +173,7 @@ export default function StockMovementModal({ ingredientId, ingredientName }: Pro
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </>
     )
 }

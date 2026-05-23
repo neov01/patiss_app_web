@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#C4836A',
+  themeColor: '#815431',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -41,8 +41,12 @@ export default function RootLayout({
             position="bottom-right"
             toastOptions={{
               style: {
-                fontFamily: 'Inter, sans-serif',
-                borderRadius: '12px',
+                fontFamily: 'var(--font-sans)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--color-lift)',
+                color: 'var(--color-text)',
+                border: 'none',
+                boxShadow: 'var(--shadow-lg)',
               },
             }}
           />

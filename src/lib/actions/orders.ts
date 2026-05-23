@@ -47,6 +47,7 @@ export async function createOrder(input: any) {
         id: formData.id,
         organization_id: profile.organization_id,
         order_number: formData.order_number,
+        customer_id: formData.customer_id || null,
         customer_name: formData.customer_name,
         customer_contact: formData.customer_contact,
         pickup_date: formData.pickup_date,
@@ -58,7 +59,6 @@ export async function createOrder(input: any) {
         delivery_address: formData.delivery_address,
         order_channel: formData.order_channel,
         subtotal: formData.subtotal,
-        delivery_fee: formData.delivery_fee,
         balance: balance,
         customization_notes: formData.customization_notes,
         created_by: user.id,
@@ -88,12 +88,26 @@ export async function createOrder(input: any) {
         await supabase.from('transactions').insert({
             organization_id: profile.organization_id,
             order_id: order.id,
+            customer_id: formData.customer_id || null,
             client_name: formData.customer_name,
             amount: depositAmount,
             payment_method: formData.deposit_payment_method || 'Espèces',
             label_type: labelType,
             created_by: user.id
         })
+        // Créditer les points de fidélité pour l'acompte (1 point par 1000 FCFA)
+        if (formData.customer_id) {
+            const points = Math.floor(depositAmount / 1000)
+            if (points > 0) {
+                const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', formData.customer_id).single()
+                if (cust) {
+                    await supabase.from('customers').update({
+                        loyalty_points: (cust.loyalty_points || 0) + points,
+                        lifetime_points: (cust.lifetime_points || 0) + points,
+                    }).eq('id', formData.customer_id)
+                }
+            }
+        }
     }
 
     revalidatePath('/commandes')
