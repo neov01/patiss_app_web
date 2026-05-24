@@ -17,6 +17,7 @@ interface TouchSelectProps {
     placeholder?: string
     title?: string
     style?: React.CSSProperties
+    hasError?: boolean
 }
 
 export default function TouchSelect({
@@ -25,7 +26,8 @@ export default function TouchSelect({
     options,
     placeholder = 'Sélectionner...',
     title = 'Sélection',
-    style
+    style,
+    hasError = false
 }: TouchSelectProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [isMounted, setIsMounted] = useState(false)
@@ -47,7 +49,7 @@ export default function TouchSelect({
         <>
             <div
                 onClick={() => setIsOpen(true)}
-                className="input"
+                className={`input ${hasError ? 'has-error' : ''}`}
                 style={{
                     cursor: 'pointer',
                     display: 'flex',
@@ -55,7 +57,8 @@ export default function TouchSelect({
                     justifyContent: 'space-between',
                     minHeight: '44px',
                     userSelect: 'none',
-                    background: '#fff',
+                    background: hasError ? '#FFF5F5' : '#fff',
+                    border: hasError ? '1.5px solid var(--color-error)' : '1.5px solid transparent',
                     ...style
                 }}
             >

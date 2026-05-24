@@ -243,7 +243,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                   }}
                   placeholder="Nom du produit (existant ou nouveau…)"
                   readOnly={!!productId}
-                  className="input"
+                  className={`input ${errors.name ? 'has-error' : ''}`}
                   style={{
                     paddingLeft: '40px',
                     borderColor: errors.name ? 'var(--color-error)' : productId ? 'var(--color-primary)' : undefined,
@@ -315,6 +315,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       title="Catégorie de vente"
                       placeholder="Catégorie…"
                       style={{ background: locked ? '#F3F4F6' : undefined }}
+                      hasError={!!errors.category}
                     />
                   )}
                 />
@@ -361,6 +362,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       title="Prix de vente"
                       placeholder="0"
                       style={{ background: locked ? '#F3F4F6' : undefined, fontSize: '1.1rem', fontWeight: 800 }}
+                      hasError={!!errors.sellingPrice}
                     />
                   )}
                 />
@@ -397,6 +399,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       allowDecimal={true}
                       title="Stock"
                       placeholder="0"
+                      hasError={!!errors.currentStock}
                     />
                   )}
                 />
@@ -443,7 +446,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                 <label className="label" style={{ margin: 0 }}>Composition <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.78rem' }}>(optionnel)</span></label>
                 {fields.map((field, index) => (
                   <div key={field.id} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <select {...register(`composition.${index}.ingredientId`)} className="input" style={{ flex: 1, padding: '10px 12px', fontSize: '0.82rem' }}>
+                    <select {...register(`composition.${index}.ingredientId`)} className={`input ${errors.composition?.[index]?.ingredientId ? 'has-error' : ''}`} style={{ flex: 1, padding: '10px 12px', fontSize: '0.82rem' }}>
                       <option value="">Choisir…</option>
                       {availableIngredients.map(ing => (
                         <option key={ing.id} value={ing.id}>{ing.name}</option>
@@ -458,6 +461,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                           title="Qté (g)"
                           placeholder="Gr"
                           style={{ width: '90px' }}
+                          hasError={!!errors.composition?.[index]?.quantity}
                         />
                       )}
                     />
