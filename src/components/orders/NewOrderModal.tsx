@@ -96,6 +96,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     // CRM Customer Link
     const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null)
     const [crmCustomerName, setCrmCustomerName] = useState<string | null>(null)
+    const [showErrors, setShowErrors] = useState(false)
 
     // CRM auto-lookup par téléphone
     const { match: crmPhoneMatch, isLooking: isCrmLooking } = usePhoneCRMLookup(clientPhone)
@@ -228,6 +229,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         setPaymentType('ACOMPTE')
         setCrmCustomerId(null)
         setCrmCustomerName(null)
+        setShowErrors(false)
     }
 
     function handleClose() {
@@ -261,6 +263,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
+        setShowErrors(true)
         if (!clientName.trim() || !clientPhone.trim() || !pickupDate || orderItems.length === 0) {
             toast.error('Veuillez remplir tous les champs obligatoires et ajouter au moins un produit.')
             return
@@ -402,8 +405,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             <div>
                                 <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Client *</label>
                                 <div style={{ position: 'relative' }}>
-                                    <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
-                                    <input className="input" style={{ paddingLeft: '36px', borderColor: 'var(--color-primary)' }} value={clientName}
+                                    <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: showErrors && !clientName.trim() ? 'var(--color-error)' : 'var(--color-primary)' }} />
+                                    <input className={`input ${showErrors && !clientName.trim() ? 'has-error' : ''}`} style={{ paddingLeft: '36px', borderColor: showErrors && !clientName.trim() ? 'var(--color-error)' : 'var(--color-primary)' }} value={clientName}
                                         onChange={e => setClientName(e.target.value)} placeholder="Nom du client" required inputMode="text" autoComplete="name" />
                                 </div>
                             </div>
@@ -415,8 +418,9 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     placeholder="+225 00000000"
                                     title="Numéro de téléphone"
                                     isPhone={true}
-                                    icon={<Phone size={16} style={{ color: '#d97757' }} />}
-                                    style={{ borderColor: crmCustomerId ? '#10B981' : 'var(--color-primary)' }}
+                                    icon={<Phone size={16} style={{ color: showErrors && !clientPhone.trim() ? 'var(--color-error)' : '#d97757' }} />}
+                                    style={{ borderColor: showErrors && !clientPhone.trim() ? 'var(--color-error)' : (crmCustomerId ? '#10B981' : 'var(--color-primary)') }}
+                                    hasError={showErrors && !clientPhone.trim()}
                                 />
                                 <CrmPhoneMatchBadge
                                     match={crmPhoneMatch}
@@ -457,6 +461,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                     onChange={setPickupDate}
                                     placeholder="Sélectionner une date"
                                     minDate={new Date()}
+                                    hasError={showErrors && !pickupDate}
                                 />
                             </div>
                             <div>
@@ -472,8 +477,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 <div>
                                     <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Adresse de livraison *</label>
                                     <div style={{ position: 'relative' }}>
-                                        <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
-                                        <input className="input" style={{ paddingLeft: '36px', borderColor: 'var(--color-primary)' }} value={deliveryAddress}
+                                        <MapPin size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: showErrors && !deliveryAddress.trim() ? 'var(--color-error)' : 'var(--color-primary)' }} />
+                                        <input className={`input ${showErrors && !deliveryAddress.trim() ? 'has-error' : ''}`} style={{ paddingLeft: '36px', borderColor: showErrors && !deliveryAddress.trim() ? 'var(--color-error)' : 'var(--color-primary)' }} value={deliveryAddress}
                                             onChange={e => setDeliveryAddress(e.target.value)} placeholder="Quartier, rue..." required={receptionType === 'livraison'} inputMode="text" autoComplete="street-address" />
                                     </div>
                                 </div>
@@ -496,8 +501,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
                             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }} ref={searchRef}>
                                 <div style={{ position: 'relative', flex: 1 }}>
-                                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
-                                    <input className="input" style={{ paddingLeft: '36px', paddingRight: '44px' }} placeholder="Rechercher un produit..."
+                                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: showErrors && orderItems.length === 0 ? 'var(--color-error)' : 'var(--color-muted)' }} />
+                                    <input className={`input ${showErrors && orderItems.length === 0 ? 'has-error' : ''}`} style={{ paddingLeft: '36px', paddingRight: '44px' }} placeholder="Rechercher un produit..."
                                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                                     <button type="button"
                                         onClick={() => setCatalogModalOpen(true)}
