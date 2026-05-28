@@ -35,13 +35,12 @@ export default async function CaissePage() {
         .eq('status', 'open')
         .single()
 
-    // 2. Commandes du jour (Pipeline + Prêtes)
+    // 2. Commandes actives (Pipeline + Prêtes), y compris celles avec date de retrait passée
     const { data: pipelineOrders } = await supabase
         .from('orders')
         .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
         .eq('organization_id', orgId)
         .in('status', ['pending', 'production', 'ready'])
-        .gte('pickup_date', todayStart) // Optimisation : uniquement les commandes d'aujourd'hui et futures
         .order('pickup_date', { ascending: true })
 
     // 3. Métriques du jour (Ventes & Recettes)

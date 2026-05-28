@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Clock, ChefHat, CheckCircle2, XCircle, Maximize2 } from 'lucide-react'
+import { X, Clock, ChefHat, CheckCircle2, XCircle, Maximize2, Pencil, Check, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { updateOrderDetails } from '@/lib/actions/orders'
 
 interface OrderItem {
     id: string
@@ -15,6 +17,7 @@ interface Order {
     id: string
     order_number: string | null
     customer_name: string
+    customer_contact: string | null
     status: string
     priority: string | null
     pickup_date: string
@@ -24,11 +27,11 @@ interface Order {
     order_items: OrderItem[]
 }
 
-const STATUS_CONFIG: Record<string, { label: string; next: string; nextLabel: string; color: string; bg: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; next: string; nextLabel: string; prev?: string; prevLabel?: string; color: string; bg: string }> = {
     pending:    { label: '⏳ En attente',       next: 'production', nextLabel: '👨‍🍳 Lancer en production', color: '#92400E', bg: '#FEF3C7' },
-    production: { label: '👨‍🍳 En production',    next: 'ready',      nextLabel: '✅ Marquer Prête',        color: '#1E40AF', bg: '#DBEAFE' },
-    ready:      { label: '✅ Prête',             next: 'completed',  nextLabel: '✔ Livré / Retiré',        color: '#065F46', bg: '#D1FAE5' },
-    completed:  { label: '✔ Livré / Retiré',    next: '',           nextLabel: '',                         color: '#374151', bg: '#F3F4F6' },
+    production: { label: '👨‍🍳 En production',    next: 'ready',      nextLabel: '✅ Marquer Prête',        prev: 'pending',    prevLabel: '⏪ En attente', color: '#1E40AF', bg: '#DBEAFE' },
+    ready:      { label: '✅ Prête',             next: 'completed',  nextLabel: '✔ Livré / Retiré',        prev: 'production', prevLabel: '⏪ En production', color: '#065F46', bg: '#D1FAE5' },
+    completed:  { label: '✔ Livré / Retiré',    next: '',           nextLabel: '',                         prev: 'ready',      prevLabel: '⏪ Prête',        color: '#374151', bg: '#F3F4F6' },
     cancelled:  { label: '✖ Annulée',           next: '',           nextLabel: '',                         color: '#991B1B', bg: '#FEE2E2' },
 }
 
@@ -42,11 +45,88 @@ interface Props {
     onClose: () => void
     onStatusChange: (orderId: string, status: string) => void
     isPending: boolean
+    roleSlug: string
+    onOrderUpdate?: (updatedOrder: any) => void
 }
 
-export default function OrderDrawer({ order, onClose, onStatusChange, isPending }: Props) {
+export default function OrderDrawer({ order, onClose, onStatusChange, isPending, roleSlug, onOrderUpdate }: Props) {
     const [imageFullscreen, setImageFullscreen] = useState(false)
     const [isVisible, setIsVisible] = useState(false)
+
+    // États d'édition inline
+    const [editName, setEditName] = useState(false)
+    const [nameVal, setNameVal] = useState('')
+    
+    const [editPhone, setEditPhone] = useState(false)
+    const [phoneVal, setPhoneVal] = useState('')
+    
+    const [editDate, setEditDate] = useState(false)
+    const [dateVal, setDateVal] = useState('')
+    
+    const [isSaving, setIsSaving] = useState<string | null>(null) // 'name' | 'phone' | 'date'
+
+    useEffect(() => {
+        if (order) {
+            setNameVal(order.customer_name)
+            setPhoneVal(order.customer_contact || '')
+            try {
+                const dateObj = new Date(order.pickup_date)
+                if (!isNaN(dateObj.getTime())) {
+                    const tzOffset = dateObj.getTimezoneOffset() * 60000
+                    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16)
+                    setDateVal(localISOTime)
+                } else {
+                    setDateVal('')
+                }
+            } catch (e) {
+                setDateVal('')
+            }
+            
+            setEditName(false)
+            setEditPhone(false)
+            setEditDate(false)
+        }
+    }, [order])
+
+    const saveField = async (field: 'name' | 'phone' | 'date') => {
+        if (!order) return
+        setIsSaving(field)
+        
+        let details: { customer_name?: string; customer_contact?: string; pickup_date?: string } = {}
+        if (field === 'name') details.customer_name = nameVal
+        else if (field === 'phone') details.customer_contact = phoneVal || undefined
+        else if (field === 'date') {
+            try {
+                const parsedDate = new Date(dateVal)
+                if (isNaN(parsedDate.getTime())) {
+                    toast.error("Date invalide")
+                    setIsSaving(null)
+                    return
+                }
+                details.pickup_date = parsedDate.toISOString()
+            } catch (e) {
+                toast.error("Date invalide")
+                setIsSaving(null)
+                return
+            }
+        }
+        
+        const res = await updateOrderDetails(order.id, details)
+        if (res.success) {
+            toast.success("Commande mise à jour !")
+            if (onOrderUpdate) {
+                onOrderUpdate({ id: order.id, ...details })
+            }
+            if (field === 'name') setEditName(false)
+            else if (field === 'phone') setEditPhone(false)
+            else if (field === 'date') setEditDate(false)
+        } else {
+            toast.error(res.error || "Erreur lors de la mise à jour")
+        }
+        setIsSaving(null)
+    }
+
+    const isAuthorized = ['vendeur', 'caissier', 'gerant', 'super_admin'].includes(roleSlug)
 
     useEffect(() => {
         if (order) {
@@ -177,11 +257,100 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending 
                         <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
                             Client
                         </div>
-                        <div style={{
-                            background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
-                            fontSize: '0.95rem', fontWeight: 700, color: '#2D1B0E'
-                        }}>
-                            👤 {order.customer_name}
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {/* Nom */}
+                            <div style={{
+                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                fontSize: '0.95rem', fontWeight: 700, color: '#2D1B0E', minHeight: '52px'
+                            }}>
+                                {editName ? (
+                                    <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            value={nameVal}
+                                            onChange={e => setNameVal(e.target.value)}
+                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600 }}
+                                            disabled={isSaving === 'name'}
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={() => saveField('name')}
+                                            disabled={isSaving === 'name'}
+                                            style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        >
+                                            {isSaving === 'name' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        </button>
+                                        <button
+                                            onClick={() => { setEditName(false); setNameVal(order.customer_name) }}
+                                            disabled={isSaving === 'name'}
+                                            style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <span>👤 {order.customer_name}</span>
+                                        {isAuthorized && (
+                                            <button
+                                                onClick={() => setEditName(true)}
+                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Téléphone */}
+                            <div style={{
+                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E', minHeight: '52px'
+                            }}>
+                                {editPhone ? (
+                                    <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                                        <input
+                                            type="tel"
+                                            value={phoneVal}
+                                            onChange={e => setPhoneVal(e.target.value)}
+                                            placeholder="Numéro de téléphone"
+                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600 }}
+                                            disabled={isSaving === 'phone'}
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={() => saveField('phone')}
+                                            disabled={isSaving === 'phone'}
+                                            style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        >
+                                            {isSaving === 'phone' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        </button>
+                                        <button
+                                            onClick={() => { setEditPhone(false); setPhoneVal(order.customer_contact || '') }}
+                                            disabled={isSaving === 'phone'}
+                                            style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <span>📞 {order.customer_contact || 'Non renseigné'}</span>
+                                        {isAuthorized && (
+                                            <button
+                                                onClick={() => setEditPhone(true)}
+                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </section>
 
@@ -282,46 +451,109 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending 
                         </div>
                         <div style={{
                             background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '52px'
                         }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E' }}>
-                                {!isNaN(pickupDate.getTime())
-                                    ? pickupDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
-                                    : 'Non définie'}
-                            </span>
-                            <span style={{
-                                fontSize: '0.78rem', fontWeight: 700, color: countdownColor,
-                                padding: '3px 10px', borderRadius: '99px',
-                                background: countdownColor === '#D94F38' ? '#FEF2F2' : (countdownColor === '#F59E0B' ? '#FEF3C7' : 'transparent')
-                            }}>
-                                {countdownText}
-                            </span>
+                            {editDate ? (
+                                <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                                    <input
+                                        type="datetime-local"
+                                        value={dateVal}
+                                        onChange={e => setDateVal(e.target.value)}
+                                        style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.85rem', fontWeight: 600 }}
+                                        disabled={isSaving === 'date'}
+                                        autoFocus
+                                    />
+                                    <button
+                                        onClick={() => saveField('date')}
+                                        disabled={isSaving === 'date'}
+                                        style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                    >
+                                        {isSaving === 'date' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                    </button>
+                                    <button
+                                        onClick={() => { setEditDate(false); try { setDateVal(new Date(order.pickup_date).toISOString().slice(0, 16)) } catch(e){} }}
+                                        disabled={isSaving === 'date'}
+                                        style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E' }}>
+                                        {!isNaN(pickupDate.getTime())
+                                            ? pickupDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+                                            : 'Non définie'}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{
+                                            fontSize: '0.78rem', fontWeight: 700, color: countdownColor,
+                                            padding: '3px 10px', borderRadius: '99px',
+                                            background: countdownColor === '#D94F38' ? '#FEF2F2' : (countdownColor === '#F59E0B' ? '#FEF3C7' : 'transparent')
+                                        }}>
+                                            {countdownText}
+                                        </span>
+                                        {isAuthorized && (
+                                            <button
+                                                onClick={() => setEditDate(true)}
+                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </section>
                 </div>
 
-                {/* Action fixe en bas */}
-                {canAdvance && (
+                {/* Action fixe en bas (Avancer & Reculer) */}
+                {((status.next && order.status !== 'completed' && order.status !== 'cancelled') || status.prev) && (
                     <div style={{
                         padding: '16px 24px',
                         borderTop: '1.5px solid var(--color-border)',
                         background: 'white',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        display: 'flex',
+                        gap: '12px'
                     }}>
-                        <button
-                            onClick={() => onStatusChange(order.id, order.status)}
-                            disabled={isPending}
-                            className="btn-primary"
-                            style={{
-                                width: '100%',
-                                minHeight: '48px',
-                                fontSize: '0.95rem',
-                                fontWeight: 700,
-                                gap: '8px'
-                            }}
-                        >
-                            {status.nextLabel}
-                        </button>
+                        {status.prev && (
+                            <button
+                                onClick={() => onStatusChange(order.id, status.prev!)}
+                                disabled={isPending}
+                                className="btn-secondary"
+                                style={{
+                                    flex: 1,
+                                    minHeight: '48px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 700,
+                                    color: '#9C8070',
+                                    border: '1.5px solid var(--color-border)',
+                                    background: 'white',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                {status.prevLabel}
+                            </button>
+                        )}
+                        {status.next && order.status !== 'completed' && order.status !== 'cancelled' && (
+                            <button
+                                onClick={() => onStatusChange(order.id, status.next)}
+                                disabled={isPending}
+                                className="btn-primary"
+                                style={{
+                                    flex: 2,
+                                    minHeight: '48px',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {status.nextLabel}
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
