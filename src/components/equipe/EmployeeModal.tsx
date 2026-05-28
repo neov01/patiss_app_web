@@ -240,29 +240,56 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
 
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-border)' }}>
-              {([['identity', '👤 Identité'], ['access', '🔐 Accès & Sécurité']] as const).map(([tab, label]) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    flex: 1, padding: '14px', border: 'none', background: 'none', cursor: 'pointer',
-                    fontWeight: activeTab === tab ? 700 : 500,
-                    fontSize: '0.875rem',
-                    color: activeTab === tab ? 'var(--color-rose-dark)' : 'var(--color-muted)',
-                    borderBottom: `2.5px solid ${activeTab === tab ? 'var(--color-rose-dark)' : 'transparent'}`,
-                    transition: 'all 0.15s',
-                    marginBottom: '-1.5px',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              {([['identity', '👤 Identité'], ['access', '🔐 Accès & Sécurité']] as const).map(([tab, label]) => {
+                const tabHasError = tab === 'identity'
+                  ? !!errors.fullName || !!errors.phone
+                  : !!errors.pinCode || !!errors.baseSalary
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      flex: 1, padding: '14px', border: 'none', background: 'none', cursor: 'pointer',
+                      fontWeight: activeTab === tab ? 700 : 500,
+                      fontSize: '0.875rem',
+                      color: activeTab === tab ? 'var(--color-rose-dark)' : 'var(--color-muted)',
+                      borderBottom: `2.5px solid ${activeTab === tab ? 'var(--color-rose-dark)' : 'transparent'}`,
+                      transition: 'all 0.15s',
+                      marginBottom: '-1.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {label}
+                    {tabHasError && (
+                      <span style={{
+                        display: 'inline-block',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'var(--color-error)',
+                        boxShadow: '0 0 0 2px rgba(186, 26, 26, 0.15)',
+                        animation: 'fadeIn 0.2s ease'
+                      }} />
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Body scrollable */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-              <form id="employee-form" onSubmit={handleSubmit(onSubmit)}>
+              <form id="employee-form" onSubmit={handleSubmit(onSubmit, (errs) => {
+                if (errs.fullName || errs.phone) {
+                  setActiveTab('identity')
+                } else if (errs.pinCode || errs.baseSalary) {
+                  setActiveTab('access')
+                }
+                toast.error("Veuillez corriger les erreurs de saisie avant de valider.")
+              })}>
 
                 {/* ═══ ONGLET IDENTITÉ ═══ */}
                 {activeTab === 'identity' && (
@@ -327,7 +354,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                     {/* Nom complet */}
                     <div>
                       <label className="label">Nom complet *</label>
-                      <input {...register('fullName')} className="input" placeholder="ex: Marie Konan" inputMode="text" autoComplete="name" />
+                      <input {...register('fullName')} className={`input ${errors.fullName ? 'has-error' : ''}`} placeholder="ex: Marie Konan" inputMode="text" autoComplete="name" />
                       {errors.fullName && <span style={{ fontSize: '0.75rem', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>{errors.fullName.message}</span>}
                     </div>
 
@@ -344,6 +371,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                             placeholder="ex: +225 07 00 00 00"
                             title="Numéro de téléphone"
                             isPhone={true}
+                            hasError={!!errors.phone}
                           />
                         )}
                       />
@@ -458,6 +486,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                               title="Code PIN (4 chiffres)"
                               placeholder="••••"
                               style={{ fontSize: '1.5rem', textAlign: 'center' }}
+                              hasError={!!errors.pinCode}
                             />
                           )}
                         />
@@ -509,6 +538,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                               title="Salaire mensuel"
                               placeholder="0"
                               style={{ fontSize: '1.1rem', fontWeight: 700 }}
+                              hasError={!!errors.baseSalary}
                             />
                           )}
                         />

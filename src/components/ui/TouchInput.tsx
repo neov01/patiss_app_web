@@ -17,6 +17,7 @@ interface TouchInputProps {
     icon?: React.ReactNode
     isPhone?: boolean
     hideIcon?: boolean
+    hasError?: boolean
 }
 
 export default function TouchInput({
@@ -31,7 +32,8 @@ export default function TouchInput({
     style,
     icon,
     isPhone = false,
-    hideIcon = false
+    hideIcon = false,
+    hasError = false
 }: TouchInputProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [fontSize, setFontSize] = useState<number | null>(null)
@@ -66,7 +68,7 @@ export default function TouchInput({
     return (
         <>
             <div
-                className={className}
+                className={`${className} ${hasError ? 'has-error' : ''}`}
                 onClick={() => setIsOpen(true)}
                 style={{
                     cursor: 'pointer',
@@ -75,25 +77,25 @@ export default function TouchInput({
                     justifyContent: 'space-between',
                     minHeight: '48px',
                     userSelect: 'none',
-                    background: 'var(--color-well)',
+                    background: hasError ? '#FFF5F5' : 'var(--color-well)',
                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     position: 'relative',
                     overflow: 'hidden',
                     borderRadius: 'var(--radius-md)',
-                    border: 'none',
+                    border: hasError ? '1.5px solid var(--color-error)' : '1.5px solid transparent',
                     ...style
                 }}
                 onMouseDown={e => {
                     e.currentTarget.style.transform = 'scale(0.98)'
-                    e.currentTarget.style.backgroundColor = 'var(--color-surface-variant)'
+                    e.currentTarget.style.backgroundColor = hasError ? '#FFEAEA' : 'var(--color-surface-variant)'
                 }}
                 onMouseUp={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = 'var(--color-well)'
+                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : 'var(--color-well)'
                 }}
                 onMouseLeave={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = 'var(--color-well)'
+                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : 'var(--color-well)'
                 }}
             >
                 <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 16px' }}>

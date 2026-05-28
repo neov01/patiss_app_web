@@ -19,9 +19,9 @@ WITH rfm_raw AS (
 ),
 rfm_scored AS (
   SELECT *,
-    NTILE(4) OVER (PARTITION BY organization_id ORDER BY recency_interval ASC)  AS r_score,
-    NTILE(4) OVER (PARTITION BY organization_id ORDER BY frequency DESC)         AS f_score,
-    NTILE(4) OVER (PARTITION BY organization_id ORDER BY monetary DESC)          AS m_score
+    NTILE(4) OVER (PARTITION BY organization_id ORDER BY recency_interval DESC)  AS r_score,
+    NTILE(4) OVER (PARTITION BY organization_id ORDER BY frequency ASC)          AS f_score,
+    NTILE(4) OVER (PARTITION BY organization_id ORDER BY monetary ASC)           AS m_score
   FROM rfm_raw
 )
 SELECT *,

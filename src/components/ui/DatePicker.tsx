@@ -26,6 +26,7 @@ interface DatePickerProps {
     placeholder?: string
     minDate?: Date
     direction?: 'up' | 'down'
+    hasError?: boolean
 }
 
 export default function DatePicker({ 
@@ -33,7 +34,8 @@ export default function DatePicker({
     onChange, 
     placeholder = 'Sélectionner une date', 
     minDate,
-    direction = 'down'
+    direction = 'down',
+    hasError = false
 }: DatePickerProps) {
     const [open, setOpen] = useState(false)
     const [currentMonth, setCurrentMonth] = useState(value || new Date())
@@ -227,14 +229,15 @@ export default function DatePicker({
                 ref={buttonRef}
                 type="button"
                 onClick={() => setOpen(!open)}
+                className={hasError ? 'has-error' : ''}
                 style={{
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
                     padding: '10px 14px',
-                    background: 'var(--color-cream)',
-                    border: '1.5px solid var(--color-border)',
+                    background: hasError ? '#FFF5F5' : 'var(--color-cream)',
+                    border: hasError ? '1.5px solid var(--color-error)' : '1.5px solid var(--color-border)',
                     borderRadius: '12px',
                     fontSize: '0.9rem',
                     fontWeight: 500,

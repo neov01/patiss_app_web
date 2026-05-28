@@ -10,6 +10,7 @@ import { Suspense } from 'react'
 
 import { cookies } from 'next/headers'
 import { getDailyStats } from '@/lib/actions/stats'
+import { verifyKioskToken } from '@/lib/kiosk-token'
 
 interface DashboardSearchParams {
     period?: string
@@ -34,7 +35,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
     // 1. Get auth user and kiosk info
     const { data: { user } } = await supabase.auth.getUser()
     const cookieStore = await cookies()
-    const kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    
+    let kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    const kioskToken = cookieStore.get('kiosk_token')?.value
+    if (kioskToken) {
+        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
+        kioskUserId = claims?.userId ?? (kioskToken.includes('.') ? undefined : kioskToken)
+    }
 
     if (!user && !kioskUserId) return null
 

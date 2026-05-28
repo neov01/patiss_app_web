@@ -31,6 +31,43 @@ export async function createOrder(input: any) {
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
     if (!profile?.organization_id) return { error: 'Organisation introuvable' }
 
+    // Auto-enregistrement client : si pas de customer_id mais qu'un téléphone est fourni,
+    // on cherche ou crée le client silencieusement pour alimenter le CRM & la fidélité.
+    let resolvedCustomerId = formData.customer_id || null
+    const clientPhone = formData.customer_contact?.replace(/\D/g, '') || null
+
+    if (!resolvedCustomerId && clientPhone && formData.customer_name && formData.customer_name !== 'Client Vitrine') {
+        // Normaliser le numéro pour la recherche (format Ivoirien +225 → local)
+        let normalizedPhone = clientPhone
+        if (clientPhone.startsWith('225') && clientPhone.length >= 11) {
+            normalizedPhone = clientPhone.slice(3)
+        }
+        const phoneCandidates = Array.from(new Set([clientPhone, normalizedPhone]))
+
+        const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('organization_id', profile.organization_id)
+            .in('phone', phoneCandidates)
+            .limit(1)
+            .maybeSingle()
+
+        if (existingCustomer) {
+            resolvedCustomerId = existingCustomer.id
+        } else {
+            const { data: newCustomer } = await supabase
+                .from('customers')
+                .insert({
+                    name: formData.customer_name,
+                    phone: normalizedPhone || clientPhone,
+                    organization_id: profile.organization_id,
+                })
+                .select('id')
+                .single()
+            resolvedCustomerId = newCustomer?.id ?? null
+        }
+    }
+
     // 2. Calculs Sécurisés (Business Logic)
     const totalAmount = formData.total_amount
     const depositAmount = formData.deposit_amount
@@ -47,7 +84,7 @@ export async function createOrder(input: any) {
         id: formData.id,
         organization_id: profile.organization_id,
         order_number: formData.order_number,
-        customer_id: formData.customer_id || null,
+        customer_id: resolvedCustomerId,
         customer_name: formData.customer_name,
         customer_contact: formData.customer_contact,
         pickup_date: formData.pickup_date,
@@ -88,7 +125,7 @@ export async function createOrder(input: any) {
         await supabase.from('transactions').insert({
             organization_id: profile.organization_id,
             order_id: order.id,
-            customer_id: formData.customer_id || null,
+            customer_id: resolvedCustomerId,
             client_name: formData.customer_name,
             amount: depositAmount,
             payment_method: formData.deposit_payment_method || 'Espèces',
@@ -96,15 +133,15 @@ export async function createOrder(input: any) {
             created_by: user.id
         })
         // Créditer les points de fidélité pour l'acompte (1 point par 1000 FCFA)
-        if (formData.customer_id) {
+        if (resolvedCustomerId) {
             const points = Math.floor(depositAmount / 1000)
             if (points > 0) {
-                const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', formData.customer_id).single()
+                const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', resolvedCustomerId).single()
                 if (cust) {
                     await supabase.from('customers').update({
                         loyalty_points: (cust.loyalty_points || 0) + points,
                         lifetime_points: (cust.lifetime_points || 0) + points,
-                    }).eq('id', formData.customer_id)
+                    }).eq('id', resolvedCustomerId)
                 }
             }
         }

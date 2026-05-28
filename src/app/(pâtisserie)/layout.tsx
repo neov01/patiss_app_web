@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { verifyKioskToken } from '@/lib/kiosk-token'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import AutoLockProvider from '@/components/auth/AutoLockProvider'
 import { checkSubscriptionStatus } from '@/lib/utils/subscription'
@@ -16,7 +17,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const cookieStore = await cookies()
-    const kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    
+    let kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    const kioskToken = cookieStore.get('kiosk_token')?.value
+    if (kioskToken) {
+        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
+        kioskUserId = claims?.userId ?? (kioskToken.includes('.') ? undefined : kioskToken)
+    }
 
     if (!user && !kioskUserId) redirect('/login')
 

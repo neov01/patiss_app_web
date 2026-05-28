@@ -1,11 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { verifyKioskToken } from '@/lib/kiosk-token'
 
 export async function getCurrentSession() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const cookieStore = await cookies()
-    const kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    
+    let kioskUserId = cookieStore.get('kiosk_user_id')?.value
+    const kioskToken = cookieStore.get('kiosk_token')?.value
+    if (kioskToken) {
+        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
+        kioskUserId = claims?.userId ?? (kioskToken.includes('.') ? undefined : kioskToken)
+    }
 
     if (!user && !kioskUserId) return null
 

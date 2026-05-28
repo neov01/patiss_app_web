@@ -47,7 +47,7 @@ export default async function CaissePage() {
     // 3. Métriques du jour (Ventes & Recettes)
     const { data: todayTransactions } = await supabase
         .from('transactions')
-        .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, transaction_items(quantity)')
+        .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, orders(order_number), transaction_items(quantity)')
         .eq('organization_id', orgId)
         .gte('created_at', todayStart)
         .order('created_at', { ascending: false })
@@ -58,20 +58,69 @@ export default async function CaissePage() {
     const commandesEncaissees = (todayTransactions || []).filter(t => t.order_id !== null && (t as any).label_type === 'SOLDE').length
     const ventesVitrine = (todayTransactions || []).filter(t => t.order_id === null).length
 
-    // Historique (les 10 dernières) — exclure les ACOMPTE (sous-événements des commandes)
-    const recentHistory = (todayTransactions || [])
-        .filter(t => (t as any).label_type !== 'ACOMPTE')
-        .slice(0, 10)
-        .map(t => ({
-            id: t.id,
-            client_name: t.client_name,
-            amount: t.amount,
-            payment_method: t.payment_method,
-            created_at: t.created_at,
-            is_order: t.order_id !== null,
-            has_crm: !!(t as any).customer_id,
-            nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0)
-        }))
+    // Regroupement des transactions du jour par commande
+    const groupedTransactions: any[] = []
+    const orderGroups = new Map<string, any>()
+
+    for (const t of todayTransactions || []) {
+        if (t.order_id) {
+            if (!orderGroups.has(t.order_id)) {
+                // C'est le mouvement le plus récent pour cette commande aujourd'hui
+                const group = {
+                    id: t.id,
+                    client_name: t.client_name,
+                    is_order: true,
+                    order_number: (t as any).orders?.order_number || null,
+                    has_crm: !!(t as any).customer_id,
+                    nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0),
+                    created_at: t.created_at,
+                    payments: [
+                        {
+                            id: t.id,
+                            amount: Number(t.amount),
+                            payment_method: t.payment_method,
+                            created_at: t.created_at,
+                            label_type: (t as any).label_type
+                        }
+                    ]
+                }
+                orderGroups.set(t.order_id, group)
+                groupedTransactions.push(group)
+            } else {
+                // Il y a déjà un groupe pour cette commande, on ajoute ce paiement plus ancien
+                const group = orderGroups.get(t.order_id)
+                group.payments.push({
+                    id: t.id,
+                    amount: Number(t.amount),
+                    payment_method: t.payment_method,
+                    created_at: t.created_at,
+                    label_type: (t as any).label_type
+                })
+            }
+        } else {
+            // Vente directe sans commande
+            groupedTransactions.push({
+                id: t.id,
+                client_name: t.client_name,
+                is_order: false,
+                order_number: null,
+                has_crm: !!(t as any).customer_id,
+                nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0),
+                created_at: t.created_at,
+                payments: [
+                    {
+                        id: t.id,
+                        amount: Number(t.amount),
+                        payment_method: t.payment_method,
+                        created_at: t.created_at,
+                        label_type: (t as any).label_type
+                    }
+                ]
+            })
+        }
+    }
+
+    const recentHistory = groupedTransactions.slice(0, 10)
 
     // 4. Best-sellers (sur 30 jours, via RPC haute performance)
     const { data: rpcBestSellers } = await (supabase.rpc as any)('get_best_sellers_v2', {

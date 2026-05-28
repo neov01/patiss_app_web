@@ -579,29 +579,137 @@ export default function CaisseClient({
                     {initialHistory.length === 0 ? (
                         <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>Aucune transaction aujourd'hui</div>
                     ) : (
-                        initialHistory.map((t, i) => (
-                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    {t.has_crm && (
-                                        <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                            <UserCheck size={14} color="#3B82F6" />
+                        initialHistory.map((t, i) => {
+                            const hasMultiPayments = t.payments && t.payments.length > 1;
+
+                            if (hasMultiPayments) {
+                                // Tri chronologique des paiements (du plus ancien au plus récent)
+                                const sortedPayments = [...t.payments].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                const totalEncaisse = sortedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+                                return (
+                                    <div key={t.id} style={{ padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
+                                        {/* En-tête de la commande (Famille) */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                {t.has_crm && (
+                                                    <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <UserCheck size={14} color="#3B82F6" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <span>{t.client_name}</span>
+                                                        {t.order_number && (
+                                                            <span style={{ color: '#C4836A', fontSize: '0.8rem', fontWeight: 700, background: '#FEF3EC', padding: '1px 6px', borderRadius: '4px' }}>
+                                                                #{t.order_number}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '2px' }}>
+                                                        Commande · {t.nb_items} article{t.nb_items > 1 ? 's' : ''}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {/* Montant total cumulé de la transaction (acompte + solde) */}
+                                            <div style={{ fontWeight: 800, color: '#2D1B0E', fontSize: '1.05rem' }}>
+                                                {totalEncaisse.toLocaleString('fr-FR')} {currency}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div>
-                                        <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>{t.client_name}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
-                                            {(() => {
-                                                const date = new Date(t.created_at);
-                                                return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
-                                            })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} · {t.payment_method}
+
+                                        {/* Liste des paiements indentés vers la droite */}
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            flexDirection: 'column', 
+                                            gap: '6px', 
+                                            paddingLeft: '16px', 
+                                            borderLeft: '2px solid #FDE8DB', 
+                                            marginLeft: t.has_crm ? '13px' : '6px', 
+                                            marginTop: '6px' 
+                                        }}>
+                                            {sortedPayments.map((p) => (
+                                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070', fontWeight: 600 }}>
+                                                            {(() => {
+                                                                const date = new Date(p.created_at);
+                                                                return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
+                                                            })()}
+                                                        </span>
+                                                        
+                                                        {p.label_type === 'ACOMPTE' && (
+                                                            <span style={{ background: '#FEF3C7', color: '#D97706', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                                Acompte
+                                                            </span>
+                                                        )}
+                                                        {p.label_type === 'SOLDE' && (
+                                                            <span style={{ background: '#D1FAE5', color: '#059669', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                                Solde
+                                                            </span>
+                                                        )}
+
+                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070' }}>
+                                                            · {p.payment_method}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontWeight: 700, color: p.label_type === 'SOLDE' ? '#10B981' : '#2D1B0E', fontSize: '0.85rem' }}>
+                                                        {Number(p.amount).toLocaleString('fr-FR')} {currency}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-                                <div style={{ fontWeight: 700, color: t.is_order ? '#10B981' : '#2D1B0E' }}>
-                                    {Number(t.amount).toLocaleString('fr-FR')} {currency}
-                                </div>
-                            </div>
-                        ))
+                                );
+                            } else {
+                                // Affichage classique s'il n'y a qu'un seul paiement (ou vente vitrine)
+                                const p = t.payments && t.payments[0];
+                                return (
+                                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {t.has_crm && (
+                                                <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <UserCheck size={14} color="#3B82F6" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <span>{t.client_name}</span>
+                                                    {t.order_number && (
+                                                        <span style={{ color: '#C4836A', fontSize: '0.75rem', fontWeight: 700, background: '#FEF3EC', padding: '1px 6px', borderRadius: '4px' }}>
+                                                            #{t.order_number}
+                                                        </span>
+                                                    )}
+                                                    {p && p.label_type === 'ACOMPTE' && (
+                                                        <span style={{ background: '#FEF3C7', color: '#D97706', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                            Acompte
+                                                        </span>
+                                                    )}
+                                                    {p && p.label_type === 'SOLDE' && (
+                                                        <span style={{ background: '#D1FAE5', color: '#059669', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                            Solde
+                                                        </span>
+                                                    )}
+                                                    {(!t.is_order) && (
+                                                        <span style={{ background: '#F3F4F6', color: '#4B5563', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                            Vitrine
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
+                                                    {(() => {
+                                                        const date = new Date(t.created_at);
+                                                        return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
+                                                    })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} {p ? `· ${p.payment_method}` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: 700, color: (p && p.label_type === 'SOLDE') ? '#10B981' : '#2D1B0E' }}>
+                                            {Number(p ? p.amount : 0).toLocaleString('fr-FR')} {currency}
+                                        </div>
+                                    </div>
+                                );
+                            }
+                        })
                     )}
                 </div>
 
