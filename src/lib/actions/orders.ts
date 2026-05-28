@@ -182,6 +182,26 @@ export async function deleteOrder(orderId: string) {
     return { success: true }
 }
 
+export async function updateOrderDetails(
+    orderId: string, 
+    details: { customer_name?: string; customer_contact?: string; pickup_date?: string }
+) {
+    // Bloquer si l'abonnement est expiré
+    try {
+        await ensureActiveSubscription()
+    } catch (e: any) {
+        return { error: e.message }
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase.from('orders').update(details).eq('id', orderId)
+    if (error) return { error: error.message }
+    revalidatePath('/commandes')
+    revalidatePath('/dashboard')
+    revalidatePath('/caisse')
+    return { success: true }
+}
+
 export async function createVitrineSale(input: any) {
     // Bloquer si l'abonnement est expiré
     try {

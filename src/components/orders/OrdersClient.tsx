@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2 } from 'lucide-react'
+import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search } from 'lucide-react'
 import { updateOrderStatus, deleteOrder } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer from './OrderDrawer'
@@ -45,12 +45,14 @@ export default function OrdersClient({
     orders,
     products,
     currency,
-    organizationId
+    organizationId,
+    roleSlug
 }: {
     orders: OrderWithItems[];
     products: Product[];
     currency: string;
     organizationId: string;
+    roleSlug: string;
 }) {
     const [showModal, setShowModal] = useState(false)
     const [isPending, start] = useTransition()
@@ -60,11 +62,22 @@ export default function OrdersClient({
     const [orderToDelete, setOrderToDelete] = useState<{id: string, name: string} | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
+    
+    // Nouveaux états pour la recherche, filtres du jour, et Zero Latency
+    const [search, setSearch] = useState('')
+    const [pickupToday, setPickupToday] = useState(false)
+    const [createdToday, setCreatedToday] = useState(false)
+    const [localOrders, setLocalOrders] = useState(orders)
+    
     const router = useRouter()
+
+    useEffect(() => {
+        setLocalOrders(orders)
+    }, [orders])
 
     // Filtrage instantané en mémoire — pas de round-trip serveur
     const filtered = useMemo(() => {
-        let result = orders
+        let result = localOrders
         if (statusFilter === 'active') result = result.filter(o => ACTIVE_STATUSES.includes(o.status))
         else if (statusFilter !== 'all') result = result.filter(o => o.status === statusFilter)
 
@@ -72,8 +85,34 @@ export default function OrdersClient({
         else if (paymentFilter === 'acompte') result = result.filter(o => o.payment_status === 'PARTIEL')
         else if (paymentFilter === 'crm') result = result.filter(o => !!o.customer_id)
 
+        if (pickupToday) {
+            const todayStr = new Date().toDateString()
+            result = result.filter(o => {
+                const d = new Date(o.pickup_date)
+                return !isNaN(d.getTime()) && d.toDateString() === todayStr
+            })
+        }
+
+        if (createdToday) {
+            const todayStr = new Date().toDateString()
+            result = result.filter(o => {
+                if (!o.created_at) return false
+                const d = new Date(o.created_at)
+                return !isNaN(d.getTime()) && d.toDateString() === todayStr
+            })
+        }
+
+        if (search.trim() !== '') {
+            const q = search.toLowerCase()
+            result = result.filter(o => 
+                o.customer_name.toLowerCase().includes(q) ||
+                (o.customer_contact && o.customer_contact.toLowerCase().includes(q)) ||
+                (o.order_number && o.order_number.toLowerCase().includes(q))
+            )
+        }
+
         return result
-    }, [orders, statusFilter, paymentFilter])
+    }, [localOrders, statusFilter, paymentFilter, pickupToday, createdToday, search])
 
     // Pagination client
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -84,26 +123,35 @@ export default function OrdersClient({
 
     // Compteurs par statut pour les badges
     const counts = useMemo(() => {
-        const c: Record<string, number> = { all: orders.length, active: 0 }
-        orders.forEach(o => {
+        const c: Record<string, number> = { all: localOrders.length, active: 0 }
+        localOrders.forEach(o => {
             c[o.status] = (c[o.status] || 0) + 1
             if (ACTIVE_STATUSES.includes(o.status)) c.active++
         })
         return c
-    }, [orders])
+    }, [localOrders])
 
     const handleFilterChange = (status: string) => {
         setStatusFilter(status)
         setCurrentPage(1) // Reset pagination on filter change
     }
 
-    async function handleStatusChange(orderId: string, status: string) {
-        const nextStatus: Record<string, string> = { pending: 'production', production: 'ready', ready: 'completed' }
-        if (!nextStatus[status]) return
+    async function handleStatusChange(orderId: string, nextStatus: string) {
+        // MAJ Optimiste Zéro Latence
+        setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: nextStatus } : o))
+        if (selectedOrder && selectedOrder.id === orderId) {
+            setSelectedOrder(prev => prev ? { ...prev, status: nextStatus } : null)
+        }
+
         start(async () => {
-            const result = await updateOrderStatus(orderId, nextStatus[status])
-            if ('error' in result && result.error) toast.error(result.error)
-            else toast.success('Statut mis à jour !')
+            const result = await updateOrderStatus(orderId, nextStatus)
+            if ('error' in result && result.error) {
+                toast.error(result.error)
+                router.refresh()
+            } else {
+                toast.success('Statut mis à jour !')
+                router.refresh()
+            }
         })
     }
 
@@ -130,6 +178,13 @@ export default function OrdersClient({
         })
     }
 
+    const handleOrderUpdate = (updatedOrder: any) => {
+        setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o))
+        if (selectedOrder && selectedOrder.id === updatedOrder.id) {
+            setSelectedOrder(prev => prev ? { ...prev, ...updatedOrder } : null)
+        }
+    }
+
     return (
         <div className="animate-fade-in">
             {/* Header */}
@@ -143,6 +198,30 @@ export default function OrdersClient({
                 <button onClick={() => setShowModal(true)} className="btn-primary">
                     <Plus size={16} /> Nouvelle commande
                 </button>
+            </div>
+
+            {/* Barre de recherche premium */}
+            <div style={{ position: 'relative', marginBottom: '20px' }}>
+                <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, paddingLeft: '16px', display: 'flex', alignItems: 'center', pointerEvents: 'none', height: '100%' }}>
+                    <Search size={18} color="#9C8070" />
+                </div>
+                <input
+                    type="text"
+                    placeholder="Rechercher une commande (Nom client, téléphone, n° commande...)"
+                    style={{
+                        width: '100%',
+                        padding: '12px 12px 12px 48px',
+                        borderRadius: '9999px',
+                        border: '1.5px solid var(--color-border)',
+                        background: 'var(--color-cream)',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        color: 'var(--color-text)',
+                        outline: 'none',
+                    }}
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+                />
             </div>
 
             {/* Filtres — switching instantané */}
@@ -177,7 +256,7 @@ export default function OrdersClient({
             </div>
 
             {/* Filtres paiement & CRM */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {[
                     { id: 'all', label: 'Tous paiements' },
                     { id: 'solde', label: '✓ Soldé à la prise' },
@@ -195,6 +274,35 @@ export default function OrdersClient({
                         }}
                     >{f.label}</button>
                 ))}
+
+                <div style={{ width: '1.5px', height: '16px', background: 'var(--color-border)', margin: '0 4px' }} />
+
+                <button
+                    onClick={() => { setPickupToday(!pickupToday); setCurrentPage(1) }}
+                    style={{
+                        padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '99px',
+                        border: pickupToday ? 'none' : '1.5px solid var(--color-border)',
+                        background: pickupToday ? '#C4836A' : 'transparent',
+                        color: pickupToday ? 'white' : 'var(--color-muted)',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', gap: '4px'
+                    }}
+                >
+                    📅 Retraits du Jour
+                </button>
+                <button
+                    onClick={() => { setCreatedToday(!createdToday); setCurrentPage(1) }}
+                    style={{
+                        padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600, borderRadius: '99px',
+                        border: createdToday ? 'none' : '1.5px solid var(--color-border)',
+                        background: createdToday ? '#C4836A' : 'transparent',
+                        color: createdToday ? 'white' : 'var(--color-muted)',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', gap: '4px'
+                    }}
+                >
+                    📝 Créées ce Jour
+                </button>
             </div>
 
             {/* Liste des commandes */}
@@ -284,7 +392,8 @@ export default function OrdersClient({
                                                     <button 
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            handleStatusChange(order.id, order.status)
+                                                            const next = STATUS_LABELS[order.status]?.next
+                                                            if (next) handleStatusChange(order.id, next)
                                                         }}
                                                         className="btn-primary" disabled={isPending || isDeleting}
                                                         style={{ fontSize: '0.8rem', padding: '0 12px', minHeight: '36px' }}>
@@ -387,6 +496,8 @@ export default function OrdersClient({
                 onClose={() => setSelectedOrder(null)}
                 onStatusChange={handleStatusChange}
                 isPending={isPending}
+                roleSlug={roleSlug}
+                onOrderUpdate={handleOrderUpdate}
             />
         </div>
     )
