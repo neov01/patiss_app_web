@@ -27,29 +27,44 @@ export default async function CaissePage() {
     const todayStart = startOfDay(new Date()).toISOString()
     const thirtyDaysAgo = subDays(new Date(), 30).toISOString()
 
-    // 1. Session journalière (sales_sessions)
-    const { data: activeSession } = await supabase
-        .from('sales_sessions')
-        .select('*')
-        .eq('organization_id', orgId)
-        .eq('status', 'open')
-        .single()
+    // Parallelize data fetching
+    const [
+        { data: activeSession },
+        { data: pipelineOrders },
+        { data: todayTransactions },
+        { data: rpcBestSellers }
+    ] = await Promise.all([
+        // 1. Session journalière (sales_sessions)
+        supabase
+            .from('sales_sessions')
+            .select('*')
+            .eq('organization_id', orgId)
+            .eq('status', 'open')
+            .single(),
 
-    // 2. Commandes actives (Pipeline + Prêtes), y compris celles avec date de retrait passée
-    const { data: pipelineOrders } = await supabase
-        .from('orders')
-        .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
-        .eq('organization_id', orgId)
-        .in('status', ['pending', 'production', 'ready'])
-        .order('pickup_date', { ascending: true })
+        // 2. Commandes actives (Pipeline + Prêtes), y compris celles avec date de retrait passée
+        supabase
+            .from('orders')
+            .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
+            .eq('organization_id', orgId)
+            .in('status', ['pending', 'production', 'ready'])
+            .order('pickup_date', { ascending: true }),
 
-    // 3. Métriques du jour (Ventes & Recettes)
-    const { data: todayTransactions } = await supabase
-        .from('transactions')
-        .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, orders(order_number), transaction_items(quantity)')
-        .eq('organization_id', orgId)
-        .gte('created_at', todayStart)
-        .order('created_at', { ascending: false })
+        // 3. Métriques du jour (Ventes & Recettes)
+        supabase
+            .from('transactions')
+            .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, orders(order_number), transaction_items(quantity)')
+            .eq('organization_id', orgId)
+            .gte('created_at', todayStart)
+            .order('created_at', { ascending: false }),
+
+        // 4. Best-sellers (sur 30 jours, via RPC haute performance)
+        (supabase.rpc as any)('get_best_sellers_v2', {
+            p_org_id: orgId,
+            p_days_limit: 30,
+            p_top_n: 8
+        })
+    ]);
 
     // CA du jour (inclut acomptes + soldes = argent réellement reçu)
     const caDuJour = (todayTransactions || []).reduce((acc, t) => acc + Number(t.amount), 0)
@@ -121,12 +136,7 @@ export default async function CaissePage() {
 
     const recentHistory = groupedTransactions.slice(0, 10)
 
-    // 4. Best-sellers (sur 30 jours, via RPC haute performance)
-    const { data: rpcBestSellers } = await (supabase.rpc as any)('get_best_sellers_v2', {
-        p_org_id: orgId,
-        p_days_limit: 30,
-        p_top_n: 8
-    })
+    // Best-sellers fetched in parallel above
 
     const bestSellers = (rpcBestSellers as any[] || []).map((b: any) => ({
         id: b.id,

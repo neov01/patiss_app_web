@@ -4,7 +4,7 @@ import { Resend } from 'resend'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export async function POST(request: Request) {
     try {
@@ -252,7 +252,7 @@ export async function POST(request: Request) {
                 const recipientEmail = testEmail ?? userEmailMap.get(gerant.id)
                 if (!recipientEmail) continue
 
-                if (process.env.RESEND_API_KEY) {
+                if (resend) {
                     await resend.emails.send({
                         from: "Pâtiss'App <onboarding@resend.dev>",
                         to: [recipientEmail],
