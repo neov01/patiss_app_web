@@ -17,16 +17,18 @@ export default async function CommandesPage() {
 
     // Charger TOUTES les commandes non-annulées des 90 derniers jours + toutes les actives
     // Cela permet un filtrage instantané côté client sans round-trip serveur
-    const { data: orders } = await supabase
-        .from('orders')
-        .select('*, order_items(*, products(name))')
-        .eq('organization_id', orgId)
-        .order('pickup_date', { ascending: true })
-
-    const { data: products } = await supabase.from('products')
-        .select('id, name, selling_price, current_stock')
-        .eq('organization_id', orgId)
-        .order('name')
+    const [{ data: orders }, { data: products }] = await Promise.all([
+        supabase
+            .from('orders')
+            .select('*, order_items(*, products(name))')
+            .eq('organization_id', orgId)
+            .order('pickup_date', { ascending: true }),
+        supabase
+            .from('products')
+            .select('id, name, selling_price, current_stock')
+            .eq('organization_id', orgId)
+            .order('name')
+    ]);
 
     return (
         <OrdersClient

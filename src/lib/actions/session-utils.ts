@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SessionResult = Record<string, any>
@@ -319,12 +319,13 @@ export async function closeSingleSession(
 </body>
 </html>`
 
-    const { error: emailError } = await resend.emails.send({
+    const emailRes = resend ? await resend.emails.send({
         from: "Pâtiss'App <onboarding@resend.dev>",
         to: [reportRecipient],
         subject: `📊 [Rapport de Caisse] - ${org?.name ?? 'Votre Pâtisserie'} - ${dateStr}`,
         html
-    })
+    }) : { error: null }
+    const emailError = emailRes.error;
 
     return { 
         sessionId, 

@@ -131,7 +131,7 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                 {filtered.map(item => {
                     const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
                     return (
-                        <Link key={item.href} href={item.href}
+                        <Link key={item.href} href={item.href} prefetch={true}
                             className={`sidebar-link${active ? ' active' : ''}`}
                             onClick={() => setOpen(false)}
                             style={{ 
@@ -272,18 +272,18 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-around',
                 height: '70px', paddingBottom: 'env(safe-area-inset-bottom)'
             }} className="sidebar-mobile-bar">
-                <Link href="/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/dashboard' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
+                <Link href="/dashboard" prefetch={true} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/dashboard' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                     <LayoutDashboard size={24} strokeWidth={pathname === '/dashboard' ? 2.5 : 2} />
                     <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/dashboard' ? 700 : 500 }}>Dashboard</span>
                 </Link>
                 {filtered.some(i => i.href === '/caisse') && (
-                  <Link href="/caisse" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/caisse' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
+                  <Link href="/caisse" prefetch={true} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/caisse' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                       <Store size={24} strokeWidth={pathname === '/caisse' ? 2.5 : 2} />
                       <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/caisse' ? 700 : 500 }}>Caisse</span>
                   </Link>
                 )}
                 {filtered.some(i => i.href === '/commandes') && (
-                  <Link href="/commandes" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/commandes' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
+                  <Link href="/commandes" prefetch={true} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textDecoration: 'none', color: pathname === '/commandes' ? 'var(--color-primary)' : 'var(--color-muted)' }}>
                       <ShoppingBag size={24} strokeWidth={pathname === '/commandes' ? 2.5 : 2} />
                       <span style={{ fontSize: '0.65rem', fontWeight: pathname === '/commandes' ? 700 : 500 }}>Commandes</span>
                   </Link>
