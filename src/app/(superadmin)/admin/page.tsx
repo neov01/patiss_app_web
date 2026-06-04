@@ -53,12 +53,12 @@ export default async function AdminPage() {
     .order('name') as any)
 
   // Compute member counts per org
-  const memberCounts: Record<string, number> = {}
-  for (const p of allProfiles ?? []) {
+  const memberCounts = (allProfiles ?? []).reduce((acc, p) => {
     if (p.organization_id) {
-      memberCounts[p.organization_id] = (memberCounts[p.organization_id] ?? 0) + 1
+      acc[p.organization_id] = (acc[p.organization_id] ?? 0) + 1
     }
-  }
+    return acc
+  }, {} as Record<string, number>)
 
   const orgsWithCounts = (orgs ?? []).map(o => ({
     ...o,
