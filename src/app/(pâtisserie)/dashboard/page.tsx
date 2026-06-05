@@ -218,7 +218,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
                             <AlertTriangle size={18} color="#D94F38" />
                             <span style={{ fontSize: '0.875rem', color: '#991B1B', fontWeight: 500 }}>
                                 {alertCount} ingrédient{alertCount > 1 ? 's' : ''} sous le seuil d&apos;alerte.{' '}
-                                <Link href="/ingredients" style={{ fontWeight: 700, textDecoration: 'underline' }}>Voir l&apos;inventaire →</Link>
+                                <Link href="/ingredients" prefetch={true} style={{ fontWeight: 700, textDecoration: 'underline' }}>Voir l&apos;inventaire →</Link>
                             </span>
                         </div>
                     )}
@@ -235,7 +235,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
                         <StatCard title="En attente" value={pendingCount} icon={Clock} iconColor="#E6A817" accent="#FEF3C7" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
                     </div>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <Link href="/commandes" className="btn-secondary">
+                        <Link href="/commandes" prefetch={true} className="btn-secondary">
                             Voir toutes les commandes
                         </Link>
                     </div>
@@ -254,7 +254,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Da
                         <StatCard title="Alertes stock" value={alertCount} icon={AlertTriangle} iconColor={alertCount > 0 ? '#D94F38' : '#4C9E6A'} accent={alertCount > 0 ? '#FEE2E2' : '#D1FAE5'} style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
                     </div>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <Link href="/inventaire" className="btn-primary">
+                        <Link href="/inventaire" prefetch={true} className="btn-primary">
                             <ChefHat size={18} />
                             Déclarer une perte
                         </Link>
