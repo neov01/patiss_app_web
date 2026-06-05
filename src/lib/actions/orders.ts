@@ -176,9 +176,44 @@ export async function deleteOrder(orderId: string) {
     }
 
     const supabase = await createClient()
+
+    // 1. Récupérer les transactions liées pour déduire les points de fidélité correspondants
+    const { data: linkedTransactions } = await supabase
+        .from('transactions')
+        .select('amount, customer_id')
+        .eq('order_id', orderId)
+
+    if (linkedTransactions && linkedTransactions.length > 0) {
+        for (const tx of linkedTransactions) {
+            if (tx.customer_id && Number(tx.amount) > 0) {
+                const pointsToSubtract = Math.floor(Number(tx.amount) / 1000)
+                if (pointsToSubtract > 0) {
+                    const { data: cust } = await supabase
+                        .from('customers')
+                        .select('loyalty_points, lifetime_points')
+                        .eq('id', tx.customer_id)
+                        .single()
+                    if (cust) {
+                        await supabase.from('customers').update({
+                            loyalty_points: Math.max(0, (cust.loyalty_points || 0) - pointsToSubtract),
+                            lifetime_points: Math.max(0, (cust.lifetime_points || 0) - pointsToSubtract)
+                        }).eq('id', tx.customer_id)
+                    }
+                }
+            }
+        }
+        // 2. Supprimer les transactions associées
+        await supabase.from('transactions').delete().eq('order_id', orderId)
+    }
+
+    // 3. Supprimer la commande
     const { error } = await supabase.from('orders').delete().eq('id', orderId)
     if (error) return { error: error.message }
+    
     revalidatePath('/commandes')
+    revalidatePath('/dashboard')
+    revalidatePath('/caisse')
+    
     return { success: true }
 }
 
