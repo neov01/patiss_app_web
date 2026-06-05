@@ -135,28 +135,42 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                             className={`sidebar-link${active ? ' active' : ''}`}
                             onClick={() => setOpen(false)}
                             style={{ 
-                                background: active ? 'var(--color-secondary-container)' : 'transparent',
+                                background: active ? 'rgba(75, 100, 80, 0.08)' : 'transparent',
                                 color: active ? 'var(--color-secondary)' : 'var(--color-muted)',
                                 padding: '12px 20px',
+                                paddingLeft: active ? '24px' : '20px',
                                 borderRadius: '99px',
                                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
                             }}
                         >
-                            <item.icon size={20} strokeWidth={active ? 2.2 : 1.75} />
+                            {active && (
+                                <span style={{
+                                    position: 'absolute',
+                                    left: '8px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    width: '3px',
+                                    height: '16px',
+                                    borderRadius: '2px',
+                                    background: 'var(--color-secondary)',
+                                }} />
+                            )}
+                            <item.icon size={20} strokeWidth={active ? 2.2 : 1.75} className="sidebar-icon" />
                             <span style={{ fontWeight: active ? 700 : 500 }}>{item.label}</span>
                         </Link>
                     )
                 })}
 
                 {profile.role_slug === 'gerant' && profile.organization_id && (
-                    <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
+                    <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px dashed rgba(131, 116, 107, 0.25)' }}>
                         <button
                             onClick={handleSwitchToKiosk}
                             disabled={isSwitchingToKiosk}
                             className="group"
                             style={{ 
                                 width: '100%',
-                                background: 'var(--color-primary)', 
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))', 
                                 color: 'white', 
                                 padding: '16px',
                                 borderRadius: '20px',
@@ -170,6 +184,18 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 boxShadow: '0 8px 16px rgba(129, 84, 49, 0.15)',
                                 opacity: isSwitchingToKiosk ? 0.7 : 1
+                            }}
+                            onMouseEnter={e => {
+                                if (!isSwitchingToKiosk) {
+                                    e.currentTarget.style.transform = 'translateY(-2px)'
+                                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(129, 84, 49, 0.25)'
+                                }
+                            }}
+                            onMouseLeave={e => {
+                                if (!isSwitchingToKiosk) {
+                                    e.currentTarget.style.transform = 'none'
+                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(129, 84, 49, 0.15)'
+                                }
                             }}
                         >
                             <Store size={20} strokeWidth={2} />
@@ -202,18 +228,30 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             )}
 
             {/* Profile + Logout */}
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+            <div style={{ borderTop: '1px dashed rgba(131, 116, 107, 0.25)', paddingTop: '16px', marginTop: '16px' }}>
                 <button
                     onClick={() => setIsProfileModalOpen(true)}
                     style={{
-                        display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', 
-                        borderRadius: 'var(--radius-md)', marginBottom: '8px', width: '100%',
-                        background: 'transparent', border: 'none', cursor: 'pointer',
-                        transition: 'background 0.15s', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', 
+                        borderRadius: 'var(--radius-md)', marginBottom: '12px', width: '100%',
+                        background: 'rgba(255, 255, 255, 0.35)', 
+                        border: '1px solid rgba(255, 255, 255, 0.5)', 
+                        cursor: 'pointer',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', 
+                        textAlign: 'left',
                         outline: 'none',
+                        boxShadow: '0 2px 8px rgba(45,27,14,0.02)'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-cream)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.65)'
+                        e.currentTarget.style.transform = 'translateY(-1px)'
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)'
+                        e.currentTarget.style.transform = 'none'
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(45,27,14,0.02)'
+                    }}
                     title="Modifier mon profil"
                 >
                     <div style={{ position: 'relative' }}>
@@ -233,19 +271,62 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                                 {initials(profile.full_name)}
                             </div>
                         )}
+                        <span style={{
+                            position: 'absolute', bottom: '-2px', right: '-2px',
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            background: networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)',
+                            border: '2.5px solid var(--color-lift)',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        }} />
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {profile.full_name}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', textTransform: 'capitalize' }}>
-                            {profile.role_slug}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: '2px' }}>
+                            <span style={{
+                                fontSize: '0.65rem',
+                                color: 'var(--color-primary)',
+                                background: 'rgba(129, 84, 49, 0.08)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em'
+                            }}>
+                                {profile.role_slug === 'gerant' ? 'Gérant' : profile.role_slug}
+                            </span>
                         </div>
                     </div>
                 </button>
-                <button onClick={handleLogout} className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', color: '#D94F38' }}>
-                    <LogOut size={16} />
-                    Déconnexion
+                <button 
+                    onClick={handleLogout} 
+                    className="btn-ghost" 
+                    style={{ 
+                        width: '100%', 
+                        justifyContent: 'flex-start', 
+                        color: 'var(--color-muted)',
+                        padding: '10px 14px',
+                        borderRadius: '99px',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        background: 'transparent',
+                        border: 'none'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.color = 'var(--color-error)'
+                        e.currentTarget.style.background = 'rgba(186, 26, 26, 0.06)'
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.color = 'var(--color-muted)'
+                        e.currentTarget.style.background = 'transparent'
+                    }}
+                >
+                    <LogOut size={16} className="logout-icon" />
+                    <span>Déconnexion</span>
                 </button>
             </div>
         </nav>
@@ -256,7 +337,10 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             {/* Desktop sidebar */}
             <aside style={{
                 width: '260px', flexShrink: 0,
-                background: 'var(--color-well)',
+                background: 'rgba(245, 238, 228, 0.8)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderRight: '1px solid rgba(131, 116, 107, 0.15)',
                 position: 'sticky', top: 0, height: '100dvh', overflowY: 'auto',
                 display: 'none',
                 padding: '12px',
