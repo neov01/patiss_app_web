@@ -80,12 +80,13 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
       identityColor:   COLOR_PRESETS[0],
       autoLockSeconds: 60,
       avatarUrl:       '',
+      canImportHistory: false,
     }
   })
 
-  const [identityColor, contractType, role, autoLockSeconds] = useWatch({
+  const [identityColor, contractType, role, autoLockSeconds, canImportHistory] = useWatch({
     control,
-    name: ['identityColor', 'contractType', 'role', 'autoLockSeconds'],
+    name: ['identityColor', 'contractType', 'role', 'autoLockSeconds', 'canImportHistory'],
   })
 
   // Pre-fill for edit mode
@@ -108,6 +109,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
           identityColor:   employee.theme_color ?? COLOR_PRESETS[0],
           autoLockSeconds: employee.auto_lock_seconds ?? 60,
           avatarUrl:       employee.avatar_url  ?? '',
+          canImportHistory: employee.can_import_history ?? false,
         })
         setAvatarPreview(employee.avatar_url ?? null)
       } else {
@@ -115,6 +117,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
           fullName: '', phone: '', role: 'vendeur', contractType: 'full_time',
           baseSalary: 0, hireDate: '', pinCode: '',
           identityColor: COLOR_PRESETS[0], autoLockSeconds: 60, avatarUrl: '',
+          canImportHistory: false,
         })
         setAvatarPreview(null)
       }
@@ -548,6 +551,33 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                       </div>
                       {errors.baseSalary && <span style={{ fontSize: '0.75rem', color: 'var(--color-error)', marginTop: '4px', display: 'block' }}>{errors.baseSalary.message}</span>}
                     </div>
+
+                    {/* Autoriser l'importation historique */}
+                    {role !== 'gerant' && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--color-cream, #FDF8F3)', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginTop: '12px' }}>
+                        <div style={{ paddingRight: '8px' }}>
+                          <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#2D1B0E' }}>Droit d&apos;importation historique</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '2px', lineHeight: 1.25 }}>Permet à cet employé d&apos;accéder au menu d&apos;importation de l&apos;historique de ventes.</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setValue('canImportHistory', !canImportHistory)}
+                          style={{
+                            width: '44px',
+                            height: '24px',
+                            borderRadius: '12px',
+                            background: canImportHistory ? 'var(--color-rose-dark, #C4836A)' : '#D1D5DB',
+                            position: 'relative',
+                            border: 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            flexShrink: 0
+                          }}
+                        >
+                          <div style={{ position: 'absolute', top: '2px', left: canImportHistory ? '22px' : '2px', width: '20px', height: '20px', borderRadius: '10px', background: '#fff', transition: 'left 0.2s' }} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </form>

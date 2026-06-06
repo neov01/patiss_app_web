@@ -98,7 +98,7 @@ export default function TouchInput({
                     e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : 'var(--color-well)'
                 }}
             >
-                <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 16px' }}>
+                <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 6px' }}>
                     {value ? (
                         <span ref={textRef} style={{
                             color: 'var(--color-text)',

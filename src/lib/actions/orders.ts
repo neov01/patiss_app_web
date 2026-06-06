@@ -304,3 +304,213 @@ export async function createVitrineSale(input: any) {
     revalidatePath('/commandes')
     return { success: true }
 }
+
+export async function importHistoricalOrder(input: any) {
+    // 1. Authentification et Vérification des droits
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Non authentifié' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id, role_slug, can_import_history')
+        .eq('id', user.id)
+        .single()
+
+    if (!profile) return { error: 'Profil introuvable' }
+
+    const isAuthorized = ['gerant', 'super_admin'].includes(profile.role_slug) || profile.can_import_history
+    if (!isAuthorized) {
+        return { error: 'Accès refusé. Vous n\'avez pas l\'autorisation pour importer des données historiques.' }
+    }
+
+    const orgId = profile.organization_id
+    if (!orgId) return { error: 'Organisation introuvable' }
+
+    // 2. Préparation des données
+    const {
+        order_number,
+        customer_name,
+        customer_contact,
+        pickup_date,      // Date de retrait (ex: 2024-01-04)
+        created_at,       // Date de prise de commande (ex: 2024-01-01)
+        total_amount,
+        deposit_amount,
+        deposit_payment_method = 'Espèces',
+        balance_payment_method = 'Espèces',
+        customization_notes,
+        priority = 'normale',
+        reception_type = 'retrait',
+        status = 'completed',
+        items = []
+    } = input
+
+    if (!customer_name || !created_at || !pickup_date || total_amount === undefined || deposit_amount === undefined) {
+        return { error: 'Données obligatoires manquantes.' }
+    }
+
+    // Instancier le client d'administration pour forcer created_at
+    const { createClient: createSupabaseAdminClient } = require('@supabase/supabase-js')
+    const supabaseAdmin = createSupabaseAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    // Auto-enregistrement client historique dans le CRM : si un téléphone est fourni,
+    // on cherche ou crée le client silencieusement pour alimenter le CRM & la fidélité.
+    let resolvedCustomerId = null
+    const clientPhone = customer_contact?.replace(/\D/g, '') || null
+
+    if (clientPhone && customer_name && customer_name !== 'Client Vitrine') {
+        // Normaliser le numéro pour la recherche (format Ivoirien +225 → local)
+        let normalizedPhone = clientPhone
+        if (clientPhone.startsWith('225') && clientPhone.length >= 11) {
+            normalizedPhone = clientPhone.slice(3)
+        }
+        const phoneCandidates = Array.from(new Set([clientPhone, normalizedPhone]))
+
+        const { data: existingCustomer } = await supabaseAdmin
+            .from('customers')
+            .select('id')
+            .eq('organization_id', orgId)
+            .in('phone', phoneCandidates)
+            .limit(1)
+            .maybeSingle()
+
+        if (existingCustomer) {
+            resolvedCustomerId = existingCustomer.id
+        } else {
+            const { data: newCustomer } = await supabaseAdmin
+                .from('customers')
+                .insert({
+                    name: customer_name,
+                    phone: normalizedPhone || clientPhone,
+                    organization_id: orgId,
+                    created_at: created_at // Forcer la date de création historique pour ce client
+                })
+                .select('id')
+                .single()
+            resolvedCustomerId = newCustomer?.id ?? null
+        }
+    }
+
+    const balance = Math.max(0, total_amount - deposit_amount)
+    const paymentStatus = deposit_amount >= total_amount
+        ? 'SOLDEE'
+        : deposit_amount > 0
+            ? 'PARTIEL'
+            : 'EN_ATTENTE'
+
+    // 3. Insertion de la commande historique
+    const orderId = require('crypto').randomUUID()
+    const { data: order, error: orderError } = await supabaseAdmin
+        .from('orders')
+        .insert({
+            id: orderId,
+            organization_id: orgId,
+            order_number: order_number || `HIST-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            customer_id: resolvedCustomerId,
+            customer_name,
+            customer_contact,
+            pickup_date,
+            total_amount,
+            deposit_amount,
+            priority,
+            reception_type,
+            status,
+            payment_status: status === 'completed' || status === 'delivered' ? 'SOLDEE' : paymentStatus,
+            balance: status === 'completed' || status === 'delivered' ? 0 : balance,
+            customization_notes,
+            created_by: user.id,
+            created_at, // Forcer la date de prise de commande
+            is_historical: true
+        })
+        .select()
+        .single()
+
+    if (orderError) return { error: `Erreur insertion commande : ${orderError.message}` }
+
+    // 4. Insertion des lignes d'articles
+    if (items && items.length > 0) {
+        const { error: itemsError } = await supabaseAdmin
+            .from('order_items')
+            .insert(
+                items.map((i: any) => ({
+                    id: i.id || require('crypto').randomUUID(),
+                    order_id: orderId,
+                    product_id: i.product_id || null,
+                    name: i.name,
+                    quantity: i.quantity,
+                    unit_price: i.unit_price,
+                    from_inventory: i.from_inventory || false,
+                    created_at // Forcer la date d'article identique à la prise de commande
+                }))
+            )
+        if (itemsError) console.error("Erreur insertion order_items:", itemsError)
+    }
+
+    // 5. Insertion des transactions avec les dates respectives (sans session active)
+    // Transaction Acompte
+    if (deposit_amount > 0) {
+        const isFullyPaidByDeposit = deposit_amount >= total_amount
+        const labelType = isFullyPaidByDeposit ? 'SOLDE' : 'ACOMPTE'
+        
+        await supabaseAdmin.from('transactions').insert({
+            id: require('crypto').randomUUID(),
+            organization_id: orgId,
+            order_id: orderId,
+            customer_id: resolvedCustomerId,
+            client_name: customer_name,
+            amount: deposit_amount,
+            payment_method: deposit_payment_method,
+            label_type: labelType,
+            created_by: user.id,
+            created_at, // Date de prise de commande (date de l'acompte)
+            is_historical: true
+        })
+    }
+
+    // Transaction Solde (si la commande est terminée et qu'il y a un solde à payer)
+    const isCompleted = status === 'completed' || status === 'delivered'
+    if (isCompleted && balance > 0) {
+        await supabaseAdmin.from('transactions').insert({
+            id: require('crypto').randomUUID(),
+            organization_id: orgId,
+            order_id: orderId,
+            customer_id: resolvedCustomerId,
+            client_name: customer_name,
+            amount: balance,
+            payment_method: balance_payment_method,
+            label_type: 'SOLDE',
+            created_by: user.id,
+            created_at: pickup_date, // Date de retrait (date du paiement du solde)
+            is_historical: true
+        })
+    }
+
+    // 6. Créditer les points de fidélité pour le client historique (1 point par 1000 FCFA payés)
+    if (resolvedCustomerId) {
+        const amountPaid = isCompleted ? total_amount : deposit_amount
+        const points = Math.floor(amountPaid / 1000)
+        if (points > 0) {
+            const { data: cust } = await supabaseAdmin
+                .from('customers')
+                .select('loyalty_points, lifetime_points')
+                .eq('id', resolvedCustomerId)
+                .single()
+            if (cust) {
+                await supabaseAdmin
+                    .from('customers')
+                    .update({
+                        loyalty_points: (cust.loyalty_points || 0) + points,
+                        lifetime_points: (cust.lifetime_points || 0) + points,
+                    })
+                    .eq('id', resolvedCustomerId)
+            }
+        }
+    }
+
+    revalidatePath('/commandes')
+    revalidatePath('/dashboard')
+    return { success: true, data: order }
+}

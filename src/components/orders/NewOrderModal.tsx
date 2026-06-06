@@ -23,6 +23,8 @@ interface OrderItem {
     unit_price: number
     subtotal: number
     from_inventory: boolean
+    parts?: number
+    floors?: number
 }
 
 interface Props {
@@ -325,7 +327,24 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 customization_notes: customizationNotes,
                 custom_image_url: customImageUrl,
                 deposit_payment_method: deposit > 0 ? depositPaymentMethod : undefined,
-                items: orderItems.map(item => ({ ...item, id: crypto.randomUUID() }))
+                items: orderItems.map(item => {
+                    let finalName = item.name.trim()
+                    const partsStr = item.parts ? `${item.parts} parts` : ''
+                    const floorsStr = item.floors ? `${item.floors} étage${item.floors > 1 ? 's' : ''}` : ''
+                    const details = [partsStr, floorsStr].filter(Boolean).join(', ')
+                    if (details) {
+                        finalName = `${finalName} (${details})`
+                    }
+                    return {
+                        id: crypto.randomUUID(),
+                        product_id: item.product_id,
+                        name: finalName,
+                        quantity: item.quantity,
+                        unit_price: item.unit_price,
+                        subtotal: item.subtotal,
+                        from_inventory: item.from_inventory
+                    }
+                })
             })
 
             if ('error' in result && result.error) {
@@ -485,14 +504,8 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             )}
 
                             {receptionType === 'retrait' && (
-                                <div>
-                                    <label className="label" style={{ fontSize: '0.78rem', fontWeight: 500, marginBottom: '3px' }}>Canal de commande</label>
-                                    <TouchSelect
-                                        value={orderChannel}
-                                        onChange={setOrderChannel}
-                                        options={ORDER_CHANNELS}
-                                        title="Choisir le canal"
-                                    />
+                                <div style={{ height: '0px', width: '0px', display: 'none' }}>
+                                    {/* Canal de commande masqué, fixé par défaut à Sur place */}
                                 </div>
                             )}
                         </div>
@@ -558,21 +571,56 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {orderItems.length === 0 && (
+                                    <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-muted)', fontSize: '0.8rem', border: '1.5px dashed var(--color-border)', borderRadius: '12px', background: 'var(--color-well)' }}>
+                                        Aucun produit ajouté. Recherchez un produit ci-dessus ou cliquez sur <strong style={{ color: 'var(--color-primary)' }}>+</strong> pour ajouter un gâteau sur mesure.
+                                    </div>
+                                )}
                                 {orderItems.map((item, idx) => (
                                     <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                                             {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inv.</span>}
-                                            <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px' }} required />
+                                            <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px', flex: item.from_inventory ? 1 : 2, minWidth: '80px', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }} required />
+                                            {!item.from_inventory && (
+                                                <>
+                                                    <TouchInput
+                                                        value={item.parts?.toString() || ''}
+                                                        onChange={v => handleUpdateItem(idx, 'parts', parseInt(v) || undefined)}
+                                                        allowDecimal={false}
+                                                        placeholder="Parts"
+                                                        title={`Nombre de parts : ${item.name || 'Produit'}`}
+                                                        hideIcon={true}
+                                                        style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                    />
+                                                    <TouchInput
+                                                        value={item.floors?.toString() || ''}
+                                                        onChange={v => handleUpdateItem(idx, 'floors', parseInt(v) || undefined)}
+                                                        allowDecimal={false}
+                                                        placeholder="Étages"
+                                                        title={`Nombre d'étages : ${item.name || 'Produit'}`}
+                                                        hideIcon={true}
+                                                        style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                    />
+                                                </>
+                                            )}
                                         </div>
                                         <TouchInput
                                             value={item.quantity.toString()}
                                             onChange={v => handleUpdateItem(idx, 'quantity', parseInt(v) || 1)}
                                             allowDecimal={false}
                                             title={`Quantité : ${item.name || 'Produit'}`}
+                                            placeholder="Qté"
                                             hideIcon={true}
-                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'center' }}
+                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'center', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
                                         />
-                                        <TouchInput value={item.unit_price.toString()} onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)} hideIcon={true} style={{ padding: '6px 8px', height: '32px', textAlign: 'right' }} />
+                                        <TouchInput
+                                            value={item.unit_price === 0 ? '' : item.unit_price.toString()}
+                                            onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)}
+                                            placeholder="Prix"
+                                            title={`Prix unitaire : ${item.name || 'Produit'}`}
+                                            hideIcon={true}
+                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                        />
                                         <button type="button" onClick={() => handleRemoveItem(idx)} className="btn-ghost" style={{ padding: '0', minHeight: '32px', color: '#D94F38' }}>
                                             <X size={16} />
                                         </button>

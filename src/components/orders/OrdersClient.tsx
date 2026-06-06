@@ -7,6 +7,7 @@ import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, 
 import { updateOrderStatus, deleteOrder } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer from './OrderDrawer'
+import HistoricalImportModal from './HistoricalImportModal'
 
 interface Product { id: string; name: string; selling_price: number; current_stock: number | null }
 interface OrderItem { id: string; order_id: string; product_id: string | null; quantity: number; unit_price: number; created_at: string | null; products: { name: string } | null }
@@ -46,15 +47,18 @@ export default function OrdersClient({
     products,
     currency,
     organizationId,
-    roleSlug
+    roleSlug,
+    canImportHistory = false
 }: {
     orders: OrderWithItems[];
     products: Product[];
     currency: string;
     organizationId: string;
     roleSlug: string;
+    canImportHistory?: boolean;
 }) {
     const [showModal, setShowModal] = useState(false)
+    const [showImportModal, setShowImportModal] = useState(false)
     const [isPending, start] = useTransition()
     const [statusFilter, setStatusFilter] = useState('active')
     const [paymentFilter, setPaymentFilter] = useState('all')
@@ -195,9 +199,16 @@ export default function OrdersClient({
                         {filtered.length} commande{filtered.length > 1 ? 's' : ''} {statusFilter !== 'all' && statusFilter !== 'active' ? `(${STATUS_LABELS[statusFilter]?.label})` : statusFilter === 'active' ? '(actives)' : 'au total'}
                     </p>
                 </div>
-                <button onClick={() => setShowModal(true)} className="btn-primary">
-                    <Plus size={16} /> Nouvelle commande
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    {(roleSlug === 'gerant' || roleSlug === 'super_admin' || canImportHistory) && (
+                        <button onClick={() => setShowImportModal(true)} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', fontSize: '0.85rem' }}>
+                            📥 Saisie Historique
+                        </button>
+                    )}
+                    <button onClick={() => setShowModal(true)} className="btn-primary">
+                        <Plus size={16} /> Nouvelle commande
+                    </button>
+                </div>
             </div>
 
             {/* Barre de recherche premium */}
@@ -499,6 +510,19 @@ export default function OrdersClient({
                 roleSlug={roleSlug}
                 onOrderUpdate={handleOrderUpdate}
             />
+            {/* Modal Importation Historique */}
+            {showImportModal && (
+                <HistoricalImportModal
+                    open={showImportModal}
+                    onClose={() => setShowImportModal(false)}
+                    products={products}
+                    currency={currency}
+                    onSuccess={() => {
+                        toast.success("Données historiques importées avec succès !")
+                        router.refresh()
+                    }}
+                />
+            )}
         </div>
     )
 }

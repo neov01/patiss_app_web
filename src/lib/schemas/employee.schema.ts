@@ -13,6 +13,7 @@ export const employeeSchema = z.object({
     .length(4, 'PIN doit être 4 chiffres')
     .regex(/^\d{4}$/, 'PIN doit être 4 chiffres')
     .or(z.literal('')), // vide = pas de changement en mode édition
+  canImportHistory: z.boolean().default(false).optional(),
   identityColor:   z.string(),
   autoLockSeconds: z.number().min(0).max(300),
   avatarUrl:       z.string().url().optional().or(z.literal('')),

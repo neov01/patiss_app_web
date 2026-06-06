@@ -32,6 +32,7 @@ export interface EmployeeData {
   base_salary?: number
   avatar_url?: string
   is_active?: boolean
+  can_import_history?: boolean
 }
 
 interface Props {

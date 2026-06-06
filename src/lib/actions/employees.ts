@@ -50,6 +50,7 @@ export async function createEmployee(data: EmployeeFormValues & { organization_i
         contract_type:   data.contractType,
         base_salary:     data.baseSalary,
         avatar_url:      data.avatarUrl || null,
+        can_import_history: data.canImportHistory || false,
         is_active:       true,
       } )
       .select()
@@ -82,6 +83,7 @@ export async function updateEmployee(id: string, data: Partial<EmployeeFormValue
     if (data.contractType    !== undefined) patch.contract_type     = data.contractType
     if (data.baseSalary      !== undefined) patch.base_salary       = data.baseSalary
     if (data.avatarUrl       !== undefined) patch.avatar_url        = data.avatarUrl || null
+    if (data.canImportHistory !== undefined) patch.can_import_history = data.canImportHistory
     
     if (data.pinCode && data.pinCode.length === 4) {
       patch.pin_code = await bcrypt.hash(data.pinCode, 10)
