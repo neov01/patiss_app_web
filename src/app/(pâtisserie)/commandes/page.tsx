@@ -8,7 +8,7 @@ export default async function CommandesPage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('organization_id, role_slug, organizations(currency_symbol)')
+        .select('organization_id, role_slug, can_import_history, organizations(currency_symbol)')
         .eq('id', user.id)
         .single()
 
@@ -37,6 +37,7 @@ export default async function CommandesPage() {
             currency={currency}
             organizationId={orgId}
             roleSlug={profile?.role_slug || 'vendeur'}
+            canImportHistory={profile?.can_import_history || false}
         />
     )
 }

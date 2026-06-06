@@ -268,6 +268,7 @@ export type Database = {
           delivery_address: string | null
           deposit_amount: number
           id: string
+          is_historical: boolean
           order_channel: string | null
           order_number: string | null
           organization_id: string
@@ -291,6 +292,7 @@ export type Database = {
           delivery_address?: string | null
           deposit_amount?: number
           id?: string
+          is_historical?: boolean
           order_channel?: string | null
           order_number?: string | null
           organization_id: string
@@ -314,6 +316,7 @@ export type Database = {
           delivery_address?: string | null
           deposit_amount?: number
           id?: string
+          is_historical?: boolean
           order_channel?: string | null
           order_number?: string | null
           organization_id?: string
@@ -502,6 +505,7 @@ export type Database = {
           auto_lock_seconds: number
           avatar_url: string | null
           base_salary: number | null
+          can_import_history: boolean
           contract_type: string | null
           created_at: string | null
           full_name: string
@@ -518,6 +522,7 @@ export type Database = {
           auto_lock_seconds?: number
           avatar_url?: string | null
           base_salary?: number | null
+          can_import_history?: boolean
           contract_type?: string | null
           created_at?: string | null
           full_name: string
@@ -534,6 +539,7 @@ export type Database = {
           auto_lock_seconds?: number
           avatar_url?: string | null
           base_salary?: number | null
+          can_import_history?: boolean
           contract_type?: string | null
           created_at?: string | null
           full_name?: string
@@ -704,6 +710,7 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           id: string
+          is_historical: boolean
           label_type: string
           order_id: string | null
           organization_id: string
@@ -717,6 +724,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           id?: string
+          is_historical?: boolean
           label_type?: string
           order_id?: string | null
           organization_id: string
@@ -730,6 +738,7 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           id?: string
+          is_historical?: boolean
           label_type?: string
           order_id?: string | null
           organization_id?: string
