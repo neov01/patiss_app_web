@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { importHistoricalOrder } from '@/lib/actions/orders'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import * as XLSX from 'xlsx'
+import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -40,6 +43,61 @@ const PAYMENT_METHODS = [
   { value: 'Moov Money', label: '🔵 Moov Money' },
 ]
 
+const VALID_PAYMENT_METHODS = ['Espèces', 'Orange Money', 'Wave', 'MTN MOMO', 'Moov Money']
+
+function formatDateToDDMMYYYY(date: Date): string {
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = date.getUTCFullYear()
+  return `${day}-${month}-${year}`
+}
+
+function parseAndFormatDate(cellValue: any): string {
+  if (cellValue === null || cellValue === undefined) return ''
+
+  if (cellValue instanceof Date) {
+    return formatDateToDDMMYYYY(cellValue)
+  }
+
+  if (typeof cellValue === 'number') {
+    const date = new Date(Math.round((cellValue - 25569) * 86400 * 1000))
+    return formatDateToDDMMYYYY(date)
+  }
+
+  const val = String(cellValue).trim()
+  
+  if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+    return val
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const parts = val.split('-')
+    return `${parts[2]}-${parts[1]}-${parts[0]}`
+  }
+
+  if (val.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const date = new Date(val)
+    if (!isNaN(date.getTime())) {
+      return formatDateToDDMMYYYY(date)
+    }
+  }
+
+  return val
+}
+
+function validateDateFormat(dateStr: string): boolean {
+  return /^\d{2}-\d{2}-\d{4}$/.test(dateStr)
+}
+
+function ddMmYyyyToIsoString(dateStr: string): string {
+  const parts = dateStr.split('-')
+  if (parts.length !== 3) return ''
+  const day = parts[0]
+  const month = parts[1]
+  const year = parts[2]
+  return new Date(`${year}-${month}-${day}T12:00:00.000Z`).toISOString()
+}
+
 export default function HistoricalImportModal({ open, onClose, products, currency, onSuccess }: HistoricalImportModalProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'manual' | 'csv'>('manual')
@@ -55,14 +113,21 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   const [depositMethod, setDepositMethod] = useState('Espèces')
   const [balanceMethod, setBalanceMethod] = useState('Espèces')
   const [notes, setNotes] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [paymentType, setPaymentType] = useState<'ACOMPTE' | 'SOLDE'>('SOLDE')
+
+  // Paiement Multiple
+  const [isMultiplePayment, setIsMultiplePayment] = useState(false)
+  const [payments, setPayments] = useState<Array<{ id: string, amount: number, payment_method: string, label_type: 'ACOMPTE' | 'SOLDE' }>>([
+    { id: '1', amount: 0, payment_method: 'Espèces', label_type: 'SOLDE' }
+  ])
   
   const [items, setItems] = useState<ItemInput[]>([
     { name: '', quantity: 1, unit_price: 0 }
   ])
 
-  // ── CSV Import State ──
-  const [csvFile, setCsvFile] = useState<File | null>(null)
+  // ── Excel Import State ──
+  const [excelFile, setExcelFile] = useState<File | null>(null)
   const [parsedOrders, setParsedOrders] = useState<any[]>([])
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
 
@@ -72,6 +137,10 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
   // Calculer le total à la volée
   const calculatedTotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)
+
+  const totalPayments = isMultiplePayment
+    ? payments.reduce((sum, p) => sum + p.amount, 0)
+    : depositAmount
 
   // Quand mode Soldé : le dépôt suit automatiquement le total
   useEffect(() => {
@@ -115,8 +184,47 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
     if (items.some(item => !item.name.trim())) return toast.error('Tous les articles doivent avoir une désignation')
     if (items.some(item => item.quantity <= 0)) return toast.error('Toutes les quantités doivent être positives')
 
+    if (!isMultiplePayment && depositAmount > calculatedTotal) {
+      return toast.error("L'acompte ne peut pas être supérieur au montant total")
+    }
+
+    if (isMultiplePayment) {
+      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+      if (totalPaid > calculatedTotal) {
+        return toast.error("Le total des paiements ne peut pas être supérieur au montant total de la commande")
+      }
+    }
+
     setIsSubmitting(true)
     try {
+      let customImageUrl: string | undefined
+
+      if (imageFile) {
+        try {
+          const compressed = await compressImage(imageFile, { maxWidth: 1200, quality: 0.7 })
+          const supabase = createSupabaseClient()
+          const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
+          
+          const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, compressed, {
+            contentType: 'image/webp',
+            upsert: true
+          })
+          
+          if (!uploadError) {
+            const { data } = supabase.storage.from('order-images').getPublicUrl(filePath)
+            customImageUrl = data.publicUrl
+          } else {
+            console.error('Upload de la photo échoué:', uploadError)
+          }
+        } catch (err) {
+          console.error("Erreur compression/upload:", err)
+        }
+      }
+
+      const calculatedDeposit = isMultiplePayment
+        ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
+        : depositAmount
+
       const payload = {
         order_number: orderNumber.trim() || undefined,
         customer_name: customerName.trim(),
@@ -124,10 +232,16 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         pickup_date: pickupDate.toISOString(),
         created_at: createdAt.toISOString(),
         total_amount: calculatedTotal,
-        deposit_amount: depositAmount,
-        deposit_payment_method: depositAmount > 0 ? depositMethod : undefined,
-        balance_payment_method: calculatedTotal - depositAmount > 0 ? balanceMethod : undefined,
+        deposit_amount: calculatedDeposit,
+        deposit_payment_method: !isMultiplePayment && depositAmount > 0 ? depositMethod : undefined,
+        balance_payment_method: !isMultiplePayment && calculatedTotal - depositAmount > 0 ? balanceMethod : undefined,
+        payments: isMultiplePayment ? payments.map(p => ({
+          amount: p.amount,
+          payment_method: p.payment_method,
+          label_type: p.label_type
+        })) : undefined,
         customization_notes: notes.trim() || undefined,
+        custom_image_url: customImageUrl,
         status: 'completed',
         items: items.map(item => {
           let finalName = item.name.trim()
@@ -162,117 +276,272 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
     }
   }
 
-  // ── Télécharger le Modèle CSV ──
+  // ── Télécharger le Modèle Excel ──
   const handleDownloadTemplate = () => {
-    const csvContent = [
-      'Date Commande (AAAA-MM-JJ),Date Retrait (AAAA-MM-JJ),Client,Telephone,Nom Produit,Quantite,Prix Unitaire,Acompte,Methode Acompte,Methode Solde',
-      '2024-01-01,2024-01-04,Marie Konan,+22507000000,Croissant,5,500,1000,Espèces,Wave',
-      '2024-01-01,2024-01-04,Marie Konan,+22507000000,Cake Cannette,1,2500,1000,Espèces,Wave',
-      '2024-02-14,2024-02-14,Vente Passage,,Choux à la crème,3,500,1500,Orange Money,Orange Money'
-    ].join('\n')
-
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.setAttribute('download', 'modele_import_historique.csv')
+    link.href = '/gabarit_import_commandes_tracabilite.xlsx'
+    link.setAttribute('download', 'gabarit_import_commandes_tracabilite.xlsx')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  // ── Parser le CSV ──
-  const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Parser le fichier Excel ──
+  const handleExcelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setCsvFile(file)
+    setExcelFile(file)
 
     const reader = new FileReader()
     reader.onload = (event) => {
-      const text = event.target?.result as string
-      if (!text) return
+      const data = event.target?.result
+      if (!data) return
 
       try {
-        const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0)
-        if (lines.length <= 1) {
-          toast.error('Le fichier CSV est vide ou ne contient pas de données')
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' })
+
+        if (rows.length <= 1) {
+          toast.error('Le fichier Excel est vide ou ne contient pas de données')
           return
         }
 
-        // On ignore l'entête
-        const dataLines = lines.slice(1)
+        const headers = rows[0].map(h => String(h).trim())
+
+        const colIndices = {
+          customerName: headers.findIndex(h => h.startsWith('Nom Client')),
+          customerContact: headers.findIndex(h => h.startsWith('Téléphone Client')),
+          dateCmd: headers.findIndex(h => h.startsWith('Date Prise de Commande')),
+          dateRetrait: headers.findIndex(h => h.startsWith('Date de Retrait')),
+          productName: headers.findIndex(h => h.startsWith('Désignation Article')),
+          parts: headers.findIndex(h => h.startsWith('Parts')),
+          floors: headers.findIndex(h => h.startsWith('Étages')),
+          quantity: headers.findIndex(h => h.startsWith('Quantité')),
+          price: headers.findIndex(h => h.startsWith('Prix Article')),
+          ac1Montant: headers.findIndex(h => h.startsWith('Acompte 1 - Montant')),
+          ac1Moyen: headers.findIndex(h => h.startsWith('Acompte 1 - Moyen')),
+          ac2Montant: headers.findIndex(h => h.startsWith('Acompte 2 - Montant')),
+          ac2Moyen: headers.findIndex(h => h.startsWith('Acompte 2 - Moyen')),
+          soldeMontant: headers.findIndex(h => h.startsWith('Solde - Montant')),
+          soldeMoyen: headers.findIndex(h => h.startsWith('Solde - Moyen')),
+          notes: headers.findIndex(h => h.startsWith('Notes'))
+        }
+
+        if (
+          colIndices.customerName === -1 || 
+          colIndices.dateCmd === -1 || 
+          colIndices.dateRetrait === -1 || 
+          colIndices.productName === -1 ||
+          colIndices.ac1Montant === -1 ||
+          colIndices.ac1Moyen === -1 ||
+          colIndices.ac2Montant === -1 ||
+          colIndices.ac2Moyen === -1 ||
+          colIndices.soldeMontant === -1 ||
+          colIndices.soldeMoyen === -1
+        ) {
+          toast.error('Le format du fichier Excel ne correspond pas au gabarit V5 de traçabilité (colonnes requises manquantes)')
+          return
+        }
+
         const ordersMap: Record<string, any> = {}
+        const errorsList: string[] = []
 
-        dataLines.forEach((line, idx) => {
-          // Gérer le split par virgule (en faisant attention aux guillemets si présents)
-          const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''))
-          if (cols.length < 7) return // Ligne invalide
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i]
+          if (!row || row.length === 0) continue
 
-          const [
-            rawDateCmd, 
-            rawDateRetrait, 
-            client, 
-            tel, 
-            productName, 
-            rawQty, 
-            rawPrice, 
-            rawAcompte, 
-            methodeAcompte, 
-            methodeSolde
-          ] = cols
+          const isEmptyRow = row.every(val => val === null || val === undefined || String(val).trim() === '')
+          if (isEmptyRow) continue
 
-          if (!rawDateCmd || !rawDateRetrait || !client || !productName) return
+          const clientName = String(row[colIndices.customerName] || '').trim()
+          const rawDateCmd = row[colIndices.dateCmd]
+          const rawDateRetrait = row[colIndices.dateRetrait]
+          const productName = String(row[colIndices.productName] || '').trim()
 
-          // Clé unique pour regrouper les articles d'une même commande
-          const orderKey = `${rawDateCmd}_${rawDateRetrait}_${client}_${tel || ''}`
+          if (!clientName && !productName) {
+            continue
+          }
 
-          const qty = parseInt(rawQty) || 1
-          const price = parseFloat(rawPrice) || 0
-          const acompte = parseFloat(rawAcompte) || 0
+          if (!clientName) {
+            errorsList.push(`Ligne ${i + 1} : Le nom du client est requis.`)
+            continue
+          }
+          if (!productName) {
+            errorsList.push(`Ligne ${i + 1} : La désignation de l'article est requise.`)
+            continue
+          }
 
-          // Rechercher si le produit existe dans le catalogue par nom pour lier l'ID
+          const dateCmdStr = parseAndFormatDate(rawDateCmd)
+          if (!validateDateFormat(dateCmdStr)) {
+            errorsList.push(`Ligne ${i + 1} : La date de prise de commande "${dateCmdStr || rawDateCmd}" est invalide ou ne respecte pas le format JJ-MM-AAAA.`)
+            continue
+          }
+
+          const dateRetraitStr = parseAndFormatDate(rawDateRetrait)
+          if (!validateDateFormat(dateRetraitStr)) {
+            errorsList.push(`Ligne ${i + 1} : La date de retrait "${dateRetraitStr || rawDateRetrait}" est invalide ou ne respecte pas le format JJ-MM-AAAA.`)
+            continue
+          }
+
+          const customerContact = colIndices.customerContact !== -1 ? String(row[colIndices.customerContact] || '').trim() : ''
+          const parts = colIndices.parts !== -1 ? parseInt(row[colIndices.parts]) || null : null
+          const floors = colIndices.floors !== -1 ? parseInt(row[colIndices.floors]) || null : null
+          const quantity = colIndices.quantity !== -1 ? parseInt(row[colIndices.quantity]) || 1 : 1
+          const price = colIndices.price !== -1 ? parseFloat(row[colIndices.price]) || 0 : 0
+          const notes = colIndices.notes !== -1 ? String(row[colIndices.notes] || '').trim() : ''
+
+          // Extraction et validation des transactions de paiement
+          const ac1Val = parseFloat(row[colIndices.ac1Montant]) || 0
+          const ac1MoyenVal = String(row[colIndices.ac1Moyen] || '').trim()
+          if (ac1Val > 0) {
+            if (!ac1MoyenVal) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement pour l'Acompte 1 est requis car le montant est supérieur à 0.`)
+              continue
+            }
+            if (!VALID_PAYMENT_METHODS.includes(ac1MoyenVal)) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement "${ac1MoyenVal}" pour l'Acompte 1 est invalide. Valeurs acceptées : ${VALID_PAYMENT_METHODS.join(', ')}.`)
+              continue
+            }
+          }
+
+          const ac2Val = parseFloat(row[colIndices.ac2Montant]) || 0
+          const ac2MoyenVal = String(row[colIndices.ac2Moyen] || '').trim()
+          if (ac2Val > 0) {
+            if (!ac2MoyenVal) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement pour l'Acompte 2 est requis car le montant est supérieur à 0.`)
+              continue
+            }
+            if (!VALID_PAYMENT_METHODS.includes(ac2MoyenVal)) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement "${ac2MoyenVal}" pour l'Acompte 2 est invalide. Valeurs acceptées : ${VALID_PAYMENT_METHODS.join(', ')}.`)
+              continue
+            }
+          }
+
+          const soldeVal = parseFloat(row[colIndices.soldeMontant]) || 0
+          const soldeMoyenVal = String(row[colIndices.soldeMoyen] || '').trim()
+          if (soldeVal > 0) {
+            if (!soldeMoyenVal) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement pour le Solde est requis car le montant est supérieur à 0.`)
+              continue
+            }
+            if (!VALID_PAYMENT_METHODS.includes(soldeMoyenVal)) {
+              errorsList.push(`Ligne ${i + 1} : Le moyen de paiement "${soldeMoyenVal}" pour le Solde est invalide. Valeurs acceptées : ${VALID_PAYMENT_METHODS.join(', ')}.`)
+              continue
+            }
+          }
+
+          const orderKey = `${clientName}_${dateCmdStr}_${customerContact}`
+
+          let finalProductName = productName
+          const partsStr = parts ? `${parts} parts` : ''
+          const floorsStr = floors ? `${floors} étage${floors > 1 ? 's' : ''}` : ''
+          const details = [partsStr, floorsStr].filter(Boolean).join(', ')
+          if (details) {
+            finalProductName = `${finalProductName} (${details})`
+          }
+
           const matchingProduct = products.find(p => p.name.toLowerCase() === productName.toLowerCase())
 
           if (!ordersMap[orderKey]) {
             ordersMap[orderKey] = {
-              created_at: rawDateCmd,
-              pickup_date: rawDateRetrait,
-              customer_name: client,
-              customer_contact: tel || '',
-              deposit_amount: acompte,
-              deposit_payment_method: methodeAcompte || 'Espèces',
-              balance_payment_method: methodeSolde || 'Espèces',
+              created_at: dateCmdStr,
+              pickup_date: dateRetraitStr,
+              customer_name: clientName,
+              customer_contact: customerContact,
+              ac1Montant: ac1Val,
+              ac1Moyen: ac1MoyenVal,
+              ac2Montant: ac2Val,
+              ac2Moyen: ac2MoyenVal,
+              soldeMontant: soldeVal,
+              soldeMoyen: soldeMoyenVal,
+              notes_list: notes ? [notes] : [],
               items: []
+            }
+          } else {
+            // Consolidation : première valeur non nulle rencontrée dans les lignes du groupe
+            if (ac1Val > 0 && ordersMap[orderKey].ac1Montant === 0) {
+              ordersMap[orderKey].ac1Montant = ac1Val
+              ordersMap[orderKey].ac1Moyen = ac1MoyenVal
+            }
+            if (ac2Val > 0 && ordersMap[orderKey].ac2Montant === 0) {
+              ordersMap[orderKey].ac2Montant = ac2Val
+              ordersMap[orderKey].ac2Moyen = ac2MoyenVal
+            }
+            if (soldeVal > 0 && ordersMap[orderKey].soldeMontant === 0) {
+              ordersMap[orderKey].soldeMontant = soldeVal
+              ordersMap[orderKey].soldeMoyen = soldeMoyenVal
+            }
+            
+            if (notes && !ordersMap[orderKey].notes_list.includes(notes)) {
+              ordersMap[orderKey].notes_list.push(notes)
             }
           }
 
           ordersMap[orderKey].items.push({
-            name: productName,
-            quantity: qty,
+            name: finalProductName,
+            quantity: quantity,
             unit_price: price,
             product_id: matchingProduct ? matchingProduct.id : null
           })
-        })
+        }
 
-        // Conversion en tableau
+        if (errorsList.length > 0) {
+          const displayErrors = errorsList.slice(0, 5).join('\n')
+          const remainingErrors = errorsList.length > 5 ? `\n... et ${errorsList.length - 5} autres erreurs.` : ''
+          toast.error(`Erreurs de validation dans le fichier Excel :\n${displayErrors}${remainingErrors}`, { duration: 8000 })
+          return
+        }
+
         const parsedList = Object.values(ordersMap).map((ord: any) => {
-          const total = ord.items.reduce((sum: number, it: any) => sum + (it.quantity * it.unit_price), 0)
+          const totalAmount = ord.items.reduce((sum: number, it: any) => sum + (it.quantity * it.unit_price), 0)
+          
+          // Construction du tableau de paiements
+          const payments: Array<{ amount: number; payment_method: string; label_type: 'ACOMPTE' | 'SOLDE' }> = []
+          if (ord.ac1Montant > 0) {
+            payments.push({ amount: ord.ac1Montant, payment_method: ord.ac1Moyen, label_type: 'ACOMPTE' })
+          }
+          if (ord.ac2Montant > 0) {
+            payments.push({ amount: ord.ac2Montant, payment_method: ord.ac2Moyen, label_type: 'ACOMPTE' })
+          }
+          if (ord.soldeMontant > 0) {
+            payments.push({ amount: ord.soldeMontant, payment_method: ord.soldeMoyen, label_type: 'SOLDE' })
+          }
+
+          const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+          const isSolded = totalPaid === totalAmount
+          const balance = Math.max(0, totalAmount - totalPaid)
+
           return {
             ...ord,
-            total_amount: total
+            total_amount: totalAmount,
+            deposit_amount: ord.ac1Montant + ord.ac2Montant,
+            payments: payments,
+            payment_status_label: isSolded ? 'SOLDÉE' : 'ACOMPTE_PRÉLEVÉ',
+            payment_status: isSolded ? 'SOLDEE' : 'PARTIEL',
+            status: isSolded ? 'completed' : 'pending',
+            balance: balance,
+            customization_notes: ord.notes_list.join('\n') || undefined
           }
         })
 
+        if (parsedList.length === 0) {
+          toast.error('Aucune commande valide trouvée dans le fichier Excel')
+          return
+        }
+
         setParsedOrders(parsedList)
-        toast.success(`${parsedList.length} commandes détectées dans le fichier`)
+        toast.success(`${parsedList.length} commande(s) détectée(s) dans le fichier Excel`)
       } catch (err: any) {
-        toast.error('Erreur lors du traitement du fichier : ' + err.message)
+        toast.error('Erreur lors du traitement du fichier Excel : ' + err.message)
       }
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
   }
 
-  // ── Lancer l'import en masse des commandes du CSV ──
-  const handleImportCsvOrders = async () => {
+  // ── Lancer l'import en masse des commandes d'Excel ──
+  const handleImportExcelOrders = async () => {
     if (parsedOrders.length === 0) return
     setIsSubmitting(true)
     setImportProgress({ current: 0, total: parsedOrders.length })
@@ -288,13 +557,13 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         const payload = {
           customer_name: ord.customer_name,
           customer_contact: ord.customer_contact || undefined,
-          pickup_date: new Date(ord.pickup_date).toISOString(),
-          created_at: new Date(ord.created_at).toISOString(),
+          pickup_date: ddMmYyyyToIsoString(ord.pickup_date),
+          created_at: ddMmYyyyToIsoString(ord.created_at),
           total_amount: ord.total_amount,
           deposit_amount: ord.deposit_amount,
-          deposit_payment_method: ord.deposit_amount > 0 ? ord.deposit_payment_method : undefined,
-          balance_payment_method: ord.total_amount - ord.deposit_amount > 0 ? ord.balance_payment_method : undefined,
-          status: 'completed',
+          status: ord.status, // completed si soldée, pending si acompte prélevé
+          payments: ord.payments, // Plusieurs paiements typés ACOMPTE / SOLDE
+          customization_notes: ord.customization_notes,
           items: ord.items.map((it: any) => ({
             name: it.name,
             quantity: it.quantity,
@@ -383,7 +652,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
               transition: 'all 0.15s'
             }}
           >
-            📄 Import CSV en masse
+            📄 Import Excel en masse
           </button>
         </div>
 
@@ -517,11 +786,20 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
               {/* Notes / Instructions du bon papier (déplacées ici) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label className="label">Notes / Instructions du bon papier (optionnel)</label>
-                <textarea
-                  className="input" rows={2} placeholder="Notes particulières..."
-                  style={{ resize: 'none', padding: '10px', border: '1.5px solid var(--color-border)', borderRadius: '12px', background: '#ffffff' }}
-                  value={notes} onChange={e => setNotes(e.target.value)}
-                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <textarea
+                    className="input" rows={2} placeholder="Notes particulières..."
+                    style={{ resize: 'none', padding: '10px', border: '1.5px solid var(--color-border)', borderRadius: '12px', background: '#ffffff', flex: 1 }}
+                    value={notes} onChange={e => setNotes(e.target.value)}
+                  />
+                  <label
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '12px', cursor: 'pointer', background: 'var(--color-well)', color: imageFile ? 'var(--color-primary)' : 'var(--color-muted)', flexShrink: 0 }}
+                    title={imageFile ? imageFile.name : "Ajouter une photo d'inspiration"}
+                  >
+                    <ImageIcon size={18} />
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setImageFile(e.target.files?.[0] || null)} />
+                  </label>
+                </div>
               </div>
 
               {/* RÉCAP FINANCIER & MODES DE PAIEMENT */}
@@ -534,19 +812,73 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                 {/* Toggle Acompte / Soldé */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Paiement reçu</span>
-                  <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px' }}>
-                    <button type="button" onClick={() => { setPaymentType('ACOMPTE'); setDepositAmount(0) }}
-                      style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'ACOMPTE' ? 'var(--color-warning)' : 'transparent', color: paymentType === 'ACOMPTE' ? 'white' : 'var(--color-muted)' }}>
-                      Acompte reçu
-                    </button>
-                    <button type="button" onClick={() => { setPaymentType('SOLDE'); setDepositAmount(calculatedTotal) }}
-                      style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'SOLDE' ? 'var(--color-secondary)' : 'transparent', color: paymentType === 'SOLDE' ? 'white' : 'var(--color-muted)' }}>
-                      Soldé
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px' }}>
+                      <button type="button" onClick={() => {
+                        setPaymentType('ACOMPTE');
+                        setDepositAmount(0);
+                        if (isMultiplePayment) {
+                          setPayments(prev => prev.map((p, idx) => idx === 0 ? { ...p, label_type: 'ACOMPTE' } : p));
+                        }
+                      }}
+                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'ACOMPTE' && !isMultiplePayment ? 'var(--color-warning)' : 'transparent', color: paymentType === 'ACOMPTE' && !isMultiplePayment ? 'white' : 'var(--color-muted)' }}>
+                        Acompte reçu
+                      </button>
+                      <button type="button" onClick={() => {
+                        setPaymentType('SOLDE');
+                        setDepositAmount(calculatedTotal);
+                        if (isMultiplePayment) {
+                          setPayments(prev => prev.map((p, idx) => idx === 0 ? { ...p, label_type: 'SOLDE' } : p));
+                        }
+                      }}
+                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'SOLDE' && !isMultiplePayment ? 'var(--color-secondary)' : 'transparent', color: paymentType === 'SOLDE' && !isMultiplePayment ? 'white' : 'var(--color-muted)' }}>
+                        Soldé
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isMultiplePayment) {
+                          setIsMultiplePayment(true);
+                          const initialAmount = paymentType === 'SOLDE' ? calculatedTotal : depositAmount;
+                          const initialType = paymentType;
+                          const initialMethod = depositMethod;
+                          setPayments([
+                            { id: '1', amount: initialAmount, payment_method: initialMethod, label_type: initialType },
+                            { id: '2', amount: Math.max(0, calculatedTotal - initialAmount), payment_method: 'Espèces', label_type: initialType === 'ACOMPTE' ? 'SOLDE' : 'ACOMPTE' }
+                          ]);
+                        } else {
+                          const remaining = Math.max(0, calculatedTotal - payments.reduce((sum, p) => sum + p.amount, 0));
+                          setPayments(prev => [
+                            ...prev,
+                            { id: Date.now().toString(), amount: remaining, payment_method: 'Espèces', label_type: 'SOLDE' }
+                          ]);
+                        }
+                      }}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--color-primary)',
+                        background: isMultiplePayment ? 'var(--color-primary)' : 'transparent',
+                        color: isMultiplePayment ? 'white' : 'var(--color-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '1rem',
+                        transition: 'all 0.15s'
+                      }}
+                      title="Ajouter un mode de paiement multiple"
+                    >
+                      +
                     </button>
                   </div>
                 </div>
 
-                {paymentType === 'ACOMPTE' && (
+                {/* Section paiement unique classique */}
+                {!isMultiplePayment && paymentType === 'ACOMPTE' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Montant acompte</span>
                     <div style={{ width: '120px' }}>
@@ -555,8 +887,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                   </div>
                 )}
 
-                {/* Mode de paiement acompte */}
-                {depositAmount > 0 && (
+                {!isMultiplePayment && depositAmount > 0 && (
                   <div>
                     <label className="label" style={{ marginBottom: '6px' }}>Mode de paiement de l&apos;Acompte</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -576,8 +907,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                   </div>
                 )}
 
-                {/* Mode de paiement du solde (si acompte partiel) */}
-                {calculatedTotal - depositAmount > 0 && (
+                {!isMultiplePayment && calculatedTotal - depositAmount > 0 && (
                   <div>
                     <label className="label" style={{ marginBottom: '6px' }}>Mode de paiement du Solde (au Retrait)</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -597,10 +927,87 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                   </div>
                 )}
 
+                {/* Section paiement multiple */}
+                {isMultiplePayment && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                    {payments.map((p, index) => (
+                      <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          {/* Toggle Acompte / Solde pour cette ligne */}
+                          <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '2px', gap: '2px' }}>
+                            <button type="button" onClick={() => {
+                              setPayments(prev => prev.map(item => item.id === p.id ? { ...item, label_type: 'ACOMPTE' } : item))
+                            }}
+                              style={{ padding: '3px 8px', fontSize: '0.65rem', fontWeight: 700, borderRadius: '6px', border: 'none', cursor: 'pointer', background: p.label_type === 'ACOMPTE' ? 'var(--color-warning)' : 'transparent', color: p.label_type === 'ACOMPTE' ? 'white' : 'var(--color-muted)' }}>
+                              Acompte
+                            </button>
+                            <button type="button" onClick={() => {
+                              setPayments(prev => prev.map(item => item.id === p.id ? { ...item, label_type: 'SOLDE' } : item))
+                            }}
+                              style={{ padding: '3px 8px', fontSize: '0.65rem', fontWeight: 700, borderRadius: '6px', border: 'none', cursor: 'pointer', background: p.label_type === 'SOLDE' ? 'var(--color-secondary)' : 'transparent', color: p.label_type === 'SOLDE' ? 'white' : 'var(--color-muted)' }}>
+                              Solde
+                            </button>
+                          </div>
+
+                          {/* Saisie montant */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ width: '90px' }}>
+                              <TouchInput value={p.amount.toString()} onChange={v => {
+                                const newAmount = parseFloat(v) || 0;
+                                setPayments(prev => prev.map(item => item.id === p.id ? { ...item, amount: newAmount } : item));
+                              }} style={{ height: '28px', padding: '2px 6px', textAlign: 'right', fontSize: '0.75rem' }} />
+                            </div>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-muted)' }}>FCFA</span>
+                            
+                            {payments.length > 1 && (
+                              <button type="button" onClick={() => {
+                                setPayments(prev => {
+                                  const next = prev.filter(item => item.id !== p.id);
+                                  if (next.length === 1) {
+                                    setIsMultiplePayment(false);
+                                    setDepositAmount(next[0].amount);
+                                    if (next[0].label_type === 'ACOMPTE') {
+                                      setDepositMethod(next[0].payment_method);
+                                    } else {
+                                      setBalanceMethod(next[0].payment_method);
+                                    }
+                                    setPaymentType(next[0].label_type);
+                                  }
+                                  return next;
+                                });
+                              }} style={{ width: '22px', height: '22px', borderRadius: '6px', border: 'none', background: '#FEE2E2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Modes de paiement */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {PAYMENT_METHODS.map(m => (
+                            <button key={m.value} type="button" onClick={() => {
+                              setPayments(prev => prev.map(item => item.id === p.id ? { ...item, payment_method: m.value } : item))
+                            }}
+                              style={{
+                                padding: '4px 8px', fontSize: '0.7rem', fontWeight: 700,
+                                borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s',
+                                border: '1.5px solid', borderColor: p.payment_method === m.value ? 'var(--color-primary)' : 'var(--color-border)',
+                                background: p.payment_method === m.value ? '#FDE8E0' : 'var(--color-lift)',
+                                color: p.payment_method === m.value ? 'var(--color-primary)' : 'var(--color-muted)',
+                              }}>
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-primary)' }}>
                   <span>Solde restant</span>
-                  <span>{(calculatedTotal - depositAmount).toLocaleString('fr-FR')} {currency}</span>
+                  <span>{Math.max(0, calculatedTotal - totalPayments).toLocaleString('fr-FR')} {currency}</span>
                 </div>
               </div>
 
@@ -608,19 +1015,19 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
             </form>
           )}
 
-          {/* ══ Tab 2: CSV Import ══ */}
+          {/* ══ Tab 2: Excel Import ══ */}
           {activeTab === 'csv' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* Instructions */}
               <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '16px', border: '1px solid #BFDBFE', color: '#1E3A8A', fontSize: '0.8rem', lineHeight: 1.45 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, marginBottom: '6px' }}>
-                  <FileText size={16} /> Instructions de préparation du fichier CSV
+                  <FileText size={16} /> Instructions de préparation du fichier Excel
                 </div>
                 <ul style={{ margin: 0, paddingLeft: '20px' }}>
                   <li>Utilisez le modèle téléchargeable ci-dessous.</li>
                   <li>Le regroupement par commande est fait automatiquement par <strong>Client + Date Commande + Téléphone</strong>.</li>
-                  <li>Les dates doivent respecter le format <code>AAAA-MM-JJ</code> (ex: 2024-01-25).</li>
+                  <li>Les dates doivent respecter le format <strong>JJ-MM-AAAA</strong> (ex: 25-01-2025).</li>
                   <li>Les méthodes de paiement valides sont : <code>Espèces</code>, <code>Orange Money</code>, <code>Wave</code>, <code>MTN MOMO</code>, <code>Moov Money</code>.</li>
                 </ul>
               </div>
@@ -628,14 +1035,14 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
               {/* Template Download & File Picker */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <button type="button" onClick={handleDownloadTemplate} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', minHeight: '40px', fontSize: '0.8rem' }}>
-                  <Download size={14} /> Télécharger le gabarit CSV
+                  <Download size={14} /> Télécharger le gabarit Excel
                 </button>
 
                 <label style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '2px dashed var(--color-border)', borderRadius: '14px', padding: '10px 16px', background: 'var(--color-cream)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-muted)' }}>
-                    <Upload size={14} /> {csvFile ? csvFile.name : 'Sélectionner le fichier CSV'}
+                    <Upload size={14} /> {excelFile ? excelFile.name : 'Sélectionner le fichier Excel'}
                   </div>
-                  <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleCsvFileChange} />
+                  <input type="file" accept=".xlsx" style={{ display: 'none' }} onChange={handleExcelFileChange} />
                 </label>
               </div>
 
@@ -655,22 +1062,33 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                           <th style={{ padding: '8px 12px' }}>Date Retrait</th>
                           <th style={{ padding: '8px 12px' }}>Articles</th>
                           <th style={{ padding: '8px 12px', textAlign: 'right' }}>Total</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acompte</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Total Payé</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Reste</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Statut</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {parsedOrders.map((ord, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                            <td style={{ padding: '8px 12px', fontWeight: 700 }}>{ord.customer_name}</td>
-                            <td style={{ padding: '8px 12px' }}>{ord.created_at}</td>
-                            <td style={{ padding: '8px 12px' }}>{ord.pickup_date}</td>
-                            <td style={{ padding: '8px 12px', color: 'var(--color-muted)' }}>
-                              {ord.items.map((it: any) => `${it.quantity}x ${it.name}`).join(', ')}
-                            </td>
-                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{ord.total_amount}</td>
-                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{ord.deposit_amount}</td>
-                          </tr>
-                        ))}
+                        {parsedOrders.map((ord, i) => {
+                          const totalPaid = ord.payments.reduce((sum: number, p: any) => sum + p.amount, 0)
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                              <td style={{ padding: '8px 12px', fontWeight: 700 }}>{ord.customer_name}</td>
+                              <td style={{ padding: '8px 12px' }}>{ord.created_at}</td>
+                              <td style={{ padding: '8px 12px' }}>{ord.pickup_date}</td>
+                              <td style={{ padding: '8px 12px', color: 'var(--color-muted)' }}>
+                                {ord.items.map((it: any) => `${it.quantity}x ${it.name}`).join(', ')}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{ord.total_amount.toLocaleString('fr-FR')} {currency}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: 'green', fontWeight: 700 }}>{totalPaid.toLocaleString('fr-FR')} {currency}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: ord.balance > 0 ? 'red' : 'inherit' }}>
+                                {ord.balance.toLocaleString('fr-FR')} {currency}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: ord.status === 'completed' ? 'var(--color-secondary)' : 'var(--color-warning)' }}>
+                                {ord.payment_status_label}
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -709,7 +1127,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
             </button>
           ) : (
             <button
-              onClick={handleImportCsvOrders}
+              onClick={handleImportExcelOrders}
               className="btn-primary" style={{ flex: 2, height: '48px' }}
               disabled={isSubmitting || parsedOrders.length === 0}
             >

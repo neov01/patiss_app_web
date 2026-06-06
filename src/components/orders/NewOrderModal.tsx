@@ -95,6 +95,12 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     const [depositPaymentMethod, setDepositPaymentMethod] = useState('Espèces')
     const [paymentType, setPaymentType] = useState<'ACOMPTE' | 'SOLDE'>('ACOMPTE')
 
+    // Paiement Multiple
+    const [isMultiplePayment, setIsMultiplePayment] = useState(false)
+    const [payments, setPayments] = useState<Array<{ id: string, amount: number, payment_method: string, label_type: 'ACOMPTE' | 'SOLDE' }>>([
+        { id: '1', amount: 0, payment_method: 'Espèces', label_type: 'ACOMPTE' }
+    ])
+
     // CRM Customer Link
     const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null)
     const [crmCustomerName, setCrmCustomerName] = useState<string | null>(null)
@@ -113,7 +119,10 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     // Calculate totals
     const subtotal = orderItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0)
     const total = subtotal
-    const balance = Math.max(0, total - deposit)
+    const totalPayments = isMultiplePayment
+        ? payments.reduce((sum, p) => sum + p.amount, 0)
+        : deposit
+    const balance = Math.max(0, total - totalPayments)
 
     useEffect(() => {
         if (open) {
@@ -274,9 +283,17 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
             toast.error('L\'adresse de livraison est requise.')
             return
         }
-        if (deposit > total) {
+        if (!isMultiplePayment && deposit > total) {
             toast.warning('L\'acompte ne peut pas être supérieur au total.')
             return
+        }
+
+        if (isMultiplePayment) {
+            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+            if (totalPaid > total) {
+                toast.warning('Le montant total payé ne peut pas être supérieur au total de la commande.')
+                return
+            }
         }
 
         start(async () => {
@@ -307,6 +324,10 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 }
             }
 
+            const calculatedDeposit = isMultiplePayment
+                ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
+                : deposit
+
             const result = await createOrder({
                 id: crypto.randomUUID(),
                 order_number: orderNumber,
@@ -322,11 +343,16 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 subtotal,
                 delivery_fee: 0,
                 total_amount: total,
-                deposit_amount: deposit,
+                deposit_amount: calculatedDeposit,
                 balance,
                 customization_notes: customizationNotes,
                 custom_image_url: customImageUrl,
-                deposit_payment_method: deposit > 0 ? depositPaymentMethod : undefined,
+                deposit_payment_method: !isMultiplePayment && deposit > 0 ? depositPaymentMethod : undefined,
+                payments: isMultiplePayment ? payments.map(p => ({
+                    amount: p.amount,
+                    payment_method: p.payment_method,
+                    label_type: p.label_type
+                })) : undefined,
                 items: orderItems.map(item => {
                     let finalName = item.name.trim()
                     const partsStr = item.parts ? `${item.parts} parts` : ''
@@ -654,19 +680,73 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                             {/* Toggle Acompte / Soldé */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Paiement reçu</span>
-                                <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px' }}>
-                                    <button type="button" onClick={() => { setPaymentType('ACOMPTE'); setDeposit(0) }}
-                                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'ACOMPTE' ? 'var(--color-warning)' : 'transparent', color: paymentType === 'ACOMPTE' ? 'white' : 'var(--color-muted)' }}>
-                                        Acompte reçu
-                                    </button>
-                                    <button type="button" onClick={() => { setPaymentType('SOLDE'); setDeposit(total) }}
-                                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'SOLDE' ? 'var(--color-secondary)' : 'transparent', color: paymentType === 'SOLDE' ? 'white' : 'var(--color-muted)' }}>
-                                        Soldé
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '3px', gap: '2px' }}>
+                                        <button type="button" onClick={() => {
+                                            setPaymentType('ACOMPTE');
+                                            setDeposit(0);
+                                            if (isMultiplePayment) {
+                                                setPayments(prev => prev.map((p, idx) => idx === 0 ? { ...p, label_type: 'ACOMPTE' } : p));
+                                            }
+                                        }}
+                                            style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'ACOMPTE' && !isMultiplePayment ? 'var(--color-warning)' : 'transparent', color: paymentType === 'ACOMPTE' && !isMultiplePayment ? 'white' : 'var(--color-muted)' }}>
+                                            Acompte reçu
+                                        </button>
+                                        <button type="button" onClick={() => {
+                                            setPaymentType('SOLDE');
+                                            setDeposit(total);
+                                            if (isMultiplePayment) {
+                                                setPayments(prev => prev.map((p, idx) => idx === 0 ? { ...p, label_type: 'SOLDE' } : p));
+                                            }
+                                        }}
+                                            style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: paymentType === 'SOLDE' && !isMultiplePayment ? 'var(--color-secondary)' : 'transparent', color: paymentType === 'SOLDE' && !isMultiplePayment ? 'white' : 'var(--color-muted)' }}>
+                                            Soldé
+                                        </button>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!isMultiplePayment) {
+                                                setIsMultiplePayment(true);
+                                                const initialAmount = paymentType === 'SOLDE' ? total : deposit;
+                                                const initialType = paymentType;
+                                                const initialMethod = depositPaymentMethod;
+                                                setPayments([
+                                                    { id: '1', amount: initialAmount, payment_method: initialMethod, label_type: initialType },
+                                                    { id: '2', amount: Math.max(0, total - initialAmount), payment_method: 'Espèces', label_type: initialType === 'ACOMPTE' ? 'SOLDE' : 'ACOMPTE' }
+                                                ]);
+                                            } else {
+                                                const remaining = Math.max(0, total - payments.reduce((sum, p) => sum + p.amount, 0));
+                                                setPayments(prev => [
+                                                    ...prev,
+                                                    { id: Date.now().toString(), amount: remaining, payment_method: 'Espèces', label_type: 'SOLDE' }
+                                                ]);
+                                            }
+                                        }}
+                                        style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '8px',
+                                            border: '1.5px solid var(--color-primary)',
+                                            background: isMultiplePayment ? 'var(--color-primary)' : 'transparent',
+                                            color: isMultiplePayment ? 'white' : 'var(--color-primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold',
+                                            fontSize: '1rem',
+                                            transition: 'all 0.15s'
+                                        }}
+                                        title="Ajouter un mode de paiement multiple"
+                                    >
+                                        +
                                     </button>
                                 </div>
                             </div>
 
-                            {paymentType === 'ACOMPTE' && (
+                            {/* Section paiement unique classique */}
+                            {!isMultiplePayment && paymentType === 'ACOMPTE' && (
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Montant acompte</span>
                                     <div style={{ width: '110px' }}>
@@ -675,7 +755,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                 </div>
                             )}
 
-                            {deposit > 0 && (
+                            {!isMultiplePayment && deposit > 0 && (
                                 <div>
                                     <label className="label" style={{ marginBottom: '4px' }}>Mode de paiement</label>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -692,6 +772,79 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Section paiement multiple */}
+                            {isMultiplePayment && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                                    {payments.map((p, index) => (
+                                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                {/* Toggle Acompte / Solde pour cette ligne */}
+                                                <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '2px', gap: '2px' }}>
+                                                    <button type="button" onClick={() => {
+                                                        setPayments(prev => prev.map(item => item.id === p.id ? { ...item, label_type: 'ACOMPTE' } : item))
+                                                    }}
+                                                        style={{ padding: '3px 8px', fontSize: '0.65rem', fontWeight: 700, borderRadius: '6px', border: 'none', cursor: 'pointer', background: p.label_type === 'ACOMPTE' ? 'var(--color-warning)' : 'transparent', color: p.label_type === 'ACOMPTE' ? 'white' : 'var(--color-muted)' }}>
+                                                        Acompte
+                                                    </button>
+                                                    <button type="button" onClick={() => {
+                                                        setPayments(prev => prev.map(item => item.id === p.id ? { ...item, label_type: 'SOLDE' } : item))
+                                                    }}
+                                                        style={{ padding: '3px 8px', fontSize: '0.65rem', fontWeight: 700, borderRadius: '6px', border: 'none', cursor: 'pointer', background: p.label_type === 'SOLDE' ? 'var(--color-secondary)' : 'transparent', color: p.label_type === 'SOLDE' ? 'white' : 'var(--color-muted)' }}>
+                                                        Solde
+                                                    </button>
+                                                </div>
+
+                                                {/* Saisie montant */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <div style={{ width: '90px' }}>
+                                                        <TouchInput value={p.amount.toString()} onChange={v => {
+                                                            const newAmount = parseFloat(v) || 0;
+                                                            setPayments(prev => prev.map(item => item.id === p.id ? { ...item, amount: newAmount } : item));
+                                                        }} style={{ height: '28px', padding: '2px 6px', textAlign: 'right', fontSize: '0.75rem' }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-muted)' }}>FCFA</span>
+                                                    
+                                                    {payments.length > 1 && (
+                                                        <button type="button" onClick={() => {
+                                                            setPayments(prev => {
+                                                                const next = prev.filter(item => item.id !== p.id);
+                                                                if (next.length === 1) {
+                                                                    setIsMultiplePayment(false);
+                                                                    setDeposit(next[0].amount);
+                                                                    setDepositPaymentMethod(next[0].payment_method);
+                                                                    setPaymentType(next[0].label_type);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }} style={{ width: '22px', height: '22px', borderRadius: '6px', border: 'none', background: '#FEE2E2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                                            ✕
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Modes de paiement */}
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                {PAYMENT_METHODS.map(m => (
+                                                    <button key={m.value} type="button" onClick={() => {
+                                                        setPayments(prev => prev.map(item => item.id === p.id ? { ...item, payment_method: m.value } : item))
+                                                    }}
+                                                        style={{
+                                                            padding: '4px 8px', fontSize: '0.7rem', fontWeight: 700,
+                                                            borderRadius: '6px', cursor: 'pointer', transition: 'all 0.15s',
+                                                            border: '1.5px solid', borderColor: p.payment_method === m.value ? 'var(--color-primary)' : 'var(--color-border)',
+                                                            background: p.payment_method === m.value ? '#FDE8E0' : 'var(--color-lift)',
+                                                            color: p.payment_method === m.value ? 'var(--color-primary)' : 'var(--color-muted)',
+                                                        }}>
+                                                        {m.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
