@@ -23,6 +23,7 @@ export async function createOrder(input: any) {
         return { error: firstErr || 'Données de commande invalides' }
     }
     const formData = result.data
+    const payments = input.payments // Récupération directe des paiements multiples
 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -80,6 +81,25 @@ export async function createOrder(input: any) {
             ? 'PARTIEL'
             : 'EN_ATTENTE'
 
+    // Ajustements en cas de paiements multiples
+    let resolvedDepositAmount = depositAmount
+    let resolvedBalance = balance
+    let resolvedPaymentStatus = paymentStatus
+
+    if (payments && payments.length > 0) {
+        const sumAcompte = payments.filter((p: any) => p.label_type === 'ACOMPTE').reduce((sum: number, p: any) => sum + p.amount, 0)
+        const sumSolde = payments.filter((p: any) => p.label_type === 'SOLDE').reduce((sum: number, p: any) => sum + p.amount, 0)
+        const totalPaid = sumAcompte + sumSolde
+
+        resolvedDepositAmount = sumAcompte
+        resolvedBalance = Math.max(0, totalAmount - totalPaid)
+        resolvedPaymentStatus = totalPaid >= totalAmount
+            ? 'SOLDEE'
+            : totalPaid > 0
+                ? 'PARTIEL'
+                : 'EN_ATTENTE'
+    }
+
     const { data: order, error } = await supabase.from('orders').insert({
         id: formData.id,
         organization_id: profile.organization_id,
@@ -89,18 +109,18 @@ export async function createOrder(input: any) {
         customer_contact: formData.customer_contact,
         pickup_date: formData.pickup_date,
         total_amount: totalAmount,
-        deposit_amount: depositAmount,
+        deposit_amount: resolvedDepositAmount,
         custom_image_url: formData.custom_image_url,
         priority: formData.priority,
         reception_type: formData.reception_type,
         delivery_address: formData.delivery_address,
         order_channel: formData.order_channel,
         subtotal: formData.subtotal,
-        balance: balance,
+        balance: resolvedBalance,
         customization_notes: formData.customization_notes,
         created_by: user.id,
         status: formData.status || 'pending',
-        payment_status: paymentStatus,
+        payment_status: resolvedPaymentStatus,
     }).select().single()
 
     if (error) return { error: error.message }
@@ -119,22 +139,28 @@ export async function createOrder(input: any) {
         )
     }
 
-    // Enregistrer l'acompte comme transaction avec label ACOMPTE
-    if (depositAmount > 0) {
-        const labelType = depositAmount >= totalAmount ? 'SOLDE' : 'ACOMPTE'
-        await supabase.from('transactions').insert({
-            organization_id: profile.organization_id,
-            order_id: order.id,
-            customer_id: resolvedCustomerId,
-            client_name: formData.customer_name,
-            amount: depositAmount,
-            payment_method: formData.deposit_payment_method || 'Espèces',
-            label_type: labelType,
-            created_by: user.id
-        })
-        // Créditer les points de fidélité pour l'acompte (1 point par 1000 FCFA)
-        if (resolvedCustomerId) {
-            const points = Math.floor(depositAmount / 1000)
+    // Enregistrement des transactions financières
+    if (payments && payments.length > 0) {
+        let totalPaidAtCreation = 0
+        for (const p of payments) {
+            if (p.amount > 0) {
+                await supabase.from('transactions').insert({
+                    organization_id: profile.organization_id,
+                    order_id: order.id,
+                    customer_id: resolvedCustomerId,
+                    client_name: formData.customer_name,
+                    amount: p.amount,
+                    payment_method: p.payment_method || 'Espèces',
+                    label_type: p.label_type,
+                    created_by: user.id
+                })
+                totalPaidAtCreation += p.amount
+            }
+        }
+
+        // Créditer les points de fidélité pour le montant total payé à la création
+        if (resolvedCustomerId && totalPaidAtCreation > 0) {
+            const points = Math.floor(totalPaidAtCreation / 1000)
             if (points > 0) {
                 const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', resolvedCustomerId).single()
                 if (cust) {
@@ -145,7 +171,39 @@ export async function createOrder(input: any) {
                 }
             }
         }
+    } else {
+        // Enregistrer l'acompte comme transaction unique avec label ACOMPTE (Logique classique)
+        if (depositAmount > 0) {
+            const labelType = depositAmount >= totalAmount ? 'SOLDE' : 'ACOMPTE'
+            await supabase.from('transactions').insert({
+                organization_id: profile.organization_id,
+                order_id: order.id,
+                customer_id: resolvedCustomerId,
+                client_name: formData.customer_name,
+                amount: depositAmount,
+                payment_method: formData.deposit_payment_method || 'Espèces',
+                label_type: labelType,
+                created_by: user.id
+            })
+            // Créditer les points de fidélité pour l'acompte (1 point par 1000 FCFA)
+            if (resolvedCustomerId) {
+                const points = Math.floor(depositAmount / 1000)
+                if (points > 0) {
+                    const { data: cust } = await supabase.from('customers').select('loyalty_points, lifetime_points').eq('id', resolvedCustomerId).single()
+                    if (cust) {
+                        await supabase.from('customers').update({
+                            loyalty_points: (cust.loyalty_points || 0) + points,
+                            lifetime_points: (cust.lifetime_points || 0) + points,
+                        }).eq('id', resolvedCustomerId)
+                    }
+                }
+            }
+        }
     }
+
+    revalidatePath('/commandes')
+    revalidatePath('/dashboard')
+    return { data: order }
 
     revalidatePath('/commandes')
     revalidatePath('/dashboard')
@@ -339,10 +397,12 @@ export async function importHistoricalOrder(input: any) {
         deposit_payment_method = 'Espèces',
         balance_payment_method = 'Espèces',
         customization_notes,
+        custom_image_url, // Image d'inspiration passée en entrée
         priority = 'normale',
         reception_type = 'retrait',
         status = 'completed',
-        items = []
+        items = [],
+        payments = [] // Paiements multiples passés en entrée
     } = input
 
     if (!customer_name || !created_at || !pickup_date || total_amount === undefined || deposit_amount === undefined) {
@@ -394,12 +454,28 @@ export async function importHistoricalOrder(input: any) {
         }
     }
 
-    const balance = Math.max(0, total_amount - deposit_amount)
-    const paymentStatus = deposit_amount >= total_amount
+    // Ajustements en cas de paiements multiples
+    let resolvedDepositAmount = deposit_amount
+    let resolvedBalance = Math.max(0, total_amount - deposit_amount)
+    let resolvedPaymentStatus = deposit_amount >= total_amount
         ? 'SOLDEE'
         : deposit_amount > 0
             ? 'PARTIEL'
             : 'EN_ATTENTE'
+
+    if (payments && payments.length > 0) {
+        const sumAcompte = payments.filter((p: any) => p.label_type === 'ACOMPTE').reduce((sum: number, p: any) => sum + p.amount, 0)
+        const sumSolde = payments.filter((p: any) => p.label_type === 'SOLDE').reduce((sum: number, p: any) => sum + p.amount, 0)
+        const totalPaid = sumAcompte + sumSolde
+
+        resolvedDepositAmount = sumAcompte
+        resolvedBalance = Math.max(0, total_amount - totalPaid)
+        resolvedPaymentStatus = totalPaid >= total_amount
+            ? 'SOLDEE'
+            : totalPaid > 0
+                ? 'PARTIEL'
+                : 'EN_ATTENTE'
+    }
 
     // 3. Insertion de la commande historique
     const orderId = require('crypto').randomUUID()
@@ -414,13 +490,14 @@ export async function importHistoricalOrder(input: any) {
             customer_contact,
             pickup_date,
             total_amount,
-            deposit_amount,
+            deposit_amount: resolvedDepositAmount,
             priority,
             reception_type,
             status,
-            payment_status: status === 'completed' || status === 'delivered' ? 'SOLDEE' : paymentStatus,
-            balance: status === 'completed' || status === 'delivered' ? 0 : balance,
+            payment_status: status === 'completed' || status === 'delivered' ? 'SOLDEE' : resolvedPaymentStatus,
+            balance: status === 'completed' || status === 'delivered' ? 0 : resolvedBalance,
             customization_notes,
+            custom_image_url,
             created_by: user.id,
             created_at, // Forcer la date de prise de commande
             is_historical: true
@@ -450,62 +527,109 @@ export async function importHistoricalOrder(input: any) {
     }
 
     // 5. Insertion des transactions avec les dates respectives (sans session active)
-    // Transaction Acompte
-    if (deposit_amount > 0) {
-        const isFullyPaidByDeposit = deposit_amount >= total_amount
-        const labelType = isFullyPaidByDeposit ? 'SOLDE' : 'ACOMPTE'
-        
-        await supabaseAdmin.from('transactions').insert({
-            id: require('crypto').randomUUID(),
-            organization_id: orgId,
-            order_id: orderId,
-            customer_id: resolvedCustomerId,
-            client_name: customer_name,
-            amount: deposit_amount,
-            payment_method: deposit_payment_method,
-            label_type: labelType,
-            created_by: user.id,
-            created_at, // Date de prise de commande (date de l'acompte)
-            is_historical: true
-        })
-    }
+    if (payments && payments.length > 0) {
+        let totalPaidAtCreation = 0
+        for (const p of payments) {
+            if (p.amount > 0) {
+                // Utiliser la date historique de prise de commande pour un acompte,
+                // et la date historique de retrait pour le solde.
+                const paymentDate = p.label_type === 'ACOMPTE' ? created_at : pickup_date
 
-    // Transaction Solde (si la commande est terminée et qu'il y a un solde à payer)
-    const isCompleted = status === 'completed' || status === 'delivered'
-    if (isCompleted && balance > 0) {
-        await supabaseAdmin.from('transactions').insert({
-            id: require('crypto').randomUUID(),
-            organization_id: orgId,
-            order_id: orderId,
-            customer_id: resolvedCustomerId,
-            client_name: customer_name,
-            amount: balance,
-            payment_method: balance_payment_method,
-            label_type: 'SOLDE',
-            created_by: user.id,
-            created_at: pickup_date, // Date de retrait (date du paiement du solde)
-            is_historical: true
-        })
-    }
+                await supabaseAdmin.from('transactions').insert({
+                    id: require('crypto').randomUUID(),
+                    organization_id: orgId,
+                    order_id: orderId,
+                    customer_id: resolvedCustomerId,
+                    client_name: customer_name,
+                    amount: p.amount,
+                    payment_method: p.payment_method || 'Espèces',
+                    label_type: p.label_type,
+                    created_by: user.id,
+                    created_at: paymentDate,
+                    is_historical: true
+                })
+                totalPaidAtCreation += p.amount
+            }
+        }
 
-    // 6. Créditer les points de fidélité pour le client historique (1 point par 1000 FCFA payés)
-    if (resolvedCustomerId) {
-        const amountPaid = isCompleted ? total_amount : deposit_amount
-        const points = Math.floor(amountPaid / 1000)
-        if (points > 0) {
-            const { data: cust } = await supabaseAdmin
-                .from('customers')
-                .select('loyalty_points, lifetime_points')
-                .eq('id', resolvedCustomerId)
-                .single()
-            if (cust) {
-                await supabaseAdmin
+        // Créditer les points de fidélité pour le client historique
+        if (resolvedCustomerId && totalPaidAtCreation > 0) {
+            const points = Math.floor(totalPaidAtCreation / 1000)
+            if (points > 0) {
+                const { data: cust } = await supabaseAdmin
                     .from('customers')
-                    .update({
-                        loyalty_points: (cust.loyalty_points || 0) + points,
-                        lifetime_points: (cust.lifetime_points || 0) + points,
-                    })
+                    .select('loyalty_points, lifetime_points')
                     .eq('id', resolvedCustomerId)
+                    .single()
+                if (cust) {
+                    await supabaseAdmin
+                        .from('customers')
+                        .update({
+                            loyalty_points: (cust.loyalty_points || 0) + points,
+                            lifetime_points: (cust.lifetime_points || 0) + points,
+                        })
+                        .eq('id', resolvedCustomerId)
+                }
+            }
+        }
+    } else {
+        // Transaction Acompte (Logique classique)
+        if (deposit_amount > 0) {
+            const isFullyPaidByDeposit = deposit_amount >= total_amount
+            const labelType = isFullyPaidByDeposit ? 'SOLDE' : 'ACOMPTE'
+            
+            await supabaseAdmin.from('transactions').insert({
+                id: require('crypto').randomUUID(),
+                organization_id: orgId,
+                order_id: orderId,
+                customer_id: resolvedCustomerId,
+                client_name: customer_name,
+                amount: deposit_amount,
+                payment_method: deposit_payment_method,
+                label_type: labelType,
+                created_by: user.id,
+                created_at, // Date de prise de commande (date de l'acompte)
+                is_historical: true
+            })
+        }
+
+        // Transaction Solde (si la commande est terminée et qu'il y a un solde à payer)
+        const isCompleted = status === 'completed' || status === 'delivered'
+        if (isCompleted && resolvedBalance > 0) {
+            await supabaseAdmin.from('transactions').insert({
+                id: require('crypto').randomUUID(),
+                organization_id: orgId,
+                order_id: orderId,
+                customer_id: resolvedCustomerId,
+                client_name: customer_name,
+                amount: resolvedBalance,
+                payment_method: balance_payment_method,
+                label_type: 'SOLDE',
+                created_by: user.id,
+                created_at: pickup_date, // Date de retrait (date du paiement du solde)
+                is_historical: true
+            })
+        }
+
+        // Créditer les points de fidélité pour le client historique (1 point par 1000 FCFA payés)
+        if (resolvedCustomerId) {
+            const amountPaid = isCompleted ? total_amount : deposit_amount
+            const points = Math.floor(amountPaid / 1000)
+            if (points > 0) {
+                const { data: cust } = await supabaseAdmin
+                    .from('customers')
+                    .select('loyalty_points, lifetime_points')
+                    .eq('id', resolvedCustomerId)
+                    .single()
+                if (cust) {
+                    await supabaseAdmin
+                        .from('customers')
+                        .update({
+                            loyalty_points: (cust.loyalty_points || 0) + points,
+                            lifetime_points: (cust.lifetime_points || 0) + points,
+                        })
+                        .eq('id', resolvedCustomerId)
+                }
             }
         }
     }

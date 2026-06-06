@@ -42,6 +42,16 @@ const STATUS_LABELS: Record<string, { label: string; next: string; color: string
 const ACTIVE_STATUSES = ['pending', 'production', 'ready']
 const PAGE_SIZE = 20
 
+function formatPickupDate(date: Date): string {
+    if (isNaN(date.getTime())) return 'Non définie'
+    const day = date.getDate()
+    const months = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+    const month = months[date.getMonth()]
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day} ${month} à ${hours}:${minutes}`
+}
+
 export default function OrdersClient({
     orders,
     products,
@@ -362,9 +372,7 @@ export default function OrdersClient({
                                                 color: (pickupDate && !isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) ? '#F59E0B' : 'inherit', 
                                                 fontWeight: (pickupDate && !isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) ? 700 : 400 
                                             }}>
-                                                🕐 Retrait : {!isNaN(pickupDate.getTime()) 
-                                                    ? pickupDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                                                    : 'Non définie'}
+                                                🕐 Retrait : {pickupDate ? formatPickupDate(pickupDate) : 'Non définie'}
                                                 {(!isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) && <AlertTriangle size={14} />}
                                             </span>
                                         </div>
