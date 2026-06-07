@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema, ProductFormValues } from '@/lib/schemas/product'
 import { createProduct } from '@/lib/actions/products'
 import { Trash2, Loader2, X, Search, Image as ImageIcon } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import TouchInput from '@/components/ui/TouchInput'
 import TouchSelect from '@/components/ui/TouchSelect'
@@ -50,6 +51,7 @@ interface ProductModalProps {
 }
 
 export default function ProductModal({ open, onClose, availableIngredients, existingProducts = [], productToEdit, onSuccess }: ProductModalProps) {
+  const queryClient = useQueryClient()
   const [isMounted, setIsMounted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -184,6 +186,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
       const res = await createProduct(data, finalImageUrl)
       if (res.success) { 
         toast.success(res.message || "Opération réussie !"); 
+        queryClient.invalidateQueries({ queryKey: ['catalog'] })
         onSuccess?.(); 
         onClose(); 
       } else {

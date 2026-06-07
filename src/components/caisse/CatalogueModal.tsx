@@ -44,7 +44,7 @@ export default function CatalogueModal({
             if (error) throw error
             return data || []
         },
-        enabled: !!organizationId,
+        enabled: open && !!organizationId,
         staleTime: Infinity,
     })
 
