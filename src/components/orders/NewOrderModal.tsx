@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle } from 'lucide-react'
+import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/utils/image-compression'
@@ -25,6 +25,8 @@ interface OrderItem {
     from_inventory: boolean
     parts?: number
     floors?: number
+    notes?: string
+    imageFile?: File | null
 }
 
 interface Props {
@@ -84,11 +86,17 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
     const [orderChannel, setOrderChannel] = useState('Sur place')
     
     // Items
-    const [orderItems, setOrderItems] = useState<OrderItem[]>([])
-    
-    // Customization
-    const [customizationNotes, setCustomizationNotes] = useState('')
-    const [imageFile, setImageFile] = useState<File | null>(null)
+    const [orderItems, setOrderItems] = useState<OrderItem[]>([
+        {
+            name: '',
+            quantity: 1,
+            unit_price: 0,
+            subtotal: 0,
+            from_inventory: false,
+            notes: '',
+            imageFile: null
+        }
+    ])
     
     // Financials
     const [deposit, setDeposit] = useState(0)
@@ -191,7 +199,9 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 unit_price: product.selling_price,
                 quantity: 1,
                 subtotal: product.selling_price,
-                from_inventory: true
+                from_inventory: true,
+                notes: '',
+                imageFile: null
             }]
         })
         setSearchQuery('')
@@ -204,7 +214,9 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
             quantity: 1,
             unit_price: 0,
             subtotal: 0,
-            from_inventory: false
+            from_inventory: false,
+            notes: '',
+            imageFile: null
         }])
     }
 
@@ -232,9 +244,17 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         setPickupTime('')
         setDeliveryAddress('')
         setOrderChannel('Sur place')
-        setOrderItems([])
-        setCustomizationNotes('')
-        setImageFile(null)
+        setOrderItems([
+            {
+                name: '',
+                quantity: 1,
+                unit_price: 0,
+                subtotal: 0,
+                from_inventory: false,
+                notes: '',
+                imageFile: null
+            }
+        ])
         setDeposit(0)
         setDepositPaymentMethod('Espèces')
         setPaymentType('ACOMPTE')
@@ -279,6 +299,10 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
             toast.error('Veuillez remplir tous les champs obligatoires et ajouter au moins un produit.')
             return
         }
+        if (orderItems.some(item => !item.name.trim())) {
+            toast.error('Tous les articles de la commande doivent avoir une désignation.')
+            return
+        }
         if (receptionType === 'livraison' && !deliveryAddress.trim()) {
             toast.error('L\'adresse de livraison est requise.')
             return
@@ -297,15 +321,11 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         }
 
         start(async () => {
-            let customImageUrl: string | undefined
-
-            if (imageFile) {
+            // Fonction interne d'upload d'une image d'article
+            const uploadImage = async (file: File): Promise<string | undefined> => {
                 try {
-                    // Compression de l'image (max 1200px, qualité 0.7, format WebP)
-                    const compressed = await compressImage(imageFile, { maxWidth: 1200, quality: 0.7 })
-                    
+                    const compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
                     const supabase = createSupabaseClient()
-                    // On force le format .webp car notre utilitaire sort du WebP
                     const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
                     
                     const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, compressed, {
@@ -315,14 +335,49 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                     
                     if (!uploadError) {
                         const { data } = supabase.storage.from('order-images').getPublicUrl(filePath)
-                        customImageUrl = data.publicUrl
+                        return data.publicUrl
                     } else {
-                        toast.error('Upload de la photo échoué. Poursuite sans image.')
+                        console.error('Upload de la photo échoué:', uploadError)
                     }
-                } catch {
-                    // Ignore storage error
+                } catch (err) {
+                    console.error("Erreur compression/upload:", err)
                 }
+                return undefined
             }
+
+            // Uploader toutes les images en parallèle
+            const itemsWithUrls = await Promise.all(
+                orderItems.map(async (item) => {
+                    let imageUrl: string | undefined = undefined
+                    if (item.imageFile) {
+                        imageUrl = await uploadImage(item.imageFile)
+                    }
+                    return { ...item, imageUrl }
+                })
+            )
+
+            // Trouver la première URL d'image disponible pour custom_image_url
+            const firstImageUrl = itemsWithUrls.find(i => i.imageUrl)?.imageUrl
+
+            // Construire le JSON structuré des notes et images pour chaque article
+            const notesArray = itemsWithUrls.map((item) => {
+                let finalName = item.name.trim()
+                const partsStr = item.parts ? `${item.parts} parts` : ''
+                const floorsStr = item.floors ? `${item.floors} étage${item.floors > 1 ? 's' : ''}` : ''
+                const details = [partsStr, floorsStr].filter(Boolean).join(', ')
+                if (details) {
+                    finalName = `${finalName} (${details})`
+                }
+                return {
+                    name: finalName,
+                    notes: item.notes?.trim() || '',
+                    image_url: item.imageUrl || ''
+                }
+            })
+
+            // On n'enregistre le JSON que si au moins un article a des notes ou une image
+            const hasCustomization = notesArray.some(n => n.notes || n.image_url)
+            const customizationNotes = hasCustomization ? JSON.stringify(notesArray) : undefined
 
             const calculatedDeposit = isMultiplePayment
                 ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
@@ -346,7 +401,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                 deposit_amount: calculatedDeposit,
                 balance,
                 customization_notes: customizationNotes,
-                custom_image_url: customImageUrl,
+                custom_image_url: firstImageUrl,
                 deposit_payment_method: !isMultiplePayment && deposit > 0 ? depositPaymentMethod : undefined,
                 payments: isMultiplePayment ? payments.map(p => ({
                     amount: p.amount,
@@ -539,7 +594,7 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                         {/* PRODUITS */}
                         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
                             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }} ref={searchRef}>
-                                <div style={{ position: 'relative', flex: 1 }}>
+                                <div style={{ position: 'relative', width: '50%', flexShrink: 0 }}>
                                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: showErrors && orderItems.length === 0 ? 'var(--color-error)' : 'var(--color-muted)' }} />
                                     <input className={`input ${showErrors && orderItems.length === 0 ? 'has-error' : ''}`} style={{ paddingLeft: '36px', paddingRight: '44px' }} placeholder="Rechercher un produit..."
                                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
@@ -590,83 +645,179 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
                                         </div>
                                     )}
                                 </div>
-                                <button type="button" onClick={handleAddManual}
-                                    style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '0 14px', height: '42px', background: 'transparent', color: 'var(--color-primary)', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0, cursor: 'pointer' }}>
-                                    +
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', marginBottom: '12px' }}>
+                                <label className="label" style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Articles du bon de commande</label>
+                                <button type="button" onClick={handleAddManual} className="btn-secondary" style={{ padding: '6px 12px', minHeight: '34px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Plus size={16} /> Ajouter un article sur mesure
                                 </button>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                {orderItems.length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-muted)', fontSize: '0.8rem', border: '1.5px dashed var(--color-border)', borderRadius: '12px', background: 'var(--color-well)' }}>
-                                        Aucun produit ajouté. Recherchez un produit ci-dessus ou cliquez sur <strong style={{ color: 'var(--color-primary)' }}>+</strong> pour ajouter un gâteau sur mesure.
-                                    </div>
-                                )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {orderItems.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                                            {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inv.</span>}
-                                            <input className="input" value={item.name} onChange={e => handleUpdateItem(idx, 'name', e.target.value)} placeholder="Désignation" disabled={item.from_inventory} style={{ padding: '6px 8px', height: '32px', flex: item.from_inventory ? 1 : 2, minWidth: '80px', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }} required />
-                                            {!item.from_inventory && (
-                                                <>
-                                                    <TouchInput
-                                                        value={item.parts?.toString() || ''}
-                                                        onChange={v => handleUpdateItem(idx, 'parts', parseInt(v) || undefined)}
-                                                        allowDecimal={false}
-                                                        placeholder="Parts"
-                                                        title={`Nombre de parts : ${item.name || 'Produit'}`}
-                                                        hideIcon={true}
-                                                        style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                                                    />
-                                                    <TouchInput
-                                                        value={item.floors?.toString() || ''}
-                                                        onChange={v => handleUpdateItem(idx, 'floors', parseInt(v) || undefined)}
-                                                        allowDecimal={false}
-                                                        placeholder="Étages"
-                                                        title={`Nombre d'étages : ${item.name || 'Produit'}`}
-                                                        hideIcon={true}
-                                                        style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                                                    />
-                                                </>
+                                    <div key={idx} style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '12px',
+                                        background: 'var(--color-well)',
+                                        padding: '16px',
+                                        borderRadius: '18px',
+                                        border: '1.5px solid var(--color-border)',
+                                        position: 'relative'
+                                    }}>
+                                        {/* Entête de la carte */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+                                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-rose-dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                🍰 Article #{idx + 1}
+                                                {item.from_inventory && <span className="badge badge-pending" style={{ padding: '2px 6px', fontSize: '0.65rem' }}>Inventaire</span>}
+                                            </span>
+                                            {orderItems.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveItem(idx)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: '#D94F38',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 700,
+                                                        padding: '2px 6px',
+                                                        borderRadius: '6px',
+                                                        transition: 'background-color 0.2s'
+                                                    }}
+                                                >
+                                                    <Trash2 size={14} /> Supprimer
+                                                </button>
                                             )}
                                         </div>
-                                        <TouchInput
-                                            value={item.quantity.toString()}
-                                            onChange={v => handleUpdateItem(idx, 'quantity', parseInt(v) || 1)}
-                                            allowDecimal={false}
-                                            title={`Quantité : ${item.name || 'Produit'}`}
-                                            placeholder="Qté"
-                                            hideIcon={true}
-                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'center', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                                        />
-                                        <TouchInput
-                                            value={item.unit_price === 0 ? '' : item.unit_price.toString()}
-                                            onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)}
-                                            placeholder="Prix"
-                                            title={`Prix unitaire : ${item.name || 'Produit'}`}
-                                            hideIcon={true}
-                                            style={{ padding: '6px 8px', height: '32px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                                        />
-                                        <button type="button" onClick={() => handleRemoveItem(idx)} className="btn-ghost" style={{ padding: '0', minHeight: '32px', color: '#D94F38' }}>
-                                            <X size={16} />
-                                        </button>
+
+                                        {/* Ligne 1 : Désignation + Parts + Étages */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 2fr) 1fr 1fr', gap: '8px' }}>
+                                            <div>
+                                                <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Désignation *</label>
+                                                <input
+                                                    className="input"
+                                                    value={item.name}
+                                                    onChange={e => handleUpdateItem(idx, 'name', e.target.value)}
+                                                    placeholder="ex: Gâteau d'anniversaire..."
+                                                    disabled={item.from_inventory}
+                                                    style={{ padding: '6px 8px', height: '36px', borderRadius: '10px', background: item.from_inventory ? 'var(--color-well)' : '#ffffff', border: '1.5px solid var(--color-border)' }}
+                                                    required
+                                                />
+                                            </div>
+                                            {!item.from_inventory ? (
+                                                <>
+                                                    <div>
+                                                        <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Parts</label>
+                                                        <TouchInput
+                                                            value={item.parts?.toString() || ''}
+                                                            onChange={v => handleUpdateItem(idx, 'parts', parseInt(v) || undefined)}
+                                                            allowDecimal={false}
+                                                            placeholder="Parts"
+                                                            title={`Nombre de parts : ${item.name || 'Produit'}`}
+                                                            hideIcon={true}
+                                                            style={{ padding: '6px 2px', height: '36px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Étages</label>
+                                                        <TouchInput
+                                                            value={item.floors?.toString() || ''}
+                                                            onChange={v => handleUpdateItem(idx, 'floors', parseInt(v) || undefined)}
+                                                            allowDecimal={false}
+                                                            placeholder="Étages"
+                                                            title={`Nombre d'étages : ${item.name || 'Produit'}`}
+                                                            hideIcon={true}
+                                                            style={{ padding: '6px 2px', height: '36px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                        />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div style={{ gridColumn: 'span 2' }} />
+                                            )}
+                                        </div>
+
+                                        {/* Ligne 2 : Quantité + Prix unitaire */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '8px' }}>
+                                            <div>
+                                                <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Quantité</label>
+                                                <TouchInput
+                                                    value={item.quantity.toString()}
+                                                    onChange={v => handleUpdateItem(idx, 'quantity', parseInt(v) || 1)}
+                                                    allowDecimal={false}
+                                                    title={`Quantité : ${item.name || 'Produit'}`}
+                                                    placeholder="Qté"
+                                                    hideIcon={true}
+                                                    style={{ padding: '6px 8px', height: '36px', textAlign: 'center', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Prix Unitaire</label>
+                                                <TouchInput
+                                                    value={item.unit_price === 0 ? '' : item.unit_price.toString()}
+                                                    onChange={v => handleUpdateItem(idx, 'unit_price', parseFloat(v) || 0)}
+                                                    placeholder="Prix"
+                                                    title={`Prix unitaire : ${item.name || 'Produit'}`}
+                                                    hideIcon={true}
+                                                    style={{ padding: '6px 8px', height: '36px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Notes particulières + image d'inspiration pour cet article */}
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginTop: '4px' }}>
+                                            <textarea
+                                                className="input"
+                                                rows={2}
+                                                placeholder="Notes particulières pour cet article (parfum, écritures, etc.)..."
+                                                style={{ resize: 'none', padding: '8px 10px', border: '1.5px solid var(--color-border)', borderRadius: '12px', background: '#ffffff', flex: 1, fontSize: '0.78rem', minHeight: '48px' }}
+                                                value={item.notes || ''}
+                                                onChange={e => handleUpdateItem(idx, 'notes', e.target.value)}
+                                            />
+                                            <label
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: '48px',
+                                                    height: '48px',
+                                                    border: '1.5px dashed var(--color-border)',
+                                                    borderRadius: '12px',
+                                                    cursor: 'pointer',
+                                                    background: item.imageFile ? 'var(--color-primary-container)' : '#ffffff',
+                                                    color: item.imageFile ? 'var(--color-primary)' : 'var(--color-muted)',
+                                                    flexShrink: 0,
+                                                    position: 'relative'
+                                                }}
+                                                title={item.imageFile ? item.imageFile.name : "Photo d'inspiration pour cet article"}
+                                            >
+                                                {item.imageFile ? (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                        <CheckCircle2 size={16} color="var(--color-primary)" />
+                                                        <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', marginTop: '2px', maxWidth: '44px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            Ok
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <ImageIcon size={18} />
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    style={{ display: 'none' }}
+                                                    onChange={e => handleUpdateItem(idx, 'imageFile', e.target.files?.[0] || null)}
+                                                />
+                                            </label>
+                                        </div>
+
                                     </div>
                                 ))}
-                            </div>
-                        </div>
-
-                        {/* PERSONNALISATION */}
-                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                <textarea className="input" rows={2} value={customizationNotes} onChange={e => setCustomizationNotes(e.target.value)}
-                                    placeholder="Texte sur le gâteau, couleurs, allergies, instructions spéciales..." style={{ resize: 'none', flex: 1 }}></textarea>
-                                <label
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'var(--color-well)', color: imageFile ? 'var(--color-primary)' : 'var(--color-muted)', flexShrink: 0 }}
-                                    title={imageFile ? imageFile.name : "Ajouter une photo d'inspiration"}
-                                >
-                                    <ImageIcon size={18} />
-                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setImageFile(e.target.files?.[0] || null)} />
-                                </label>
                             </div>
                         </div>
 

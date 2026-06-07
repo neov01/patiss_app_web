@@ -7,9 +7,10 @@ interface TimeDigiPadProps {
     value: string // 'HH:MM' format
     onChange: (time: string) => void
     placeholder?: string
+    align?: 'left' | 'right'
 }
 
-export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de retrait' }: TimeDigiPadProps) {
+export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de retrait', align = 'left' }: TimeDigiPadProps) {
     const [open, setOpen] = useState(false)
     const [digits, setDigits] = useState<string[]>([])
     const containerRef = useRef<HTMLDivElement>(null)
@@ -123,7 +124,8 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
                     style={{
                         position: 'absolute',
                         top: 'calc(100% + 6px)',
-                        left: 0,
+                        left: align === 'left' ? 0 : undefined,
+                        right: align === 'right' ? 0 : undefined,
                         zIndex: 100,
                         background: '#fff',
                         borderRadius: '16px',
