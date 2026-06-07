@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react'
+import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, AlertCircle, Image as ImageIcon, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import { importHistoricalOrder } from '@/lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx'
 import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
+import TimeDigiPad from '@/components/ui/TimeDigiPad'
 
 interface Product {
   id: string
@@ -25,6 +26,8 @@ interface ItemInput {
   unit_price: number
   parts?: number
   floors?: number
+  candles_fontaine?: number
+  candles_ficelle?: number
 }
 
 interface HistoricalImportModalProps {
@@ -109,6 +112,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   const [customerContact, setCustomerContact] = useState('')
   const [createdAt, setCreatedAt] = useState<Date | null>(null)
   const [pickupDate, setPickupDate] = useState<Date | null>(null)
+  const [pickupTime, setPickupTime] = useState('')
   const [depositAmount, setDepositAmount] = useState(0)
   const [depositMethod, setDepositMethod] = useState('Espèces')
   const [balanceMethod, setBalanceMethod] = useState('Espèces')
@@ -123,8 +127,13 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   ])
   
   const [items, setItems] = useState<ItemInput[]>([
-    { name: '', quantity: 1, unit_price: 0 }
+    { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0 }
   ])
+  const [activeCandlesIndex, setActiveCandlesIndex] = useState<number | null>(null)
+
+  const handleUpdateCandle = (index: number, type: 'candles_fontaine' | 'candles_ficelle', val: number) => {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, [type]: val } : item))
+  }
 
   // ── Excel Import State ──
   const [excelFile, setExcelFile] = useState<File | null>(null)
@@ -135,8 +144,13 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
     setIsMounted(true)
   }, [])
 
-  // Calculer le total à la volée
-  const calculatedTotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0)
+  // Calculer le total à la volée incluant les bougies
+  const calculatedTotal = items.reduce((sum, item) => {
+    const itemTotal = item.quantity * item.unit_price
+    const fontaineTotal = (item.candles_fontaine || 0) * 2000
+    const ficelleTotal = (item.candles_ficelle || 0) * 1000
+    return sum + itemTotal + fontaineTotal + ficelleTotal
+  }, 0)
 
   const totalPayments = isMultiplePayment
     ? payments.reduce((sum, p) => sum + p.amount, 0)
@@ -150,7 +164,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   }, [paymentType, calculatedTotal])
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { name: '', quantity: 1, unit_price: 0 }])
+    setItems(prev => [...prev, { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0 }])
   }
 
   const handleRemoveItem = (index: number) => {
@@ -225,11 +239,19 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
         : depositAmount
 
+      const pickupDateWithTime = new Date(pickupDate)
+      if (pickupTime) {
+        const [hh, mm] = pickupTime.split(':')
+        pickupDateWithTime.setHours(parseInt(hh), parseInt(mm), 0, 0)
+      } else {
+        pickupDateWithTime.setHours(10, 0, 0, 0)
+      }
+
       const payload = {
         order_number: orderNumber.trim() || undefined,
         customer_name: customerName.trim(),
         customer_contact: customerContact.trim() || undefined,
-        pickup_date: pickupDate.toISOString(),
+        pickup_date: pickupDateWithTime.toISOString(),
         created_at: createdAt.toISOString(),
         total_amount: calculatedTotal,
         deposit_amount: calculatedDeposit,
@@ -243,22 +265,53 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         customization_notes: notes.trim() || undefined,
         custom_image_url: customImageUrl,
         status: 'completed',
-        items: items.map(item => {
-          let finalName = item.name.trim()
-          const partsStr = item.parts ? `${item.parts} parts` : ''
-          const floorsStr = item.floors ? `${item.floors} étage${item.floors > 1 ? 's' : ''}` : ''
-          const details = [partsStr, floorsStr].filter(Boolean).join(', ')
-          if (details) {
-            finalName = `${finalName} (${details})`
+        items: (() => {
+          const finalItems = []
+          for (const item of items) {
+            let finalName = item.name.trim()
+            const partsStr = item.parts ? `${item.parts} parts` : ''
+            const floorsStr = item.floors ? `${item.floors} étage${item.floors > 1 ? 's' : ''}` : ''
+            const details = [partsStr, floorsStr].filter(Boolean).join(', ')
+            if (details) {
+              finalName = `${finalName} (${details})`
+            }
+            finalItems.push({
+              name: finalName,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              product_id: item.product_id || null,
+              from_inventory: !!item.product_id
+            })
           }
-          return {
-            name: finalName,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            product_id: item.product_id || null,
-            from_inventory: !!item.product_id
+          
+          let totalFontaine = 0
+          let totalFicelle = 0
+          for (const item of items) {
+            totalFontaine += item.candles_fontaine || 0
+            totalFicelle += item.candles_ficelle || 0
           }
-        })
+          
+          if (totalFontaine > 0) {
+            finalItems.push({
+              name: "Bougie Fontaine",
+              quantity: totalFontaine,
+              unit_price: 2000,
+              product_id: null,
+              from_inventory: false
+            })
+          }
+          
+          if (totalFicelle > 0) {
+            finalItems.push({
+              name: "Bougie Ficelle",
+              quantity: totalFicelle,
+              unit_price: 1000,
+              product_id: null,
+              from_inventory: false
+            })
+          }
+          return finalItems
+        })()
       }
 
       const res = await importHistoricalOrder(payload)
@@ -687,7 +740,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
               </div>
 
               {/* Dates */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 150px', gap: '14px', alignItems: 'flex-start' }}>
                 <div>
                   <label className="label">Date de Prise de Commande *</label>
                   <DatePicker
@@ -706,6 +759,14 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                   />
                   <span style={{ fontSize: '0.65rem', color: 'var(--color-muted)', marginTop: '4px', display: 'block' }}>Date à laquelle la commande a été récupérée</span>
                 </div>
+                <div>
+                  <label className="label">Heure</label>
+                  <TimeDigiPad
+                    value={pickupTime}
+                    onChange={setPickupTime}
+                    placeholder="Heure"
+                  />
+                </div>
               </div>
 
               {/* Items Section */}
@@ -719,7 +780,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {items.map((item, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
+                    <div key={index} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 42px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
                       {/* Designation + Parts + Floors */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                         <input className="input" value={item.name} onChange={e => handleItemChange(index, 'name', e.target.value)} placeholder="Désignation" style={{ padding: '6px 8px', height: '32px', flex: 2, minWidth: '80px', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }} required />
@@ -764,6 +825,108 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                         style={{ padding: '6px 8px', height: '32px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
                       />
 
+                      {/* Candle Selection Popover Button */}
+                      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveCandlesIndex(activeCandlesIndex === index ? null : index)}
+                          style={{
+                            background: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary-container)' : 'transparent',
+                            border: '1.5px solid',
+                            borderColor: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'transparent',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            padding: '0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '38px',
+                            width: '38px',
+                            color: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'var(--color-muted)',
+                            position: 'relative',
+                            transition: 'all 0.2s'
+                          }}
+                          title="Ajouter des bougies"
+                        >
+                          <Flame size={20} fill={(item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'none'} />
+                          {(item.candles_fontaine || item.candles_ficelle) ? (
+                            <span style={{
+                              position: 'absolute',
+                              top: '-2px',
+                              right: '-2px',
+                              background: 'var(--color-primary)',
+                              color: 'white',
+                              fontSize: '0.6rem',
+                              fontWeight: 900,
+                              borderRadius: '50%',
+                              width: '16px',
+                              height: '16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1px solid white'
+                            }}>
+                              {(item.candles_fontaine || 0) + (item.candles_ficelle || 0)}
+                            </span>
+                          ) : null}
+                        </button>
+
+                        {activeCandlesIndex === index && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '100%',
+                            right: 0,
+                            marginBottom: '8px',
+                            background: '#fff',
+                            border: '1.5px solid var(--color-border)',
+                            borderRadius: '16px',
+                            boxShadow: '0 12px 36px rgba(45,27,14,0.15)',
+                            padding: '16px',
+                            width: '290px',
+                            zIndex: 100,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                          }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-text)', borderBottom: '1.5px solid var(--color-border)', paddingBottom: '6px' }}>
+                              Achat de Bougies
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                              <div>
+                                <div style={{ fontWeight: 700 }}>Fontaine</div>
+                                <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>2 000 FCFA / u</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', Math.max(0, (item.candles_fontaine || 0) - 1))}
+                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>-</button>
+                                <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_fontaine || 0}</span>
+                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', (item.candles_fontaine || 0) + 1)}
+                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>+</button>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                              <div>
+                                <div style={{ fontWeight: 700 }}>Ficelle</div>
+                                <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>1 000 FCFA / u</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', Math.max(0, (item.candles_ficelle || 0) - 1))}
+                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>-</button>
+                                <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_ficelle || 0}</span>
+                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', (item.candles_ficelle || 0) + 1)}
+                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>+</button>
+                              </div>
+                            </div>
+
+                            <button type="button" onClick={() => setActiveCandlesIndex(null)} className="btn-secondary" style={{ padding: '4px 0', minHeight: '46px', fontSize: '0.88rem', fontWeight: 700, width: '100%', borderRadius: '10px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              Valider
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       {/* Remove Button */}
                       <button
                         type="button" disabled={items.length === 1}
@@ -775,17 +938,10 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                     </div>
                   ))}
                 </div>
-
-                {/* Total recalculé */}
-                <div style={{ marginTop: '14px', borderTop: '1.5px solid var(--color-border)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, fontSize: '0.9rem' }}>
-                  <span>Montant Total :</span>
-                  <span style={{ color: 'var(--color-rose-dark)' }}>{calculatedTotal.toLocaleString('fr-FR')} {currency}</span>
-                </div>
               </div>
 
               {/* Notes / Instructions du bon papier (déplacées ici) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label className="label">Notes / Instructions du bon papier (optionnel)</label>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                   <textarea
                     className="input" rows={2} placeholder="Notes particulières..."
@@ -881,7 +1037,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                 {!isMultiplePayment && paymentType === 'ACOMPTE' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>Montant acompte</span>
-                    <div style={{ width: '120px' }}>
+                    <div style={{ width: '150px' }}>
                       <TouchInput value={depositAmount.toString()} onChange={v => setDepositAmount(parseFloat(v) || 0)} style={{ height: '34px', padding: '4px 8px', textAlign: 'right' }} />
                     </div>
                   </div>
@@ -951,7 +1107,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
                           {/* Saisie montant */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <div style={{ width: '90px' }}>
+                            <div style={{ width: '140px' }}>
                               <TouchInput value={p.amount.toString()} onChange={v => {
                                 const newAmount = parseFloat(v) || 0;
                                 setPayments(prev => prev.map(item => item.id === p.id ? { ...item, amount: newAmount } : item));

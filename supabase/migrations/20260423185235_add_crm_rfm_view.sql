@@ -9,7 +9,7 @@ WITH rfm_raw AS (
     c.name,
     c.phone,
     c.loyalty_points,
-    COUNT(t.id)                          AS frequency,
+    COALESCE(COUNT(DISTINCT t.order_id), 0) + COALESCE(COUNT(t.id) FILTER (WHERE t.order_id IS NULL), 0) AS frequency,
     MAX(t.created_at)                    AS last_purchase_at,
     COALESCE(SUM(t.amount), 0)           AS monetary,
     NOW() - MAX(t.created_at)            AS recency_interval
