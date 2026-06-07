@@ -400,10 +400,23 @@ export async function importHistoricalOrder(input: any) {
         custom_image_url, // Image d'inspiration passée en entrée
         priority = 'normale',
         reception_type = 'retrait',
-        status = 'completed',
+        status: inputStatus,
         items = [],
         payments = [] // Paiements multiples passés en entrée
     } = input
+
+    // Déterminer dynamiquement le statut par défaut en fonction de la date de retrait
+    let status = inputStatus
+    if (!status) {
+        status = 'completed'
+        if (pickup_date) {
+            const pickupDateTime = new Date(pickup_date).getTime()
+            const nowTime = new Date().getTime()
+            if (pickupDateTime > nowTime) {
+                status = 'pending'
+            }
+        }
+    }
 
     if (!customer_name || !created_at || !pickup_date || total_amount === undefined || deposit_amount === undefined) {
         return { error: 'Données obligatoires manquantes.' }

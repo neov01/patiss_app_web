@@ -50,7 +50,7 @@ interface Props {
 }
 
 export default function OrderDrawer({ order, onClose, onStatusChange, isPending, roleSlug, onOrderUpdate }: Props) {
-    const [imageFullscreen, setImageFullscreen] = useState(false)
+    const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null)
     const [isVisible, setIsVisible] = useState(false)
 
     // États d'édition inline
@@ -149,6 +149,17 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
     }
 
     if (!order) return null
+
+    let parsedCustomizations: Array<{ name: string; notes: string; image_url: string }> = []
+    let isJsonCustomization = false
+    try {
+        if (order.customization_notes && (order.customization_notes.startsWith('[') || order.customization_notes.startsWith('{'))) {
+            parsedCustomizations = JSON.parse(order.customization_notes)
+            isJsonCustomization = Array.isArray(parsedCustomizations)
+        }
+    } catch (e) {
+        console.warn('Failed to parse customization notes JSON', e)
+    }
 
     const status = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending
     const priority = order.priority && order.priority !== 'normale' ? PRIORITY_CONFIG[order.priority] : null
@@ -363,36 +374,87 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                             background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '4px 0',
                             overflow: 'hidden'
                         }}>
-                            {order.order_items.map((item, i) => (
-                                <div key={item.id} style={{
-                                    padding: '12px 16px',
-                                    borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border)' : 'none',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px'
-                                }}>
-                                    <span style={{
-                                        background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
-                                        color: 'white',
-                                        fontWeight: 800,
-                                        fontSize: '0.8rem',
-                                        width: '28px', height: '28px',
-                                        borderRadius: '8px',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        flexShrink: 0
+                            {order.order_items.map((item, i) => {
+                                const itemFullName = item.products?.name ?? item.name ?? 'Produit'
+                                const customInfo = isJsonCustomization 
+                                    ? parsedCustomizations.find(c => c.name.toLowerCase() === itemFullName.toLowerCase())
+                                    : null
+
+                                return (
+                                    <div key={item.id} style={{
+                                        padding: '12px 16px',
+                                        borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border)' : 'none',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '8px'
                                     }}>
-                                        {item.quantity}
-                                    </span>
-                                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2D1B0E' }}>
-                                        {item.products?.name ?? item.name ?? 'Produit'}
-                                    </span>
-                                </div>
-                            ))}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{
+                                                background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
+                                                color: 'white',
+                                                fontWeight: 800,
+                                                fontSize: '0.8rem',
+                                                width: '28px', height: '28px',
+                                                borderRadius: '8px',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                flexShrink: 0
+                                            }}>
+                                                {item.quantity}
+                                            </span>
+                                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2D1B0E', flex: 1 }}>
+                                                {itemFullName}
+                                            </span>
+                                        </div>
+
+                                        {customInfo && (customInfo.notes || customInfo.image_url) && (
+                                            <div style={{
+                                                marginLeft: '38px',
+                                                background: '#FFF9F0',
+                                                border: '1px dashed #EDCFBF',
+                                                borderRadius: '10px',
+                                                padding: '10px 12px',
+                                                fontSize: '0.82rem',
+                                                color: '#5C3D2E',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '8px'
+                                            }}>
+                                                {customInfo.notes && (
+                                                    <div style={{ fontStyle: 'italic', lineHeight: 1.45 }}>
+                                                        &quot;{customInfo.notes}&quot;
+                                                    </div>
+                                                )}
+                                                {customInfo.image_url && (
+                                                    <div 
+                                                        onClick={() => setFullscreenImageUrl(customInfo.image_url)}
+                                                        style={{
+                                                            position: 'relative',
+                                                            borderRadius: '8px',
+                                                            overflow: 'hidden',
+                                                            cursor: 'pointer',
+                                                            border: '1px solid var(--color-border)',
+                                                            width: '90px',
+                                                            height: '60px',
+                                                            flexShrink: 0
+                                                        }}
+                                                    >
+                                                        <img 
+                                                            src={customInfo.image_url} 
+                                                            alt="Photo d'inspiration"
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
                     </section>
 
-                    {/* Personnalisation */}
-                    {(order.customization_notes || order.custom_image_url) && (
+                    {/* Personnalisation (ancienne version textuelle brute, masquée si JSON décodé par article) */}
+                    {!isJsonCustomization && (order.customization_notes || order.custom_image_url) && (
                         <section style={{ marginBottom: '24px' }}>
                             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
                                 ✏️ Personnalisation
@@ -416,7 +478,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
                             {order.custom_image_url && (
                                 <div 
-                                    onClick={() => setImageFullscreen(true)}
+                                    onClick={() => setFullscreenImageUrl(order.custom_image_url)}
                                     style={{
                                         position: 'relative',
                                         borderRadius: 'var(--radius-md)',
@@ -559,9 +621,9 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
             </div>
 
             {/* Overlay Photo plein écran */}
-            {imageFullscreen && order.custom_image_url && (
+            {fullscreenImageUrl && (
                 <div 
-                    onClick={() => setImageFullscreen(false)}
+                    onClick={() => setFullscreenImageUrl(null)}
                     style={{
                         position: 'fixed', inset: 0, zIndex: 300,
                         background: 'rgba(0,0,0,0.9)',
@@ -571,7 +633,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     }}
                 >
                     <button 
-                        onClick={() => setImageFullscreen(false)}
+                        onClick={() => setFullscreenImageUrl(null)}
                         style={{
                             position: 'absolute', top: '20px', right: '20px',
                             width: '44px', height: '44px', borderRadius: '50%',
@@ -583,7 +645,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         <X size={24} />
                     </button>
                     <img 
-                        src={order.custom_image_url}
+                        src={fullscreenImageUrl}
                         alt="Photo d'inspiration — Plein écran"
                         style={{ 
                             maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',

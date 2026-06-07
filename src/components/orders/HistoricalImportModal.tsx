@@ -28,6 +28,8 @@ interface ItemInput {
   floors?: number
   candles_fontaine?: number
   candles_ficelle?: number
+  notes?: string
+  imageFile?: File | null
 }
 
 interface HistoricalImportModalProps {
@@ -116,8 +118,6 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   const [depositAmount, setDepositAmount] = useState(0)
   const [depositMethod, setDepositMethod] = useState('Espèces')
   const [balanceMethod, setBalanceMethod] = useState('Espèces')
-  const [notes, setNotes] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
   const [paymentType, setPaymentType] = useState<'ACOMPTE' | 'SOLDE'>('SOLDE')
 
   // Paiement Multiple
@@ -127,7 +127,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   ])
   
   const [items, setItems] = useState<ItemInput[]>([
-    { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0 }
+    { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0, notes: '', imageFile: null }
   ])
   const [activeCandlesIndex, setActiveCandlesIndex] = useState<number | null>(null)
 
@@ -164,7 +164,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
   }, [paymentType, calculatedTotal])
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0 }])
+    setItems(prev => [...prev, { name: '', quantity: 1, unit_price: 0, candles_fontaine: 0, candles_ficelle: 0, notes: '', imageFile: null }])
   }
 
   const handleRemoveItem = (index: number) => {
@@ -211,11 +211,10 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
     setIsSubmitting(true)
     try {
-      let customImageUrl: string | undefined
-
-      if (imageFile) {
+      // Fonction interne d'upload d'une image d'article
+      const uploadImage = async (file: File): Promise<string | undefined> => {
         try {
-          const compressed = await compressImage(imageFile, { maxWidth: 1200, quality: 0.7 })
+          const compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
           const supabase = createSupabaseClient()
           const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
           
@@ -226,14 +225,49 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           
           if (!uploadError) {
             const { data } = supabase.storage.from('order-images').getPublicUrl(filePath)
-            customImageUrl = data.publicUrl
+            return data.publicUrl
           } else {
             console.error('Upload de la photo échoué:', uploadError)
           }
         } catch (err) {
           console.error("Erreur compression/upload:", err)
         }
+        return undefined
       }
+
+      // Uploader toutes les images en parallèle
+      const itemsWithUrls = await Promise.all(
+        items.map(async (item) => {
+          let imageUrl: string | undefined = undefined
+          if (item.imageFile) {
+            imageUrl = await uploadImage(item.imageFile)
+          }
+          return { ...item, imageUrl }
+        })
+      )
+
+      // Trouver la première URL d'image disponible pour custom_image_url
+      const firstImageUrl = itemsWithUrls.find(i => i.imageUrl)?.imageUrl
+
+      // Construire le JSON structuré des notes et images pour chaque article
+      const notesArray = itemsWithUrls.map((item) => {
+        let finalName = item.name.trim()
+        const partsStr = item.parts ? `${item.parts} parts` : ''
+        const floorsStr = item.floors ? `${item.floors} étage${item.floors > 1 ? 's' : ''}` : ''
+        const details = [partsStr, floorsStr].filter(Boolean).join(', ')
+        if (details) {
+          finalName = `${finalName} (${details})`
+        }
+        return {
+          name: finalName,
+          notes: item.notes?.trim() || '',
+          image_url: item.imageUrl || ''
+        }
+      })
+
+      // On n'enregistre le JSON que si au moins un article a des notes ou une image
+      const hasCustomization = notesArray.some(n => n.notes || n.image_url)
+      const customizationNotes = hasCustomization ? JSON.stringify(notesArray) : undefined
 
       const calculatedDeposit = isMultiplePayment
         ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
@@ -262,8 +296,8 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           payment_method: p.payment_method,
           label_type: p.label_type
         })) : undefined,
-        customization_notes: notes.trim() || undefined,
-        custom_image_url: customImageUrl,
+        customization_notes: customizationNotes,
+        custom_image_url: firstImageUrl,
         status: 'completed',
         items: (() => {
           const finalItems = []
@@ -765,196 +799,279 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                     value={pickupTime}
                     onChange={setPickupTime}
                     placeholder="Heure"
+                    align="right"
                   />
                 </div>
               </div>
 
               {/* Items Section */}
-              <div style={{ padding: '16px', background: 'var(--color-cream)', borderRadius: '18px', border: '1.5px solid var(--color-border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <label className="label" style={{ margin: 0 }}>Articles du bon de commande</label>
-                  <button type="button" onClick={handleAddItem} className="btn-secondary" style={{ padding: '4px 10px', minHeight: '30px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Plus size={14} /> Ajouter
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="label" style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800 }}>Articles du bon de commande</label>
+                  <button type="button" onClick={handleAddItem} className="btn-secondary" style={{ padding: '6px 12px', minHeight: '34px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Plus size={16} /> Ajouter un article
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {items.map((item, index) => (
-                    <div key={index} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 70px 100px 42px 32px', gap: '6px', alignItems: 'center', background: 'var(--color-well)', padding: '6px', borderRadius: '8px' }}>
-                      {/* Designation + Parts + Floors */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                        <input className="input" value={item.name} onChange={e => handleItemChange(index, 'name', e.target.value)} placeholder="Désignation" style={{ padding: '6px 8px', height: '32px', flex: 2, minWidth: '80px', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }} required />
-                        <TouchInput
-                          value={item.parts?.toString() || ''}
-                          onChange={v => handleItemChange(index, 'parts', parseInt(v) || undefined)}
-                          allowDecimal={false}
-                          placeholder="Parts"
-                          title={`Nombre de parts : ${item.name || 'Produit'}`}
-                          hideIcon={true}
-                          style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                        />
-                        <TouchInput
-                          value={item.floors?.toString() || ''}
-                          onChange={v => handleItemChange(index, 'floors', parseInt(v) || undefined)}
-                          allowDecimal={false}
-                          placeholder="Étages"
-                          title={`Nombre d'étages : ${item.name || 'Produit'}`}
-                          hideIcon={true}
-                          style={{ padding: '6px 2px', height: '32px', width: '62px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                        />
-                      </div>
-
-                      {/* Qty */}
-                      <TouchInput
-                        value={item.quantity.toString()}
-                        onChange={v => handleItemChange(index, 'quantity', parseInt(v) || 1)}
-                        allowDecimal={false}
-                        title={`Quantité : ${item.name || 'Produit'}`}
-                        placeholder="Qté"
-                        hideIcon={true}
-                        style={{ padding: '6px 8px', height: '32px', textAlign: 'center', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                      />
-
-                      {/* Unit Price */}
-                      <TouchInput
-                        value={item.unit_price === 0 ? '' : item.unit_price.toString()}
-                        onChange={v => handleItemChange(index, 'unit_price', parseFloat(v) || 0)}
-                        placeholder="Prix"
-                        title={`Prix unitaire : ${item.name || 'Produit'}`}
-                        hideIcon={true}
-                        style={{ padding: '6px 8px', height: '32px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
-                      />
-
-                      {/* Candle Selection Popover Button */}
-                      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveCandlesIndex(activeCandlesIndex === index ? null : index)}
-                          style={{
-                            background: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary-container)' : 'transparent',
-                            border: '1.5px solid',
-                            borderColor: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'transparent',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            padding: '0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '38px',
-                            width: '38px',
-                            color: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'var(--color-muted)',
-                            position: 'relative',
-                            transition: 'all 0.2s'
-                          }}
-                          title="Ajouter des bougies"
-                        >
-                          <Flame size={20} fill={(item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'none'} />
-                          {(item.candles_fontaine || item.candles_ficelle) ? (
-                            <span style={{
-                              position: 'absolute',
-                              top: '-2px',
-                              right: '-2px',
-                              background: 'var(--color-primary)',
-                              color: 'white',
-                              fontSize: '0.6rem',
-                              fontWeight: 900,
-                              borderRadius: '50%',
-                              width: '16px',
-                              height: '16px',
+                    <div key={index} style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      background: 'var(--color-well)',
+                      padding: '16px',
+                      borderRadius: '18px',
+                      border: '1.5px solid var(--color-border)',
+                      position: 'relative'
+                    }}>
+                      {/* Entête de la carte */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-rose-dark)' }}>
+                          🍰 Article #{index + 1}
+                        </span>
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#D94F38',
+                              cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '1px solid white'
-                            }}>
-                              {(item.candles_fontaine || 0) + (item.candles_ficelle || 0)}
-                            </span>
-                          ) : null}
-                        </button>
-
-                        {activeCandlesIndex === index && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '100%',
-                            right: 0,
-                            marginBottom: '8px',
-                            background: '#fff',
-                            border: '1.5px solid var(--color-border)',
-                            borderRadius: '16px',
-                            boxShadow: '0 12px 36px rgba(45,27,14,0.15)',
-                            padding: '16px',
-                            width: '290px',
-                            zIndex: 100,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px'
-                          }}>
-                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-text)', borderBottom: '1.5px solid var(--color-border)', paddingBottom: '6px' }}>
-                              Achat de Bougies
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-                              <div>
-                                <div style={{ fontWeight: 700 }}>Fontaine</div>
-                                <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>2 000 FCFA / u</div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', Math.max(0, (item.candles_fontaine || 0) - 1))}
-                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>-</button>
-                                <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_fontaine || 0}</span>
-                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', (item.candles_fontaine || 0) + 1)}
-                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>+</button>
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-                              <div>
-                                <div style={{ fontWeight: 700 }}>Ficelle</div>
-                                <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>1 000 FCFA / u</div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', Math.max(0, (item.candles_ficelle || 0) - 1))}
-                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>-</button>
-                                <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_ficelle || 0}</span>
-                                <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', (item.candles_ficelle || 0) + 1)}
-                                  style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>+</button>
-                              </div>
-                            </div>
-
-                            <button type="button" onClick={() => setActiveCandlesIndex(null)} className="btn-secondary" style={{ padding: '4px 0', minHeight: '46px', fontSize: '0.88rem', fontWeight: 700, width: '100%', borderRadius: '10px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              Valider
-                            </button>
-                          </div>
+                              gap: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '6px',
+                              transition: 'background-color 0.2s'
+                            }}
+                          >
+                            <Trash2 size={14} /> Supprimer
+                          </button>
                         )}
                       </div>
 
-                      {/* Remove Button */}
-                      <button
-                        type="button" disabled={items.length === 1}
-                        onClick={() => handleRemoveItem(index)}
-                        style={{ background: 'none', border: 'none', color: '#D94F38', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', opacity: items.length === 1 ? 0.3 : 1 }}
-                      >
-                        <X size={16} />
-                      </button>
+                      {/* Ligne 1 : Désignation + Parts + Étages */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 2fr) 1fr 1fr', gap: '8px' }}>
+                        <div>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Désignation *</label>
+                          <input
+                            className="input"
+                            value={item.name}
+                            onChange={e => handleItemChange(index, 'name', e.target.value)}
+                            placeholder="ex: Gâteau d'anniversaire..."
+                            style={{ padding: '6px 8px', height: '36px', borderRadius: '10px', background: '#ffffff', border: '1.5px solid var(--color-border)' }}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Parts</label>
+                          <TouchInput
+                            value={item.parts?.toString() || ''}
+                            onChange={v => handleItemChange(index, 'parts', parseInt(v) || undefined)}
+                            allowDecimal={false}
+                            placeholder="Parts"
+                            title={`Nombre de parts : ${item.name || 'Produit'}`}
+                            hideIcon={true}
+                            style={{ padding: '6px 2px', height: '36px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Étages</label>
+                          <TouchInput
+                            value={item.floors?.toString() || ''}
+                            onChange={v => handleItemChange(index, 'floors', parseInt(v) || undefined)}
+                            allowDecimal={false}
+                            placeholder="Étages"
+                            title={`Nombre d'étages : ${item.name || 'Produit'}`}
+                            hideIcon={true}
+                            style={{ padding: '6px 2px', height: '36px', textAlign: 'center', fontSize: '0.78rem', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Ligne 2 : Quantité + Prix unitaire + Bouton Bougies */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr auto', gap: '8px', alignItems: 'flex-end' }}>
+                        <div>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Quantité</label>
+                          <TouchInput
+                            value={item.quantity.toString()}
+                            onChange={v => handleItemChange(index, 'quantity', parseInt(v) || 1)}
+                            allowDecimal={false}
+                            title={`Quantité : ${item.name || 'Produit'}`}
+                            placeholder="Qté"
+                            hideIcon={true}
+                            style={{ padding: '6px 8px', height: '36px', textAlign: 'center', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>Prix Unitaire</label>
+                          <TouchInput
+                            value={item.unit_price === 0 ? '' : item.unit_price.toString()}
+                            onChange={v => handleItemChange(index, 'unit_price', parseFloat(v) || 0)}
+                            placeholder="Prix"
+                            title={`Prix unitaire : ${item.name || 'Produit'}`}
+                            hideIcon={true}
+                            style={{ padding: '6px 8px', height: '36px', textAlign: 'right', border: '1.5px solid var(--color-border)', borderRadius: '10px', background: '#ffffff' }}
+                          />
+                        </div>
+
+                        {/* Bougies popover */}
+                        <div style={{ position: 'relative' }}>
+                          <label className="label" style={{ fontSize: '0.7rem', marginBottom: '4px', display: 'block' }}>Bougies</label>
+                          <button
+                            type="button"
+                            onClick={() => setActiveCandlesIndex(activeCandlesIndex === index ? null : index)}
+                            style={{
+                              background: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary-container)' : '#ffffff',
+                              border: '1.5px solid',
+                              borderColor: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'var(--color-border)',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              padding: '0',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '36px',
+                              width: '44px',
+                              color: (item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'var(--color-muted)',
+                              position: 'relative',
+                              transition: 'all 0.2s'
+                            }}
+                            title="Ajouter des bougies"
+                          >
+                            <Flame size={18} fill={(item.candles_fontaine || item.candles_ficelle) ? 'var(--color-primary)' : 'none'} />
+                            {(item.candles_fontaine || item.candles_ficelle) ? (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-4px',
+                                right: '-4px',
+                                background: 'var(--color-primary)',
+                                color: 'white',
+                                fontSize: '0.6rem',
+                                fontWeight: 900,
+                                borderRadius: '50%',
+                                width: '16px',
+                                height: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid white'
+                              }}>
+                                {(item.candles_fontaine || 0) + (item.candles_ficelle || 0)}
+                              </span>
+                            ) : null}
+                          </button>
+
+                          {activeCandlesIndex === index && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '100%',
+                              right: 0,
+                              marginBottom: '8px',
+                              background: '#fff',
+                              border: '1.5px solid var(--color-border)',
+                              borderRadius: '16px',
+                              boxShadow: '0 12px 36px rgba(45,27,14,0.15)',
+                              padding: '16px',
+                              width: '290px',
+                              zIndex: 100,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px'
+                            }}>
+                              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--color-text)', borderBottom: '1.5px solid var(--color-border)', paddingBottom: '6px' }}>
+                                Achat de Bougies
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                <div>
+                                  <div style={{ fontWeight: 700 }}>Fontaine</div>
+                                  <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>2 000 FCFA / u</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', Math.max(0, (item.candles_fontaine || 0) - 1))}
+                                    style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>-</button>
+                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_fontaine || 0}</span>
+                                  <button type="button" onClick={() => handleUpdateCandle(index, 'candles_fontaine', (item.candles_fontaine || 0) + 1)}
+                                    style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>+</button>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                <div>
+                                  <div style={{ fontWeight: 700 }}>Ficelle</div>
+                                  <div style={{ color: 'var(--color-muted)', fontSize: '0.72rem' }}>1 000 FCFA / u</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', Math.max(0, (item.candles_ficelle || 0) - 1))}
+                                    style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>-</button>
+                                  <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 800, fontSize: '1rem' }}>{item.candles_ficelle || 0}</span>
+                                  <button type="button" onClick={() => handleUpdateCandle(index, 'candles_ficelle', (item.candles_ficelle || 0) + 1)}
+                                    style={{ width: '38px', height: '38px', borderRadius: '10px', border: '1.5px solid var(--color-border)', background: 'var(--color-well)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>+</button>
+                                </div>
+                              </div>
+
+                              <button type="button" onClick={() => setActiveCandlesIndex(null)} className="btn-secondary" style={{ padding: '4px 0', minHeight: '38px', fontSize: '0.88rem', fontWeight: 700, width: '100%', borderRadius: '10px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                Valider
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Notes particulières + image d'inspiration pour cet article */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginTop: '4px' }}>
+                        <textarea
+                          className="input"
+                          rows={2}
+                          placeholder="Notes particulières pour cet article (parfum, écritures, etc.)..."
+                          style={{ resize: 'none', padding: '8px 10px', border: '1.5px solid var(--color-border)', borderRadius: '12px', background: '#ffffff', flex: 1, fontSize: '0.78rem', minHeight: '48px' }}
+                          value={item.notes || ''}
+                          onChange={e => handleItemChange(index, 'notes', e.target.value)}
+                        />
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px',
+                            border: '1.5px dashed var(--color-border)',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            background: item.imageFile ? 'var(--color-primary-container)' : '#ffffff',
+                            color: item.imageFile ? 'var(--color-primary)' : 'var(--color-muted)',
+                            flexShrink: 0,
+                            position: 'relative'
+                          }}
+                          title={item.imageFile ? item.imageFile.name : "Photo d'inspiration pour cet article"}
+                        >
+                          {item.imageFile ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <CheckCircle2 size={16} color="var(--color-primary)" />
+                              <span style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-primary)', marginTop: '2px', maxWidth: '44px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                Ok
+                              </span>
+                            </div>
+                          ) : (
+                            <ImageIcon size={18} />
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={e => handleItemChange(index, 'imageFile', e.target.files?.[0] || null)}
+                          />
+                        </label>
+                      </div>
+
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Notes / Instructions du bon papier (déplacées ici) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <textarea
-                    className="input" rows={2} placeholder="Notes particulières..."
-                    style={{ resize: 'none', padding: '10px', border: '1.5px solid var(--color-border)', borderRadius: '12px', background: '#ffffff', flex: 1 }}
-                    value={notes} onChange={e => setNotes(e.target.value)}
-                  />
-                  <label
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', border: '1px dashed var(--color-border)', borderRadius: '12px', cursor: 'pointer', background: 'var(--color-well)', color: imageFile ? 'var(--color-primary)' : 'var(--color-muted)', flexShrink: 0 }}
-                    title={imageFile ? imageFile.name : "Ajouter une photo d'inspiration"}
-                  >
-                    <ImageIcon size={18} />
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setImageFile(e.target.files?.[0] || null)} />
-                  </label>
                 </div>
               </div>
 
