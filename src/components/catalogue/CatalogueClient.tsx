@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import ProductModal from './ProductModal'
 import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface Product {
   id: string
@@ -35,6 +36,7 @@ interface CatalogueClientProps {
 
 export default function CatalogueClient({ products, currency, availableIngredients }: CatalogueClientProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
@@ -53,6 +55,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
       const res = await deleteProduct(id)
       if (res.success) {
         toast.success("Produit supprimé")
+        queryClient.invalidateQueries({ queryKey: ['catalog'] })
         router.refresh()
       } else {
         toast.error(res.error)
