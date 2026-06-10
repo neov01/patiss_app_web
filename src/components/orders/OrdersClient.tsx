@@ -29,6 +29,10 @@ interface OrderWithItems {
     created_by: string | null
     created_at: string | null
     order_items: OrderItem[]
+    creator_profile?: {
+        full_name: string
+        role_slug: string
+    } | null
 }
 
 const STATUS_LABELS: Record<string, { label: string; next: string; color: string }> = {

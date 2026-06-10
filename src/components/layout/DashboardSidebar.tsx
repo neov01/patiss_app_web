@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import {
     LayoutDashboard, ShoppingBag, BookOpen, Package,
-    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store
+    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store, Clock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logoutKiosk } from '@/lib/actions/auth'

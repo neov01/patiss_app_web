@@ -167,6 +167,70 @@ export async function closeSingleSession(
         return { sessionId, success: true, emailSent: false, reason: 'No manager email found' }
     }
 
+    // Récupération des informations d'ouverture/fermeture
+    let openerName = "Non spécifié"
+    let openerRole = ""
+    let closerName = "Automatique"
+    let closerRole = ""
+
+    if (session.opened_by) {
+        const { data: openerProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('full_name, role_slug')
+            .eq('id', session.opened_by)
+            .single()
+        if (openerProfile) {
+            openerName = openerProfile.full_name
+            openerRole = openerProfile.role_slug === 'gerant' ? 'Gérant' : openerProfile.role_slug === 'vendeur' ? 'Vendeur' : openerProfile.role_slug === 'patissier' ? 'Pâtissier' : openerProfile.role_slug
+        }
+    }
+
+    if (closedBy) {
+        const { data: closerProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('full_name, role_slug')
+            .eq('id', closedBy)
+            .single()
+        if (closerProfile) {
+            closerName = closerProfile.full_name
+            closerRole = closerProfile.role_slug === 'gerant' ? 'Gérant' : closerProfile.role_slug === 'vendeur' ? 'Vendeur' : closerProfile.role_slug === 'patissier' ? 'Pâtissier' : closerProfile.role_slug
+        }
+    }
+
+    // Récupération des statistiques vendeurs pour la session courante
+    const { data: sessionOrders } = await supabaseAdmin
+        .from('orders')
+        .select('is_historical, created_by, profiles!orders_created_by_fkey(full_name, role_slug)')
+        .eq('organization_id', orgId)
+        .gte('inserted_at', sessionStart)
+
+    const vendorStats: Record<string, { name: string; role: string; newOrders: number; historicalOrders: number }> = {}
+
+    if (sessionOrders) {
+        for (const order of sessionOrders) {
+            const creatorId = order.created_by || 'unknown'
+            const profileInfo = order.profiles as any
+            const creatorName = profileInfo?.full_name || 'Utilisateur inconnu'
+            const creatorRoleSlug = profileInfo?.role_slug || ''
+            const creatorRole = creatorRoleSlug === 'gerant' ? 'Gérant' : creatorRoleSlug === 'vendeur' ? 'Vendeur' : creatorRoleSlug === 'patissier' ? 'Pâtissier' : creatorRoleSlug
+
+            if (!vendorStats[creatorId]) {
+                vendorStats[creatorId] = {
+                    name: creatorName,
+                    role: creatorRole,
+                    newOrders: 0,
+                    historicalOrders: 0
+                }
+            }
+
+            if (order.is_historical) {
+                vendorStats[creatorId].historicalOrders++
+            } else {
+                vendorStats[creatorId].newOrders++
+            }
+        }
+    }
+
     const isProduction = process.env.ENVIRONMENT === 'production'
     const reportRecipient = isProduction ? managerEmail : (process.env.REPORT_DEV_EMAIL ?? 'adouwilfried@gmail.com')
     const today = new Date()
@@ -203,6 +267,23 @@ export async function closeSingleSession(
   </div>
 
   <div style="padding:36px 40px;">
+
+    <!-- SUIVI DE LA CAISSE (OUVERTURE / CLÔTURE) -->
+    <div style="background:#FFFDFB;border:1px solid #F3E5DC;border-radius:12px;padding:16px;margin-bottom:28px;box-shadow:0 2px 8px rgba(196,131,106,0.05);color:#2D1B0E;">
+      <h3 style="margin:0 0 12px;color:#2D1B0E;font-size:14px;font-weight:700;">🔑 Suivi de la caisse</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;color:#5C3D2E;border-collapse:collapse;width:100%;">
+        <tr>
+          <td style="padding:6px 0;font-weight:600;width:30%;">Ouverte par :</td>
+          <td style="padding:6px 0;width:35%;">${openerName} <span style="font-size:11px;color:#9C8070;">(${openerRole || 'Opérateur'})</span></td>
+          <td style="padding:6px 0;text-align:right;color:#9C8070;width:35%;">Le ${format(new Date(sessionStart), 'dd/MM/yyyy à HH:mm', { locale: fr })}</td>
+        </tr>
+        <tr style="border-top:1px solid #F5ECE5;">
+          <td style="padding:6px 0;padding-top:10px;font-weight:600;">Fermée par :</td>
+          <td style="padding:6px 0;padding-top:10px;">${closerName} <span style="font-size:11px;color:#9C8070;">(${closerRole || 'Opérateur'})</span></td>
+          <td style="padding:6px 0;padding-top:10px;text-align:right;color:#9C8070;">Le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}</td>
+        </tr>
+      </table>
+    </div>
 
     <!-- TOTAL JOURNÉE -->
     <div style="background:#FDF8F3;border:2px solid #C4836A;border-radius:14px;padding:24px;text-align:center;margin-bottom:28px;">
@@ -300,6 +381,35 @@ export async function closeSingleSession(
           </td>
         </tr>
       </table>
+    </div>
+
+    <!-- ACTIVITÉ DE L'ÉQUIPE (STATISTIQUES PAR PROFIL) -->
+    <div style="margin-top:28px;padding-top:24px;border-top:1px solid #f0e8e0;">
+      <h2 style="margin:0 0 16px;font-size:17px;color:#2D1B0E;">👥 Activité de l'équipe (durant la session)</h2>
+      ${Object.keys(vendorStats).length === 0 ? `
+        <p style="margin:0;color:#9C8070;font-size:13px;font-style:italic;">Aucune commande n'a été enregistrée durant cette session.</p>
+      ` : `
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#2D1B0E;width:100%;">
+          <thead>
+            <tr style="border-bottom:2px solid #E8B4A0;text-align:left;">
+              <th style="padding:8px 4px;font-weight:700;">Collaborateur</th>
+              <th style="padding:8px 4px;font-weight:700;text-align:center;">Nouv. Commandes</th>
+              <th style="padding:8px 4px;font-weight:700;text-align:center;">Imports Hist.</th>
+              <th style="padding:8px 4px;font-weight:700;text-align:right;">Total Saisi</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.values(vendorStats).map((vs, idx) => `
+              <tr style="border-bottom:1px solid #F0E8E0;background-color:${idx % 2 === 0 ? '#FFFDFB' : '#ffffff'};">
+                <td style="padding:10px 4px;"><strong>${vs.name}</strong> <br/><span style="font-size:10px;color:#9C8070;">(${vs.role || 'Rôle non spécifié'})</span></td>
+                <td style="padding:10px 4px;text-align:center;font-weight:600;">${vs.newOrders}</td>
+                <td style="padding:10px 4px;text-align:center;color:#9C8070;">${vs.historicalOrders}</td>
+                <td style="padding:10px 4px;text-align:right;font-weight:800;color:#C4836A;">${vs.newOrders + vs.historicalOrders}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `}
     </div>
 
     <!-- STOCKS -->

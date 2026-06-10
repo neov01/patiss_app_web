@@ -29,6 +29,7 @@ import TouchInput from '@/components/ui/TouchInput'
 import { useOffline } from '@/components/providers/OfflineProvider'
 import { getCachedReadyOrders } from '@/lib/offline/db'
 import { CRMSelector } from './CRMSelector'
+import SessionsHistoryClient from './SessionsHistoryClient'
 
 type CaisseProps = {
     organizationId: string
@@ -41,6 +42,8 @@ type CaisseProps = {
     ventesVitrine: number
     recentHistory: any[]
     bestSellers: any[]
+    sessions?: any[]
+    roleSlug: string
 }
 
 type PanierLine = {
@@ -69,9 +72,12 @@ export default function CaisseClient({
     commandesEncaissees: initialCmdCount,
     ventesVitrine: initialVitrineCount,
     recentHistory: initialHistory,
-    bestSellers
+    bestSellers,
+    sessions = [],
+    roleSlug
 }: CaisseProps) {
     // ÉTAT LOCAL
+    const [caisseTab, setCaisseTab] = useState<'vente' | 'historique'>('vente')
     const [panier, setPanier] = useState<PanierLine[]>([])
     const [activeOrder, setActiveOrder] = useState<any | null>(null)
     const [activeClient, setActiveClient] = useState<string | null>(null)
@@ -163,6 +169,14 @@ export default function CaisseClient({
     }, [organizationId])
 
     const searchParams = useSearchParams()
+
+    // Lire l'onglet depuis l'URL si présent
+    useEffect(() => {
+        const tab = searchParams.get('tab')
+        if (tab === 'historique' && (roleSlug === 'gerant' || roleSlug === 'super_admin')) {
+            setCaisseTab('historique')
+        }
+    }, [searchParams, roleSlug])
 
     // -- LOGIQUE PANIER --
     const chargerCommande = (order: any) => {
@@ -350,11 +364,116 @@ export default function CaisseClient({
         setTimeout(() => window.location.reload(), 800)
     }
 
+    const showTabs = roleSlug === 'gerant' || roleSlug === 'super_admin'
+
     return (
         <div className="caisse-layout-container" style={{ display: 'flex', minHeight: 'calc(100dvh - 200px)', background: '#FDF8F3', borderRadius: '24px', overflow: 'hidden' }}>
             
-            {/* ====== COLONNE GAUCHE (Main) ====== */}
-            <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px' }}>
+            {caisseTab === 'historique' && showTabs ? (
+                <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px', flex: 1 }}>
+                    {/* Onglets */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+                        <div style={{
+                            display: 'flex',
+                            background: '#EAE1D4',
+                            padding: '4px',
+                            borderRadius: '99px',
+                            border: '1px solid rgba(131, 116, 107, 0.15)',
+                        }}>
+                            <button
+                                onClick={() => setCaisseTab('vente')}
+                                style={{
+                                    padding: '8px 24px',
+                                    borderRadius: '99px',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    background: 'transparent',
+                                    color: '#9C8070',
+                                }}
+                            >
+                                🛒 Enregistrer une vente
+                            </button>
+                            <button
+                                onClick={() => setCaisseTab('historique')}
+                                style={{
+                                    padding: '8px 24px',
+                                    borderRadius: '99px',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    background: 'white',
+                                    color: '#2D1B0E',
+                                    boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
+                                }}
+                            >
+                                📜 Historique des sessions
+                            </button>
+                        </div>
+                    </div>
+
+                    <SessionsHistoryClient 
+                        sessions={sessions} 
+                        currency={currency} 
+                        roleSlug={roleSlug} 
+                        embedded={true} 
+                    />
+                </div>
+            ) : (
+                <>
+                    {/* ====== COLONNE GAUCHE (Main) ====== */}
+                    <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px' }}>
+                        
+                        {/* Onglets */}
+                        {showTabs && (
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    background: '#EAE1D4',
+                                    padding: '4px',
+                                    borderRadius: '99px',
+                                    border: '1px solid rgba(131, 116, 107, 0.15)',
+                                }}>
+                                    <button
+                                        onClick={() => setCaisseTab('vente')}
+                                        style={{
+                                            padding: '8px 24px',
+                                            borderRadius: '99px',
+                                            fontWeight: 700,
+                                            fontSize: '0.85rem',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            background: 'white',
+                                            color: '#2D1B0E',
+                                            boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
+                                        }}
+                                    >
+                                        🛒 Enregistrer une vente
+                                    </button>
+                                    <button
+                                        onClick={() => setCaisseTab('historique')}
+                                        style={{
+                                            padding: '8px 24px',
+                                            borderRadius: '99px',
+                                            fontWeight: 700,
+                                            fontSize: '0.85rem',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            background: 'transparent',
+                                            color: '#9C8070',
+                                        }}
+                                    >
+                                        📜 Historique des sessions
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                 
                 {/* 1. TOPBAR */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -1024,6 +1143,9 @@ export default function CaisseClient({
                     )}
                 </div>
             </div>
+
+                </>
+            )}
 
             {/* Modal Catalogue Completely external to layout */}
             <CatalogueModal 

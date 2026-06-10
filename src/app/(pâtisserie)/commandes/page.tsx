@@ -20,7 +20,7 @@ export default async function CommandesPage() {
     const [{ data: orders }, { data: products }] = await Promise.all([
         supabase
             .from('orders')
-            .select('*, order_items(*, products(name))')
+            .select('*, order_items(*, products(name)), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
             .eq('organization_id', orgId)
             .order('pickup_date', { ascending: true }),
         supabase

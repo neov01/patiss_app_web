@@ -25,6 +25,10 @@ interface Order {
     customization_notes: string | null
     custom_image_url: string | null
     order_items: OrderItem[]
+    creator_profile?: {
+        full_name: string
+        role_slug: string
+    } | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; next: string; nextLabel: string; prev?: string; prevLabel?: string; color: string; bg: string }> = {
@@ -568,6 +572,40 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                             )}
                         </div>
                     </section>
+
+                    {/* Traçabilité / Créateur */}
+                    {order.creator_profile && (
+                        <section style={{ marginBottom: '24px' }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                                📝 Traçabilité
+                            </div>
+                            <div style={{
+                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
+                                display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', color: '#2D1B0E'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Enregistrée par :</span>
+                                    <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        👤 {order.creator_profile.full_name} 
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)', background: 'rgba(129, 84, 49, 0.08)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                            {order.creator_profile.role_slug === 'gerant' ? 'Gérant' : order.creator_profile.role_slug === 'vendeur' ? 'Vendeur' : order.creator_profile.role_slug === 'patissier' ? 'Pâtissier' : order.creator_profile.role_slug}
+                                        </span>
+                                    </span>
+                                </div>
+                                {order.created_at && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(131, 116, 107, 0.12)', paddingTop: '8px', marginTop: '4px' }}>
+                                        <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Date de saisie :</span>
+                                        <span style={{ fontWeight: 600 }}>
+                                            {(() => {
+                                                const d = new Date(order.created_at)
+                                                return !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Inconnue'
+                                            })()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    )}
                 </div>
 
                 {/* Action fixe en bas (Avancer & Reculer) */}
