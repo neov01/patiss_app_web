@@ -298,7 +298,6 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         })) : undefined,
         customization_notes: customizationNotes,
         custom_image_url: firstImageUrl,
-        status: 'completed',
         items: (() => {
           const finalItems = []
           for (const item of items) {
@@ -648,7 +647,6 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           created_at: ddMmYyyyToIsoString(ord.created_at),
           total_amount: ord.total_amount,
           deposit_amount: ord.deposit_amount,
-          status: ord.status, // completed si soldée, pending si acompte prélevé
           payments: ord.payments, // Plusieurs paiements typés ACOMPTE / SOLDE
           customization_notes: ord.customization_notes,
           items: ord.items.map((it: any) => ({
