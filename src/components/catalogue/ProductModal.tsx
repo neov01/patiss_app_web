@@ -289,7 +289,17 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
             </div>
           )}
 
-          <form id="product-form" onSubmit={handleSubmit(handleFormSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form 
+            id="product-form" 
+            onSubmit={handleSubmit(
+              handleFormSubmit,
+              (errs) => {
+                console.warn('Form validation errors:', errs)
+                toast.error("Veuillez remplir correctement tous les champs obligatoires.")
+              }
+            )} 
+            style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+          >
 
             {/* Nom en lecture seule (mode édition) */}
             {productToEdit && (
@@ -387,6 +397,27 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                 </button>
               </div>
             </div>
+
+            {/* Coût d'achat (pour les produits de revente) */}
+            {type === 'revente' && (
+              <div>
+                <label className="label">Coût d'achat (FCFA)</label>
+                <Controller control={control} name="purchaseCost"
+                  render={({ field }) => (
+                    <TouchInput
+                      value={field.value?.toString() || '0'}
+                      onChange={(val) => field.onChange(parseFloat(val) || 0)}
+                      allowDecimal={true}
+                      title="Coût d'achat"
+                      placeholder="0"
+                      style={{ background: locked ? '#F3F4F6' : undefined }}
+                      hasError={!!errors.purchaseCost}
+                    />
+                  )}
+                />
+                {errors.purchaseCost && <span style={{ fontSize: '0.72rem', color: 'var(--color-error)', fontWeight: 600, marginTop: '2px', display: 'block' }}>{errors.purchaseCost.message}</span>}
+              </div>
+            )}
 
             {/* Quantité en stock */}
             {trackStock && (

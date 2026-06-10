@@ -27,6 +27,7 @@ export default async function CommandesPage() {
             .from('products')
             .select('id, name, selling_price, current_stock')
             .eq('organization_id', orgId)
+            .eq('is_active', true)
             .order('name')
     ]);
 

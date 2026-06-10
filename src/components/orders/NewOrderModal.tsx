@@ -178,7 +178,11 @@ export default function NewOrderModal({ open, onClose, products: initialProducts
         const fetchSearch = async () => {
             setIsSearching(true)
             const supabase = createSupabaseClient()
-            const { data } = await supabase.from('products').select('id, name, selling_price, current_stock').ilike('name', `%${searchQuery}%`).limit(10)
+            const { data } = await supabase.from('products')
+                .select('id, name, selling_price, current_stock')
+                .eq('is_active', true)
+                .ilike('name', `%${searchQuery}%`)
+                .limit(10)
             if (data) setSearchResults(data)
             setIsSearching(false)
         }

@@ -6,8 +6,8 @@ import { toast } from 'sonner'
 import { CakeSlice, Delete, Loader2, Store } from 'lucide-react'
 import type { Profile } from '@/types/supabase'
 import { loginWithPin, verifyKioskCode, getKioskProfiles, logoutKiosk } from '@/lib/actions/auth'
-
 import { createClient } from '@/lib/supabase/client'
+import { motion, AnimatePresence } from 'framer-motion'
 
 function KioskContent() {
     const router = useRouter()
@@ -86,14 +86,16 @@ function KioskContent() {
         setChecking(false)
     }, [selected, router])
 
-    function pressDigit(d: string) {
+    const pressDigit = useCallback((d: string) => {
         if (pin.length >= 4) return
         const next = pin + d
         setPin(next)
         if (next.length === 4) handlePIN(next)
-    }
+    }, [pin, handlePIN])
 
-    function deleteLast() { setPin(p => p.slice(0, -1)) }
+    const deleteLast = useCallback(() => {
+        setPin(p => p.slice(0, -1))
+    }, [])
 
     const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
@@ -101,14 +103,15 @@ function KioskContent() {
 
     return (
         <div style={{
-            minHeight: '100dvh',
+            minHeight: '100vh',
             background: 'linear-gradient(145deg, #FDF8F3 0%, #FDE8E0 100%)',
             display: 'flex',
             flexDirection: 'column',
             padding: '24px',
+            overflowX: 'hidden'
         }}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', zIndex: 10 }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '44px', height: '44px', borderRadius: '14px',
@@ -139,152 +142,273 @@ function KioskContent() {
                 </button>
             </div>
 
-            {/* ÉTAPE 1: Code Boutique */}
-            {!kioskOrgId ? (
-                <div className="animate-fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: '10vh' }}>
-                    <div style={{ background: 'white', padding: '40px', borderRadius: '32px', boxShadow: '0 10px 40px rgba(45,27,14,0.06)', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                            <Store size={32} color="#D97757" />
-                        </div>
-                        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2D1B0E', margin: '0 0 12px' }}>Code Boutique</h2>
-                        <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-                            Entrez le code d'accès de votre pâtisserie fourni par l'administrateur.
-                        </p>
+            {/* Layout Flex Principal */}
+            <div style={{
+                display: 'flex',
+                width: '100%',
+                flex: 1,
+                gap: '40px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: kioskOrgId ? 'row' : 'column',
+                flexWrap: 'wrap',
+                transition: 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)'
+            }}>
+                {/* ÉTAPE 1: Code Boutique */}
+                <motion.div
+                    layout
+                    transition={{ type: 'spring', stiffness: 80, damping: 15 }}
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        padding: '40px',
+                        borderRadius: '32px',
+                        boxShadow: '0 10px 40px rgba(45,27,14,0.06)',
+                        width: '100%',
+                        maxWidth: kioskOrgId ? '340px' : '400px',
+                        textAlign: 'center',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        backdropFilter: 'blur(12px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        zIndex: 2
+                    }}
+                >
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                        <Store size={32} color="#D97757" />
+                    </div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2D1B0E', margin: '0 0 12px' }}>Code Boutique</h2>
+                    <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
+                        Entrez le code d&apos;accès de votre pâtisserie fourni par l&apos;administrateur.
+                    </p>
 
-                        <form onSubmit={handleVerifyBoutiqueCode} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <input
-                                type="text"
-                                value={boutiqueCode}
-                                onChange={e => setBoutiqueCode(e.target.value.toUpperCase())}
-                                placeholder="ex: ABCDEF"
-                                className="input"
-                                style={{ textAlign: 'center', fontSize: '1.25rem', letterSpacing: '0.2em', fontWeight: 800, textTransform: 'uppercase', height: '56px' }}
-                                maxLength={8}
-                            />
-                            <button type="submit" disabled={verifyingCode || boutiqueCode.length < 3} className="btn-primary" style={{ height: '56px', fontSize: '1.05rem', gap: '10px' }}>
+                    <form onSubmit={handleVerifyBoutiqueCode} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                        <input
+                            type="text"
+                            value={boutiqueCode}
+                            onChange={e => setBoutiqueCode(e.target.value.toUpperCase())}
+                            placeholder="ex: ABCDEF"
+                            className="input"
+                            disabled={!!kioskOrgId}
+                            style={{ 
+                                textAlign: 'center', 
+                                fontSize: '1.25rem', 
+                                letterSpacing: '0.2em', 
+                                fontWeight: 800, 
+                                textTransform: 'uppercase', 
+                                height: '56px',
+                                background: kioskOrgId ? 'var(--color-well, #F5EEE4)' : 'white',
+                                borderColor: kioskOrgId ? 'transparent' : undefined
+                            }}
+                            maxLength={8}
+                        />
+                        {!kioskOrgId && (
+                            <button type="submit" disabled={verifyingCode || boutiqueCode.length < 3} className="btn-primary" style={{ height: '56px', fontSize: '1.05rem', gap: '10px', width: '100%' }}>
                                 {verifyingCode ? <Loader2 size={20} className="animate-spin" /> : 'Accéder au kiosque'}
                             </button>
-                        </form>
-                    </div>
-                </div>
-            ) : !selected ? (
-                /* ÉTAPE 2: Avatar grid */
-                <div className="animate-fade-in">
-                    {loading ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: '16px' }}>
-                            {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="skeleton" style={{ height: '160px', borderRadius: 'var(--radius-lg)' }} />
-                            ))}
-                        </div>
-                    ) : profiles.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: '#9C8070', paddingTop: '60px' }}>
-                            <p>Aucun employé actif trouvé pour cette boutique.</p>
-                            <button onClick={() => setKioskOrgId(null)} className="btn-ghost" style={{ marginTop: '16px' }}>
-                                Retour
-                            </button>
-                        </div>
-                    ) : (
-                        <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: '16px' }}>
-                                {profiles.map((p, i) => (
-                                    <button key={p.id} onClick={() => { setSelected(p); setPin('') }}
+                        )}
+                    </form>
+                </motion.div>
+
+                {/* ÉTAPE 2 & 3: Profils & PIN (Côté Droit) */}
+                {kioskOrgId && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ type: 'spring', stiffness: 80, damping: 15, delay: 0.2 }}
+                        style={{
+                            flex: 1,
+                            minWidth: '320px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '100%',
+                            zIndex: 1
+                        }}
+                    >
+                        <AnimatePresence mode="wait">
+                            {selected === null ? (
+                                <motion.div
+                                    key="grid-view"
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -15 }}
+                                    transition={{ duration: 0.2 }}
+                                    style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                                >
+                                    {loading ? (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px', width: '100%', maxWidth: '520px' }}>
+                                            {[1, 2, 3, 4].map(i => (
+                                                <div key={i} className="skeleton" style={{ height: '160px', borderRadius: 'var(--radius-lg)' }} />
+                                            ))}
+                                        </div>
+                                    ) : profiles.length === 0 ? (
+                                        <div style={{ textAlign: 'center', color: '#9C8070', paddingTop: '40px' }}>
+                                            <p>Aucun employé actif trouvé pour cette boutique.</p>
+                                            <button onClick={() => setKioskOrgId(null)} className="btn-ghost" style={{ marginTop: '16px' }}>
+                                                Retour
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#2D1B0E', marginBottom: '24px', textAlign: 'center' }}>
+                                                Sélectionnez votre profil
+                                            </h2>
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                                                gap: '16px',
+                                                width: '100%',
+                                                maxWidth: '520px',
+                                            }}>
+                                                {profiles.map((p, i) => (
+                                                    <motion.button
+                                                        key={p.id}
+                                                        layoutId={`profile-card-${p.id}`}
+                                                        onClick={() => { setSelected(p); setPin('') }}
+                                                        whileHover={{ scale: 1.03, y: -2 }}
+                                                        whileTap={{ scale: 0.97 }}
+                                                        style={{
+                                                            background: 'white',
+                                                            border: '2px solid var(--color-border)',
+                                                            borderRadius: '20px',
+                                                            padding: '20px 12px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            alignItems: 'center',
+                                                            gap: '12px',
+                                                            boxShadow: '0 4px 12px rgba(45,27,14,0.02)',
+                                                        }}
+                                                    >
+                                                        <div style={{
+                                                            width: '64px', height: '64px', borderRadius: '50%',
+                                                            background: p.avatar_url ? `url(${p.avatar_url}) center/cover` : COLORS[i % COLORS.length],
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            fontSize: '1.4rem', fontWeight: 700, color: '#fff',
+                                                        }}>
+                                                            {!p.avatar_url && initials(p.full_name)}
+                                                        </div>
+                                                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', textAlign: 'center' }}>
+                                                            {p.full_name}
+                                                        </span>
+                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070', fontWeight: 600 }}>
+                                                            {p.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
+                                                        </span>
+                                                    </motion.button>
+                                                ))}
+                                            </div>
+                                            
+                                            {!searchParams.get('orgId') && (
+                                                <button onClick={() => setKioskOrgId(null)} className="btn-ghost" style={{ marginTop: '32px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                                    ← Changer de Code Boutique
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="pin-view"
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -15 }}
+                                    transition={{ duration: 0.2 }}
+                                    style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}
+                                >
+                                    {/* Profil sélectionné centré */}
+                                    <motion.div
+                                        layoutId={`profile-card-${selected.id}`}
                                         style={{
-                                            background: 'white', border: '2px solid var(--color-border)',
-                                            borderRadius: 'var(--radius-lg)', padding: '20px 12px',
-                                            cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
-                                            transition: 'transform 0.2s, box-shadow 0.2s',
-                                            minHeight: '44px',
+                                            background: 'white',
+                                            border: '2px solid var(--color-border)',
+                                            borderRadius: '24px',
+                                            padding: '20px 32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '20px',
+                                            boxShadow: '0 10px 30px rgba(45,27,14,0.04)',
+                                            width: '100%',
+                                            maxWidth: '360px',
                                         }}
-                                        className="card-clickable"
                                     >
                                         <div style={{
                                             width: '64px', height: '64px', borderRadius: '50%',
-                                            background: p.avatar_url ? `url(${p.avatar_url}) center/cover` : COLORS[i % COLORS.length],
+                                            background: selected.avatar_url ? `url(${selected.avatar_url}) center/cover` : COLORS[profiles.indexOf(selected) % COLORS.length],
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontSize: '1.4rem', fontWeight: 700, color: '#fff',
+                                            flexShrink: 0
                                         }}>
-                                            {!p.avatar_url && initials(p.full_name)}
+                                            {!selected.avatar_url && initials(selected.full_name)}
                                         </div>
-                                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E', textAlign: 'center' }}>
-                                            {p.full_name}
-                                        </span>
-                                        <span style={{ fontSize: '0.75rem', color: '#9C8070' }}>
-                                            {p.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                            
-                            {/* Option pour le gérant de "déconnecter" la boutique */}
-                            {!searchParams.get('orgId') && (
-                                <div style={{ marginTop: '40px', textAlign: 'center' }}>
-                                    <button onClick={() => setKioskOrgId(null)} className="btn-ghost" style={{ fontSize: '0.8rem' }}>
-                                        Changer de Code Boutique
-                                    </button>
-                                </div>
+                                        <div style={{ textAlign: 'left' }}>
+                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2D1B0E', margin: 0 }}>{selected.full_name}</h2>
+                                            <p style={{ color: '#9C8070', fontSize: '0.8rem', margin: '4px 0 0', fontWeight: 600 }}>
+                                                {selected.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+
+                                    {/* PIN Pad Block */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.15 }}
+                                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}
+                                    >
+                                        <p style={{ color: '#9C8070', fontSize: '0.875rem', margin: 0, fontWeight: 600 }}>Entrez votre code PIN</p>
+                                        
+                                        {/* Dots */}
+                                        <div style={{ display: 'flex', gap: '16px' }}>
+                                            {[0, 1, 2, 3].map(i => (
+                                                <div key={i} style={{
+                                                    width: '16px', height: '16px', borderRadius: '50%',
+                                                    background: i < pin.length ? 'var(--color-primary, #C4836A)' : 'var(--color-border)',
+                                                    transition: 'background 0.2s',
+                                                }} />
+                                            ))}
+                                        </div>
+
+                                        {/* Pad */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 72px)', gap: '12px' }}>
+                                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((d, i) => (
+                                                <motion.button 
+                                                    key={i} 
+                                                    onClick={() => d === '⌫' ? deleteLast() : d ? pressDigit(d) : undefined}
+                                                    disabled={!d || checking}
+                                                    whileHover={d ? { scale: 1.08 } : {}}
+                                                    whileTap={d ? { scale: 0.92 } : {}}
+                                                    style={{
+                                                        width: '72px', height: '72px', borderRadius: '50%',
+                                                        border: '2px solid var(--color-border)',
+                                                        background: d === '⌫' ? 'var(--color-well, #F5EEE4)' : 'white',
+                                                        fontSize: d === '⌫' ? '1.1rem' : '1.5rem',
+                                                        fontWeight: 700, cursor: d ? 'pointer' : 'default',
+                                                        color: d === '⌫' ? '#C4836A' : '#2D1B0E',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        boxShadow: d ? '0 4px 8px rgba(45,27,14,0.02)' : 'none',
+                                                        visibility: d === '' ? 'hidden' : 'visible',
+                                                        transition: 'border-color 0.15s, background-color 0.15s',
+                                                    }}
+                                                >
+                                                    {d === '⌫' ? <Delete size={20} /> : d}
+                                                </motion.button>
+                                            ))}
+                                        </div>
+
+                                        {checking && <Loader2 size={24} className="animate-spin" style={{ color: '#C4836A' }} />}
+
+                                        <button onClick={() => { setSelected(null); setPin('') }} className="btn-ghost" style={{ marginTop: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                            ← Changer de profil
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
                             )}
-                        </div>
-                    )}
-                </div>
-            ) : (
-                /* ÉTAPE 3: PIN Pad */
-                <div className="animate-scale-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', paddingTop: '20px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                            width: '72px', height: '72px', borderRadius: '50%', margin: '0 auto 12px',
-                            background: COLORS[profiles.indexOf(selected) % COLORS.length],
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '1.6rem', fontWeight: 700, color: '#fff',
-                        }}>
-                            {initials(selected.full_name)}
-                        </div>
-                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{selected.full_name}</h2>
-                        <p style={{ color: '#9C8070', fontSize: '0.875rem', margin: '4px 0 0' }}>Entrez votre code PIN</p>
-                    </div>
-
-                    {/* Dots */}
-                    <div style={{ display: 'flex', gap: '16px' }}>
-                        {[0, 1, 2, 3].map(i => (
-                            <div key={i} style={{
-                                width: '16px', height: '16px', borderRadius: '50%',
-                                background: i < pin.length ? '#C4836A' : 'var(--color-border)',
-                                transition: 'background 0.2s',
-                            }} />
-                        ))}
-                    </div>
-
-                    {/* Pad */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 72px)', gap: '12px' }}>
-                        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((d, i) => (
-                            <button key={i} onClick={() => d === '⌫' ? deleteLast() : d ? pressDigit(d) : undefined}
-                                disabled={!d || checking}
-                                style={{
-                                    width: '72px', height: '72px', borderRadius: '50%',
-                                    border: '2px solid var(--color-border)',
-                                    background: d === '⌫' ? 'var(--color-blush)' : 'white',
-                                    fontSize: d === '⌫' ? '1.1rem' : '1.5rem',
-                                    fontWeight: 600, cursor: d ? 'pointer' : 'default',
-                                    color: d === '⌫' ? '#C4836A' : '#2D1B0E',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    transition: 'background 0.15s, transform 0.1s',
-                                    visibility: d === '' ? 'hidden' : 'visible',
-                                    minHeight: '44px',
-                                }}
-                                onMouseDown={e => { if (d) (e.currentTarget.style.transform = 'scale(0.92)') }}
-                                onMouseUp={e => { (e.currentTarget.style.transform = 'scale(1)') }}
-                            >
-                                {d === '⌫' ? <Delete size={20} /> : d}
-                            </button>
-                        ))}
-                    </div>
-
-                    {checking && <Loader2 size={24} className="animate-spin" style={{ color: '#C4836A' }} />}
-
-                    <button onClick={() => { setSelected(null); setPin('') }} className="btn-ghost">
-                        ← Changer de profil
-                    </button>
-                </div>
-            )}
+                        </AnimatePresence>
+                    </motion.div>
+                )}
+            </div>
         </div>
     )
 }

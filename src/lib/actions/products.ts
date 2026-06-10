@@ -116,3 +116,19 @@ export async function deleteProduct(id: string) {
     return { success: false, error: error.message }
   }
 }
+
+export async function toggleProductActive(id: string, isActive: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Non authentifié' }
+
+  try {
+    const { error } = await supabase.from('products').update({ is_active: isActive }).eq('id', id)
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/catalogue')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}
