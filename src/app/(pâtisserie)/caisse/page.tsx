@@ -32,7 +32,8 @@ export default async function CaissePage() {
         { data: activeSession },
         { data: pipelineOrders },
         { data: todayTransactions },
-        { data: rpcBestSellers }
+        { data: rpcBestSellers },
+        sessionsResult
     ] = await Promise.all([
         // 1. Session journalière (sales_sessions)
         supabase
@@ -63,8 +64,23 @@ export default async function CaissePage() {
             p_org_id: orgId,
             p_days_limit: 30,
             p_top_n: 8
-        })
+        }),
+
+        // 5. Historique des sessions (uniquement pour gérant/admin)
+        (profile.role_slug === 'gerant' || profile.role_slug === 'super_admin')
+            ? supabase
+                .from('sales_sessions')
+                .select(`
+                    *,
+                    opened_by_profile:profiles!sales_sessions_opened_by_fkey(full_name, role_slug),
+                    closed_by_profile:profiles!sales_sessions_closed_by_fkey(full_name, role_slug)
+                `)
+                .eq('organization_id', orgId)
+                .order('opened_at', { ascending: false })
+            : Promise.resolve({ data: null, error: null })
     ]);
+
+    const sessions = sessionsResult?.data || []
 
     // CA du jour (inclut acomptes + soldes = argent réellement reçu)
     const caDuJour = (todayTransactions || []).reduce((acc, t) => acc + Number(t.amount), 0)
@@ -158,6 +174,8 @@ export default async function CaissePage() {
             ventesVitrine={ventesVitrine}
             recentHistory={recentHistory}
             bestSellers={bestSellers}
+            sessions={sessions}
+            roleSlug={profile.role_slug}
         />
     )
 }
