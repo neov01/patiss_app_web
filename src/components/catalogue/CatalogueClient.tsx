@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Edit, Trash2, Loader2, Package } from 'lucide-react'
-import { deleteProduct } from '@/lib/actions/products'
+import { Search, Edit, Trash2, Loader2, Package, Archive, RotateCcw } from 'lucide-react'
+import { deleteProduct, toggleProductActive } from '@/lib/actions/products'
 import { toast } from 'sonner'
 import ProductModal from './ProductModal'
 import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
@@ -19,6 +19,7 @@ interface Product {
   trackStock: boolean
   currentStock?: number
   image_url?: string | null
+  is_active?: boolean
 }
 
 interface Ingredient {
@@ -37,12 +38,18 @@ interface CatalogueClientProps {
 export default function CatalogueClient({ products, currency, availableIngredients }: CatalogueClientProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
 
+  const displayedProducts = useMemo(() => {
+    return (products ?? []).filter(p => viewMode === 'active' ? p.is_active !== false : p.is_active === false)
+  }, [products, viewMode])
+
   const { search, setSearch, activeCategory, setActiveCategory, filtered: filteredProducts } =
-    useProductFilter(products ?? [])
+    useProductFilter(displayedProducts)
 
   const handleDelete = async () => {
     if (!productToDelete) return
@@ -54,7 +61,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
     try {
       const res = await deleteProduct(id)
       if (res.success) {
-        toast.success("Produit supprimé")
+        toast.success("Produit supprimé définitivement")
         queryClient.invalidateQueries({ queryKey: ['catalog'] })
         router.refresh()
       } else {
@@ -65,30 +72,96 @@ export default function CatalogueClient({ products, currency, availableIngredien
     }
   }
 
+  const handleToggleActive = async (id: string, newActive: boolean) => {
+    setArchivingId(id)
+    try {
+      const res = await toggleProductActive(id, newActive)
+      if (res.success) {
+        toast.success(newActive ? "Produit restauré" : "Produit archivé")
+        queryClient.invalidateQueries({ queryKey: ['catalog'] })
+        router.refresh()
+      } else {
+        toast.error(res.error)
+      }
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Barre de recherche */}
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, paddingLeft: '16px', display: 'flex', alignItems: 'center', pointerEvents: 'none', height: '100%' }}>
-          <Search size={20} color="#9C8070" />
+      {/* Barre de recherche et toggle de vue */}
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, paddingLeft: '16px', display: 'flex', alignItems: 'center', pointerEvents: 'none', height: '100%' }}>
+            <Search size={20} color="#9C8070" />
+          </div>
+          <input
+            type="text"
+            placeholder="Rechercher un produit (croissant, tarte...)"
+            style={{
+              width: '100%',
+              padding: '16px 16px 16px 48px',
+              borderRadius: '9999px',
+              border: '1.5px solid var(--color-border)',
+              background: 'var(--color-cream)',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: 'var(--color-text)',
+              outline: 'none',
+            }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          placeholder="Rechercher un produit (croissant, tarte...)"
-          style={{
-            width: '100%',
-            padding: '16px 16px 16px 48px',
-            borderRadius: '9999px',
-            border: '1.5px solid var(--color-border)',
-            background: 'var(--color-cream)',
-            fontSize: '0.95rem',
-            fontWeight: 600,
-            color: 'var(--color-text)',
-            outline: 'none',
-          }}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+
+        {/* Sélecteur de vue (Actifs / Archivés) */}
+        <div style={{ 
+          display: 'flex', 
+          background: 'var(--color-well, #F5EEE4)', 
+          padding: '4px', 
+          borderRadius: '9999px', 
+          border: '1.5px solid var(--color-border)',
+          alignSelf: 'stretch',
+          alignItems: 'center'
+        }}>
+          <button
+            type="button"
+            onClick={() => setViewMode('active')}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '9999px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: 'none',
+              background: viewMode === 'active' ? 'var(--color-rose-dark, #C4836A)' : 'transparent',
+              color: viewMode === 'active' ? '#fff' : 'var(--color-muted, #9C8070)',
+              transition: 'all 0.2s',
+              boxShadow: viewMode === 'active' ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
+            }}
+          >
+            Actifs
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('archived')}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '9999px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: 'none',
+              background: viewMode === 'archived' ? 'var(--color-rose-dark, #C4836A)' : 'transparent',
+              color: viewMode === 'archived' ? '#fff' : 'var(--color-muted, #9C8070)',
+              transition: 'all 0.2s',
+              boxShadow: viewMode === 'archived' ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
+            }}
+          >
+            Archivés
+          </button>
+        </div>
       </div>
 
       {/* Filtres par catégories */}
@@ -155,31 +228,66 @@ export default function CatalogueClient({ products, currency, availableIngredien
                   transition: 'all 0.2s'
                 }}
               >
-                {/* Actions (Edit / Delete) */}
+                {/* Actions (Edit / Delete / Archive) */}
                 <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setEditingProduct(product)
-                    }}
-                    style={{ background: 'var(--color-cream)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)' }}
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setProductToDelete({ id: product.id, name: product.name })
-                    }}
-                    disabled={isDeleting}
-                    style={{ background: '#FEF2F2', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#D94F38' }}
-                  >
-                    {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  </button>
+                  {viewMode === 'active' ? (
+                    <>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setEditingProduct(product)
+                        }}
+                        style={{ background: 'var(--color-cream)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)' }}
+                        title="Modifier"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          await handleToggleActive(product.id, false)
+                        }}
+                        disabled={archivingId === product.id}
+                        style={{ background: '#FEF3EC', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark)' }}
+                        title="Archiver"
+                      >
+                        {archivingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          await handleToggleActive(product.id, true)
+                        }}
+                        disabled={archivingId === product.id}
+                        style={{ background: '#ECFDF5', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#10B981' }}
+                        title="Restaurer"
+                      >
+                        {archivingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setProductToDelete({ id: product.id, name: product.name })
+                        }}
+                        disabled={isDeleting}
+                        style={{ background: '#FEF2F2', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#D94F38' }}
+                        title="Supprimer définitivement"
+                      >
+                        {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Icône ou Photo du produit */}

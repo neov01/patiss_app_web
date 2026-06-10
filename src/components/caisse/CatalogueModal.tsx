@@ -40,6 +40,7 @@ export default function CatalogueModal({
             const { data, error } = await supabase.from('products')
                 .select('id, name, selling_price, current_stock, category')
                 .eq('organization_id', organizationId)
+                .eq('is_active', true)
                 .order('name')
             if (error) throw error
             return data || []

@@ -25,7 +25,8 @@ export default async function CataloguePage() {
         purchase_cost: p.purchase_cost,
         track_stock: p.track_stock,
         current_stock: p.current_stock,
-        image_url: p.image_url
+        image_url: p.image_url,
+        is_active: p.is_active
     })) ?? []
 
     const fullProducts = productsRes.data?.map(p => ({
@@ -39,6 +40,7 @@ export default async function CataloguePage() {
         currentStock: p.current_stock,
         current_stock: p.current_stock,
         image_url: p.image_url,
+        is_active: p.is_active,
         composition: (p.product_ingredients as any[])?.map(pi => ({
             ingredientId: pi.ingredient_id,
             quantity: pi.quantity
