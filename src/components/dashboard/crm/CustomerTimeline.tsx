@@ -32,7 +32,7 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                 </span>
                 <span className="text-[10px] font-bold text-slate-400">Il y a 2 jours</span>
               </div>
-              <p className="text-sm font-bold text-slate-700">SMS "Offre de Pâques" envoyé</p>
+              <p className="text-sm font-bold text-slate-700">SMS &quot;Offre de Pâques&quot; envoyé</p>
             </div>
           </div>
 

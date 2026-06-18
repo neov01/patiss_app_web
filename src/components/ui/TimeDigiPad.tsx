@@ -17,13 +17,17 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
 
     // Parse value on open
     useEffect(() => {
-        if (open && value) {
-            const clean = value.replace(':', '')
-            setDigits(clean.split('').slice(0, 4))
-        } else if (open) {
-            setDigits([])
-        }
-    }, [open])
+        if (!open) return
+        const timer = window.setTimeout(() => {
+            if (value) {
+                const clean = value.replace(':', '')
+                setDigits(clean.split('').slice(0, 4))
+            } else {
+                setDigits([])
+            }
+        }, 0)
+        return () => window.clearTimeout(timer)
+    }, [open, value])
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -114,7 +118,7 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-rose-dark)'; e.currentTarget.style.background = '#fff'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.background = 'var(--color-cream)'; }}
             >
-                <Clock size={16} color="#C4836A" />
+                <Clock size={16} color="var(--color-rose-dark)" />
                 <span>{value || placeholder}</span>
             </button>
 
@@ -162,7 +166,7 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
                         <span style={{
                             fontSize: '2.2rem',
                             fontWeight: 800,
-                            color: '#C4836A',
+                            color: 'var(--color-rose-dark)',
                             animation: !isComplete ? 'colonBlink 1s infinite' : 'none',
                         }}>
                             :
@@ -190,7 +194,7 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
                                     padding: '4px 10px',
                                     borderRadius: '8px',
                                     border: 'none',
-                                    background: value === t ? '#C4836A' : 'var(--color-cream)',
+                                    background: value === t ? 'var(--color-rose-dark)' : 'var(--color-cream)',
                                     color: value === t ? '#fff' : 'var(--color-muted)',
                                     fontSize: '0.75rem',
                                     fontWeight: 600,

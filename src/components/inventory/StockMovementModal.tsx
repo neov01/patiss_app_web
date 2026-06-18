@@ -68,7 +68,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
 
     return (
         <>
-            <button onClick={() => setOpen(true)} className="btn-ghost" style={{ minHeight: '36px', padding: '0 8px', color: '#C4836A' }}>
+            <button onClick={() => setOpen(true)} className="btn-ghost" style={{ minHeight: '36px', padding: '0 8px', color: 'var(--color-rose-dark)' }}>
                 <ArrowUpDown size={16} />
             </button>
             {open && createPortal(
@@ -104,10 +104,10 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
                                             onClick={() => setReason(r.value)}
                                             style={{
                                                 padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '2px solid',
-                                                borderColor: reason === r.value ? '#C4836A' : 'var(--color-border)',
+                                                borderColor: reason === r.value ? 'var(--color-rose-dark)' : 'var(--color-border)',
                                                 background: reason === r.value ? '#FDE8E0' : 'white',
                                                 cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
-                                                color: reason === r.value ? '#C4836A' : 'var(--color-muted)',
+                                                color: reason === r.value ? 'var(--color-rose-dark)' : 'var(--color-muted)',
                                                 transition: 'all 0.15s', minHeight: '44px',
                                             }}>
                                             {r.label}
@@ -120,7 +120,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
                                 <label className="label">Quantité ({reasonInfo.positive ? '+' : '-'})</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF8F3', borderRadius: '12px', border: '1.5px solid var(--color-border)', overflow: 'hidden' }}>
                                     <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))}
-                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderRight: '1.5px solid var(--color-border)' }}>
+                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-rose-dark)', borderRight: '1.5px solid var(--color-border)' }}>
                                         <Minus size={20} />
                                     </button>
                                     <TouchInput
@@ -133,7 +133,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
                                         style={{ border: 'none', background: 'transparent', textAlign: 'center', fontSize: '1.2rem', fontWeight: 700, flex: 1, minHeight: '44px', borderRadius: 0 }}
                                     />
                                     <button type="button" onClick={() => setQuantity(quantity + 1)}
-                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderLeft: '1.5px solid var(--color-border)' }}>
+                                        style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-rose-dark)', borderLeft: '1.5px solid var(--color-border)' }}>
                                         <Plus size={20} />
                                     </button>
                                 </div>

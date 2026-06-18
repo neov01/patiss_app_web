@@ -135,7 +135,7 @@ export default function ConfirmModal({
         <h3 style={{ 
           fontSize: '1.25rem', 
           fontWeight: 800, 
-          color: '#2D1B0E', 
+          color: 'var(--color-text)', 
           marginBottom: '12px',
           margin: 0
         }}>

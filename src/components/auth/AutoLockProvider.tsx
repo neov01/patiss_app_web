@@ -16,7 +16,7 @@ interface Props {
     isKiosk: boolean
 }
 
-export default function AutoLockProvider({ children, autoLockSeconds, themeColor, userId, role, organizationId, isKiosk }: Props) {
+export default function AutoLockProvider({ children, autoLockSeconds, themeColor, role, organizationId, isKiosk }: Props) {
     const router = useRouter()
     const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 

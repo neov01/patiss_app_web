@@ -17,7 +17,7 @@ export default function OfflinePage() {
         width: '80px',
         height: '80px',
         borderRadius: '24px',
-        background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
+        background: 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -30,7 +30,7 @@ export default function OfflinePage() {
       <h1 style={{
         fontSize: '1.5rem',
         fontWeight: 900,
-        color: '#2D1B0E',
+        color: 'var(--color-text)',
         margin: '0 0 12px'
       }}>
         Connexion perdue
@@ -38,7 +38,7 @@ export default function OfflinePage() {
       
       <p style={{
         fontSize: '0.95rem',
-        color: '#9C8070',
+        color: 'var(--color-muted)',
         lineHeight: 1.6,
         maxWidth: '400px',
         margin: '0 0 32px'
@@ -56,7 +56,7 @@ export default function OfflinePage() {
             padding: '14px 32px',
             borderRadius: '16px',
             border: 'none',
-            background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
+            background: 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)',
             color: 'white',
             fontWeight: 800,
             fontSize: '0.95rem',
@@ -76,7 +76,7 @@ export default function OfflinePage() {
             borderRadius: '16px',
             border: '2px solid #EDCFBF',
             background: 'white',
-            color: '#C4836A',
+            color: 'var(--color-rose-dark)',
             fontWeight: 700,
             fontSize: '0.95rem',
             cursor: 'pointer'

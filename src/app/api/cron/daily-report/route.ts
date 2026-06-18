@@ -272,8 +272,8 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ success: true, message: 'Rapports quotidiens générés et distribués !' })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Erreur CRON Daily Report:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Erreur inconnue' }, { status: 500 })
     }
 }

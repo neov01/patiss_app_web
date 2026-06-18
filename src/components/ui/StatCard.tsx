@@ -23,7 +23,7 @@ export default function StatCard({
 }: StatCardProps) {
     if (loading) {
         return (
-            <div className={`card ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px', ...style }}>
+            <div className={`card ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px', ...style }}>
                 <div className="skeleton" style={{ height: '18px', width: '40%' }} />
                 <div className="skeleton" style={{ height: '36px', width: '70%' }} />
                 <div className="skeleton" style={{ height: '14px', width: '50%' }} />
@@ -43,7 +43,7 @@ export default function StatCard({
             onClick={onClick}
             style={{ 
                 cursor: onClick ? 'pointer' : 'default', 
-                padding: '32px',
+                padding: '24px',
                 position: 'relative',
                 overflow: 'hidden',
                 background: 'var(--color-surface-container-lowest)',

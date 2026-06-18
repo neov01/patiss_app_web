@@ -1,20 +1,20 @@
 import { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { env } from '@/lib/env'
+import { AuthContextError, requireOrganizationContext } from '@/lib/auth/organization-context'
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
-// Rate-limiter simple : 10 requêtes / 5 minutes par organisation
+// Rate-limiter simple : 10 requêtes / 5 minutes par utilisateur + organisation
 const _rateLimiter = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT = 10
 const RATE_WINDOW_MS = 5 * 60 * 1000
 
-function checkRateLimit(orgId: string): boolean {
+function checkRateLimit(key: string): boolean {
     const now = Date.now()
-    const entry = _rateLimiter.get(orgId)
+    const entry = _rateLimiter.get(key)
     if (!entry || now > entry.resetAt) {
-        _rateLimiter.set(orgId, { count: 1, resetAt: now + RATE_WINDOW_MS })
+        _rateLimiter.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS })
         return true
     }
     if (entry.count >= RATE_LIMIT) return false
@@ -26,12 +26,14 @@ function checkRateLimit(orgId: string): boolean {
 const _ctxCache = new Map<string, { data: unknown; ts: number }>()
 const CTX_TTL = 5 * 60 * 1000
 
-async function getCachedContext(organizationId: string) {
+async function getCachedContext(
+    supabase: Awaited<ReturnType<typeof requireOrganizationContext>>['supabase'],
+    organizationId: string
+) {
     const hit = _ctxCache.get(organizationId)
     if (hit && Date.now() - hit.ts < CTX_TTL) return hit.data
-    const supabase = await createClient()
     const { data, error } = await supabase.rpc(
-        'get_ia_financial_context' as any,
+        'get_ia_financial_context',
         { p_org_id: organizationId }
     )
     if (error) throw error
@@ -131,11 +133,8 @@ Tu as accès aux données opérationnelles de la pâtisserie depuis sa création
 
 export async function POST(req: NextRequest) {
     try {
-        const { question, organizationId, currency, userRole } = await req.json()
-
-        if (!organizationId) {
-            return new Response('Organisation non identifiée.', { status: 200 })
-        }
+        const { question } = await req.json()
+        const { supabase, userId, organizationId, currency, role } = await requireOrganizationContext()
 
         // Validation de l'entrée utilisateur
         if (typeof question !== 'string') {
@@ -143,8 +142,8 @@ export async function POST(req: NextRequest) {
         }
         const trimmedQuestion = question.trim().slice(0, 500)
 
-        // Rate-limiting par organisation
-        if (!checkRateLimit(organizationId)) {
+        // Rate-limiting par utilisateur + organisation authentifiés
+        if (!checkRateLimit(`${organizationId}:${userId}`)) {
             return new Response('⏳ Trop de requêtes. Attendez quelques minutes avant de réessayer.', { status: 429 })
         }
 
@@ -153,13 +152,13 @@ export async function POST(req: NextRequest) {
         // Contexte financier avec cache 5 min (évite de rescanner 12 mois à chaque question)
         let rawContext: Record<string, unknown>
         try {
-            rawContext = (await getCachedContext(organizationId)) as Record<string, unknown>
+            rawContext = (await getCachedContext(supabase, organizationId)) as Record<string, unknown>
         } catch (rpcErr) {
             console.error('[AI Route] RPC error:', rpcErr)
             return new Response("Erreur d'accès aux données financières. Contactez l'administrateur.", { status: 200 })
         }
 
-        const isManager = userRole === 'gerant' || userRole === 'super_admin'
+        const isManager = role === 'gerant' || role === 'super_admin'
 
         // Filtrer les données sensibles pour les non-gérants
         const context: Record<string, unknown> = {
@@ -225,6 +224,10 @@ Question : ${trimmedQuestion}`
 
     } catch (err: unknown) {
         console.error('[AI Route] Error:', err)
+        if (err instanceof AuthContextError) {
+            return new Response(err.message, { status: err.status })
+        }
+
         const message = err instanceof Error ? err.message : 'Erreur inconnue'
 
         if (message.includes('429') || message.includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {

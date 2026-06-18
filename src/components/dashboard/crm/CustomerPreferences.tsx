@@ -1,16 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Star, Gift, AlertTriangle, X, Plus, Check } from "lucide-react";
-import { Customer } from "./types";
+import { Customer, CustomerPreferencesData } from "./types";
 
 interface CustomerPreferencesProps {
   customer: Customer | null;
-  onUpdatePreferences: (newPrefs: Record<string, any>) => Promise<void>;
+  onUpdatePreferences: (newPrefs: CustomerPreferencesData) => Promise<void>;
 }
 
 export default function CustomerPreferences({ customer, onUpdatePreferences }: CustomerPreferencesProps) {
-  const prefs = customer?.preferences as Record<string, any> | undefined;
+  return (
+    <CustomerPreferencesForm
+      key={customer?.id ?? "empty"}
+      customer={customer}
+      onUpdatePreferences={onUpdatePreferences}
+    />
+  );
+}
+
+function CustomerPreferencesForm({ customer, onUpdatePreferences }: CustomerPreferencesProps) {
+  const prefs = customer?.preferences ?? undefined;
 
   // Birthday state
   const [birthday, setBirthday] = useState(prefs?.birth_date || "");
@@ -20,12 +30,6 @@ export default function CustomerPreferences({ customer, onUpdatePreferences }: C
   const [allergies, setAllergies] = useState<string[]>(prefs?.allergies || []);
   const [newAllergy, setNewAllergy] = useState("");
   const [savingAllergies, setSavingAllergies] = useState(false);
-
-  // Sync when customer changes
-  useEffect(() => {
-    setBirthday(prefs?.birth_date || "");
-    setAllergies(prefs?.allergies || []);
-  }, [customer?.id]);
 
   async function saveBirthday() {
     setSavingBirthday(true);

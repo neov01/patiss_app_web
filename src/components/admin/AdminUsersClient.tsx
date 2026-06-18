@@ -96,14 +96,14 @@ export default function AdminUsersClient({ users }: { users: AdminUserRow[] }) {
                       minHeight: '32px',
                       padding: '0 12px',
                       fontSize: '0.8rem',
-                      color: u.is_active ? '#4C9E6A' : '#9C8070',
+                      color: u.is_active ? '#4C9E6A' : 'var(--color-muted)',
                     }}
                   >
                     {u.is_active ? 'Actif' : 'Inactif'}
                   </button>
                 </td>
                 <td style={{ padding: '10px 16px', width: '60px' }}>
-                  {isPending && <Loader2 size={16} className="animate-spin" style={{ color: '#C4836A' }} />}
+                  {isPending && <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-rose-dark)' }} />}
                 </td>
               </tr>
             ))}

@@ -7,6 +7,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CustomerSchema, CustomerFormValues, normalizeFrenchPhone } from "@/lib/schemas/customer.schema";
 import { createOrUpdateCustomer, searchCustomers } from "@/lib/actions/customers";
 
+type SearchCustomerResult = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email?: string | null;
+  loyalty_points?: number | null;
+}
+
 interface CRMSelectorProps {
   onCustomerSelected: (customerId: string, name: string, phone?: string) => void;
   selectedCustomer: { id: string; name: string } | null;
@@ -17,7 +25,7 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"search" | "create">("search");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchCustomerResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,18 +72,58 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
 
   if (selectedCustomer) {
     return (
-      <div className="flex items-center justify-between p-3 bg-primary/10 text-primary rounded-xl border border-primary/20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold">
+      <div 
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 10px',
+          background: 'var(--color-secondary-container)',
+          color: 'var(--color-secondary)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--color-border)',
+          fontSize: '0.8rem',
+          fontWeight: 600
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div 
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '9999px',
+              background: 'var(--color-secondary)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '0.75rem'
+            }}
+          >
             {selectedCustomer.name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="font-semibold">{selectedCustomer.name}</p>
-            <p className="text-xs opacity-80">Client identifié</p>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ lineHeight: '1.2' }}>{selectedCustomer.name}</span>
+            <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 500 }}>Client lié</span>
           </div>
         </div>
-        <button onClick={onClear} className="p-2 hover:bg-primary/20 rounded-full transition-colors">
-          <X className="w-5 h-5" />
+        <button 
+          type="button"
+          onClick={onClear} 
+          aria-label="Détacher le client"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '2px',
+            color: 'var(--color-secondary)',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+          className="hover:opacity-70"
+        >
+          <X size={14} />
         </button>
       </div>
     );
@@ -85,39 +133,99 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
     <div className="relative">
       {!isOpen ? (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all font-medium"
+          aria-haspopup="dialog"
+          aria-expanded={false}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            borderRadius: '9999px',
+            border: '1px dashed var(--color-border)',
+            background: 'transparent',
+            color: 'var(--color-primary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s'
+          }}
+          className="hover:bg-[rgba(129,84,49,0.05)] hover:border-[var(--color-primary-container)]"
         >
-          <UserPlus className="w-5 h-5" />
-          Associer un client
+          <UserPlus size={14} />
+          Lier client CRM
         </button>
       ) : (
-        <div className="bg-surface border border-gray-200 rounded-xl shadow-lg p-4 animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Lier un client CRM"
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            background: 'var(--color-lift)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            padding: '16px',
+            width: '280px',
+            zIndex: 100,
+            marginTop: '8px',
+          }}
+          className="animate-scale-in"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)' }}>
               {mode === "search" ? "Rechercher un client" : "Nouveau client"}
             </h3>
-            <div className="flex gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
+                type="button"
                 onClick={() => setMode(mode === "search" ? "create" : "search")}
-                className="text-xs font-medium text-primary hover:underline"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--color-primary)',
+                  cursor: 'pointer'
+                }}
+                className="hover:underline"
               >
-                {mode === "search" ? "+ Créer" : "Rechercher"}
+                {mode === "search" ? "+ Créer" : "Chercher"}
               </button>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
+              <button 
+                type="button"
+                onClick={() => setIsOpen(false)} 
+                aria-label="Fermer la recherche"
+                style={{ background: 'none', border: 'none', color: 'var(--color-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <X size={16} />
               </button>
             </div>
           </div>
 
           {mode === "search" ? (
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
                 <input
                   type="text"
                   placeholder="Nom ou Numéro..."
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  aria-label="Rechercher un client par nom ou numéro"
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    padding: '0 10px 0 32px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-well)',
+                    color: 'var(--color-text)',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   autoFocus
@@ -125,26 +233,40 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
               </div>
 
               {isSearching ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
+                  <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
                 </div>
               ) : searchResults.length > 0 ? (
-                <div className="max-h-48 overflow-y-auto space-y-2">
+                <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {searchResults.map((c) => (
                     <button
                       key={c.id}
+                      type="button"
                       onClick={() => {
                         onCustomerSelected(c.id, c.name, c.phone ?? undefined);
                         setIsOpen(false);
                       }}
-                      className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors text-left"
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid transparent',
+                        background: 'transparent',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      className="hover:bg-[rgba(129,84,49,0.05)] hover:border-[var(--color-primary-container)]"
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{c.name}</p>
-                        <p className="text-sm text-gray-500">{c.phone}</p>
+                        <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--color-text)' }}>{c.name}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>{c.phone}</div>
                       </div>
-                      {c.loyalty_points > 0 && (
-                        <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1">
+                      {(c.loyalty_points ?? 0) > 0 && (
+                        <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '99px', fontWeight: 700 }}>
                           ★ {c.loyalty_points}
                         </span>
                       )}
@@ -152,23 +274,39 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
                   ))}
                 </div>
               ) : searchQuery.length >= 2 ? (
-                <div className="text-center py-4 text-gray-500 text-sm">
+                <div style={{ textAlign: 'center', padding: '12px 0', color: 'var(--color-muted)', fontSize: '0.75rem' }}>
                   Aucun client trouvé. <br />
-                  <button onClick={() => setMode("create")} className="text-primary font-medium mt-1">
+                  <button 
+                    type="button"
+                    onClick={() => setMode("create")} 
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', marginTop: '4px' }}
+                    className="hover:underline"
+                  >
                     Créer ce client ?
                   </button>
                 </div>
               ) : null}
             </div>
           ) : (
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone *</label>
+                <label htmlFor="customer-phone" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-muted)', marginBottom: '3px' }}>Téléphone *</label>
                 <input
                   {...form.register("phone")}
+                  id="customer-phone"
                   placeholder="06 12 34 56 78"
                   type="tel"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    padding: '0 8px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-well)',
+                    color: 'var(--color-text)',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
                   onChange={(e) => {
                     const normalized = normalizeFrenchPhone(e.target.value);
                     form.setValue("phone", normalized);
@@ -176,41 +314,79 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
                   autoFocus
                 />
                 {form.formState.errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">{form.formState.errors.phone.message}</p>
+                  <p style={{ color: 'var(--color-error)', fontSize: '0.65rem', margin: '2px 0 0 0' }}>{form.formState.errors.phone.message}</p>
                 )}
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom Complet *</label>
+                <label htmlFor="customer-name" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-muted)', marginBottom: '3px' }}>Nom Complet *</label>
                 <input
                   {...form.register("name")}
+                  id="customer-name"
                   placeholder="Jean Dupont"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    padding: '0 8px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-well)',
+                    color: 'var(--color-text)',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
                 />
                 {form.formState.errors.name && (
-                  <p className="text-red-500 text-xs mt-1">{form.formState.errors.name.message}</p>
+                  <p style={{ color: 'var(--color-error)', fontSize: '0.65rem', margin: '2px 0 0 0' }}>{form.formState.errors.name.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optionnel)</label>
+                <label htmlFor="customer-email" style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-muted)', marginBottom: '3px' }}>Email (Optionnel)</label>
                 <input
                   {...form.register("email")}
+                  id="customer-email"
                   placeholder="jean@exemple.com"
                   type="email"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary"
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    padding: '0 8px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-border)',
+                    background: 'var(--color-well)',
+                    color: 'var(--color-text)',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
                 />
                 {form.formState.errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{form.formState.errors.email.message}</p>
+                  <p style={{ color: 'var(--color-error)', fontSize: '0.65rem', margin: '2px 0 0 0' }}>{form.formState.errors.email.message}</p>
                 )}
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                style={{
+                  width: '100%',
+                  height: '40px',
+                  background: 'var(--color-primary)',
+                  color: 'white',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  marginTop: '4px'
+                }}
+                className="hover:opacity-90"
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 Enregistrer le client
               </button>
             </form>

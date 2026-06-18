@@ -34,8 +34,9 @@ export function useNetworkStatus() {
   }, [])
 
   useEffect(() => {
-    // Initial check
-    checkConnection()
+    const initialCheck = window.setTimeout(() => {
+      void checkConnection()
+    }, 0)
 
     // Browser events
     const handleOnline = () => {
@@ -53,6 +54,7 @@ export function useNetworkStatus() {
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      window.clearTimeout(initialCheck)
       clearInterval(interval)
     }
   }, [checkConnection])

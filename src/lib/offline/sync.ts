@@ -11,13 +11,12 @@ import {
   updatePendingTransactionRetry,
   getPendingOrders,
   removePendingOrder,
-  MAX_OFFLINE_RETRIES,
-  type PendingTransaction,
-  type PendingOrder
+  MAX_OFFLINE_RETRIES
 } from './db'
 import { encaisserTransaction } from '@/lib/actions/caisse'
 import { createOrder } from '@/lib/actions/orders'
 import { createClient } from '@/lib/supabase/client'
+import type { OrderFormValues } from '@/lib/schemas/order.schema'
 
 export type SyncResult = {
   syncedTransactions: number
@@ -101,20 +100,32 @@ export async function syncPendingData(): Promise<SyncResult> {
       const year = new Date().getFullYear()
       const rand = Math.floor(1000 + Math.random() * 9000)
 
+      const subtotal = order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0)
+      const discountAmount = order.discount_amount ?? 0
+      const totalAmount = Math.max(0, subtotal - discountAmount)
+      const depositAmount = order.deposit_amount ?? 0
+      const totalPaid = order.payments && order.payments.length > 0
+        ? order.payments.reduce((sum, p) => sum + p.amount, 0)
+        : depositAmount
+      const balance = Math.max(0, totalAmount - totalPaid)
+
       const res = await createOrder({
         id: order.id,    // UUID client-side → idempotence
         order_number: `CMD-${year}-${rand}`,
         status: 'pending',
-        priority: order.priority as any,
+        priority: order.priority,
         customer_name: order.customer_name,
         customer_contact: order.customer_contact,
-        reception_type: order.reception_type as any,
+        reception_type: order.reception_type as OrderFormValues['reception_type'],
         pickup_date: order.pickup_date,
-        subtotal: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
-        total_amount: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
-        deposit_amount: 0,
-        balance: order.items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
+        subtotal: subtotal,
+        discount_amount: discountAmount,
+        total_amount: totalAmount,
+        deposit_amount: depositAmount,
+        balance: balance,
         customization_notes: order.customization_notes,
+        deposit_payment_method: order.deposit_payment_method,
+        payments: order.payments,
         items: order.items.map(i => ({
           id: i.id,         // UUID item client-side → idempotence
           product_id: i.product_id || undefined,

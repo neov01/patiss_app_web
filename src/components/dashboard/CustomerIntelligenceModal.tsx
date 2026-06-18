@@ -9,7 +9,6 @@ import {
   Phone,
   ShoppingBag,
   Heart,
-  Save,
   Clock,
   QrCode,
   Wallet,
@@ -68,7 +67,8 @@ export default function CustomerIntelligenceModal({
   const [confirmArchive, setConfirmArchive] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    const timer = window.setTimeout(() => setIsMounted(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // --- Queries ---
@@ -157,21 +157,27 @@ export default function CustomerIntelligenceModal({
   // Sync local notes + edit form when customer data is loaded
   useEffect(() => {
     if (customer) {
-      setLocalNotes(customer.preferences?.notes || "");
-      setEditForm({ name: customer.name || "", phone: customer.phone || "", email: customer.email || "" });
+      const timer = window.setTimeout(() => {
+        setLocalNotes(customer.preferences?.notes || "");
+        setEditForm({ name: customer.name || "", phone: customer.phone || "", email: customer.email || "" });
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [customer]);
 
   // Reset tab when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setActiveTab("timeline" as const);
-      setShowQR(false);
-      setIsSelectingProduct(false);
-      setIsEditing(false);
-      setShowMenu(false);
-      setConfirmDelete(false);
-      setConfirmArchive(false);
+      const timer = window.setTimeout(() => {
+        setActiveTab("timeline" as const);
+        setShowQR(false);
+        setIsSelectingProduct(false);
+        setIsEditing(false);
+        setShowMenu(false);
+        setConfirmDelete(false);
+        setConfirmArchive(false);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -188,7 +194,7 @@ export default function CustomerIntelligenceModal({
   // --- Mutations ---
 
   const createOrderMutation = useMutation({
-    mutationFn: async (orderData: any) => {
+    mutationFn: async (orderData: unknown) => {
       const res = await createOrder(orderData);
       if (res.error) throw new Error(res.error);
       return res.data;
@@ -436,7 +442,7 @@ export default function CustomerIntelligenceModal({
                         <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${getBadgeColors(customer?.rfm_segment)}`}>
                           {customer?.rfm_segment || "Standard"}
                         </div>
-                        {customer?.preferences?.allergies?.length > 0 && (
+                        {(customer?.preferences?.allergies?.length ?? 0) > 0 && (
                           <div className="px-2 py-1 rounded-lg bg-red-50 text-red-600 border border-red-100 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
                             <AlertTriangle size={12} />
                             Allergie
@@ -536,7 +542,7 @@ export default function CustomerIntelligenceModal({
                           
                           {(!customer?.total_orders || customer.total_orders === 0) ? (
                             <div className="bg-amber-50 border border-amber-100 p-3 rounded-2xl">
-                              <p className="text-sm font-bold text-amber-800">✨ Nouveau Client : <span className="font-medium">Suggérer l'offre découverte.</span></p>
+                              <p className="text-sm font-bold text-amber-800">✨ Nouveau Client : <span className="font-medium">Suggérer l&apos;offre découverte.</span></p>
                             </div>
                           ) : (
                             <div className="flex flex-col gap-2">

@@ -4,14 +4,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { employeeSchema, EmployeeFormValues } from '@/lib/schemas/employee.schema'
 import { createEmployee, updateEmployee, uploadEmployeeAvatar } from '@/lib/actions/employees'
 import { X, Camera, Check, Loader2, User, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EmployeeData } from './EmployeeCard'
-import { Controller } from 'react-hook-form'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
 import { compressImage } from '@/lib/utils/image-compression'
@@ -20,7 +19,7 @@ import { format, parseISO } from 'date-fns'
 
 // ─────────────────────────────────────────────────
 const COLOR_PRESETS = [
-  '#C4836A', '#6A9CC4', '#6AC48A', '#C4C46A',
+  'var(--color-rose-dark)', '#6A9CC4', '#6AC48A', '#C4C46A',
   '#C46AB0', '#6AC4C4', '#A06AC4', '#7B8FA1',
 ]
 
@@ -47,7 +46,7 @@ interface Props {
 }
 
 // ─────────────────────────────────────────────────
-export default function EmployeeModal({ open, onClose, onSuccess, mode, employee, organizationId, currency }: Props) {
+export default function EmployeeModal({ open, onClose, onSuccess, mode, employee, currency }: Props) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'identity' | 'access'>('identity')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -68,7 +67,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
 
   // ── Form ──
   const { register, control, handleSubmit, setValue, reset, formState: { errors } } = useForm<EmployeeFormValues>({
-    resolver: zodResolver(employeeSchema) as any,
+    resolver: zodResolver(employeeSchema) as Resolver<EmployeeFormValues>,
     defaultValues: {
       fullName:        '',
       phone:           '',
@@ -155,7 +154,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
     
     // Convert blob to File if needed, or just keep as blob
     // For our current uploadEmployeeAvatar logic, blob works in FormData
-    setAvatarFile(croppedBlob as any)
+    setAvatarFile(new File([croppedBlob], 'avatar.webp', { type: croppedBlob.type || 'image/webp' }))
     
     const newPreview = URL.createObjectURL(croppedBlob)
     setAvatarPreview(newPreview)
@@ -170,7 +169,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
 
       if (mode === 'create') {
         // Étape 1: Créer l'employé d'abord
-        const res = await createEmployee({ ...data, organization_id: organizationId, avatarUrl: '' })
+        const res = await createEmployee({ ...data, avatarUrl: '' })
         if (!res.success || !res.employeeId) {
           toast.error(res.error ?? 'Erreur lors de la création')
           return
@@ -233,7 +232,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
           }}>
             {/* Header */}
             <div style={{ padding: '20px 24px', borderBottom: '1.5px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff' }}>
-              <h2 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem', color: '#2D1B0E' }}>
+              <h2 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem', color: 'var(--color-text)' }}>
                 {mode === 'create' ? 'Nouvel employé' : `Modifier ${employee?.full_name ?? ''}`}
               </h2>
               <button type="button" onClick={onClose} style={{ background: 'var(--color-cream)', border: 'none', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -556,7 +555,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                     {role !== 'gerant' && (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--color-cream, #FDF8F3)', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginTop: '12px' }}>
                         <div style={{ paddingRight: '8px' }}>
-                          <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#2D1B0E' }}>Droit d&apos;importation historique</div>
+                          <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--color-text)' }}>Droit d&apos;importation historique</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '2px', lineHeight: 1.25 }}>Permet à cet employé d&apos;accéder au menu d&apos;importation de l&apos;historique de ventes.</div>
                         </div>
                         <button
@@ -566,7 +565,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                             width: '44px',
                             height: '24px',
                             borderRadius: '12px',
-                            background: canImportHistory ? 'var(--color-rose-dark, #C4836A)' : '#D1D5DB',
+                            background: canImportHistory ? 'var(--color-rose-dark, var(--color-rose-dark))' : '#D1D5DB',
                             position: 'relative',
                             border: 'none',
                             cursor: 'pointer',

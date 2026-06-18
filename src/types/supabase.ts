@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       customers: {
         Row: {
+          birth_date: string | null
           created_at: string | null
           email: string | null
           id: string
@@ -28,6 +29,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -40,6 +42,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          birth_date?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
@@ -251,6 +254,61 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_creation_metrics: {
+        Row: {
+          completed_at: string
+          created_at: string
+          created_by: string | null
+          duration_seconds: number
+          id: string
+          order_id: string
+          organization_id: string
+          started_at: string
+        }
+        Insert: {
+          completed_at: string
+          created_at?: string
+          created_by?: string | null
+          duration_seconds: number
+          id?: string
+          order_id: string
+          organization_id: string
+          started_at: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          created_by?: string | null
+          duration_seconds?: number
+          id?: string
+          order_id?: string
+          organization_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_creation_metrics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_creation_metrics_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_creation_metrics_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -787,6 +845,7 @@ export type Database = {
     Views: {
       customer_rfm: {
         Row: {
+          birth_date: string | null
           customer_id: string | null
           f_score: number | null
           frequency: number | null

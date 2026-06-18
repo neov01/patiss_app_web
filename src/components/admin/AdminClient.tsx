@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useTransition, useMemo, useEffect } from 'react'
+import { useState, useTransition, useMemo, useEffect, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
     Building2, Users, AlertTriangle, ChevronRight, X,
-    Check, RefreshCw, Calendar, Loader2, KeyRound, ShieldAlert,
-    ShieldCheck, Crown, Plus, ChevronDown, LayoutDashboard, ArrowLeft,
-    Download, Filter, BarChart2, Mail, TrendingUp, Clock, CheckSquare,
+    RefreshCw, Loader2, KeyRound, ShieldAlert,
+    ShieldCheck, Crown, Plus, LayoutDashboard, ArrowLeft,
+    Download, Filter, BarChart2, Mail, Clock, CheckSquare,
     Square
 } from 'lucide-react'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
@@ -54,6 +54,8 @@ interface OrgProfile {
 
 interface RoleOption { slug: string; name: string }
 
+type AdminTab = 'info' | 'team' | 'support' | 'danger'
+
 interface Props {
     orgs: Org[]
     allProfiles: OrgProfile[]
@@ -67,7 +69,7 @@ function subscriptionStatus(date: string | null) {
     const now = new Date()
     const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) return { label: 'Expiré', color: '#D94F38', bg: '#FEE8E5' }
-    if (diff < 7) return { label: `Expire dans ${diff}j`, color: '#D97757', bg: '#FEF3EC' }
+    if (diff < 7) return { label: `Expire dans ${diff}j`, color: '#D97757', bg: 'var(--color-well)' }
     return { label: 'Actif', color: '#4C9E6A', bg: '#E8F5EE' }
 }
 
@@ -88,7 +90,7 @@ const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpp
 const ROLE_PRIORITY: Record<string, number> = { super_admin: 0, gerant: 1, vendeur: 2, patissier: 3 }
 const ROLE_BADGE: Record<string, { icon: string; color: string; bg: string }> = {
     super_admin: { icon: '🛡️', color: '#9333EA', bg: '#F3E8FF' },
-    gerant: { icon: '👔', color: '#D97757', bg: '#FEF3EC' },
+    gerant: { icon: '👔', color: '#D97757', bg: 'var(--color-well)' },
     vendeur: { icon: '🛒', color: '#6A9CC4', bg: '#EEF4FA' },
     patissier: { icon: '👨‍🍳', color: '#4C9E6A', bg: '#E8F5EE' },
 }
@@ -108,7 +110,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
     const [profiles, setProfiles] = useState<OrgProfile[]>(allProfiles)
     const [selectedOrgId, setSelectedOrgId] = useState<string>('')
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-    const [tab, setTab] = useState<'info' | 'team' | 'support' | 'danger'>('info')
+    const [tab, setTab] = useState<AdminTab>('info')
     const [isPending, startTransition] = useTransition()
     const [pinResetTarget, setPinResetTarget] = useState<string | null>(null)
     const [newPin, setNewPin] = useState('')
@@ -342,7 +344,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             if (res.error) { toast.error(res.error); return }
             toast.success(`Session générée pour ${res.targetName}. Ouverture...`)
             window.open(res.link, '_blank')
-        } catch (err) {
+        } catch {
             toast.error("Erreur lors de l'impersonation")
         } finally {
             setImpersonationLoading(false)
@@ -481,7 +483,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 date: new Date(i.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
             })))
         }).finally(() => setLoadingActivity(false))
-    }, [tab, selectedOrg?.id])
+    }, [tab, selectedOrg])
 
     const handleDeleteOrg = () => {
         if (!selectedOrg) return
@@ -507,18 +509,18 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             <div style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
-                        <h1 style={{ fontSize: '1.75rem', fontWeight: 900, margin: 0, color: '#2D1B0E', letterSpacing: '-0.02em' }}>Super Admin</h1>
+                        <h1 style={{ fontSize: '1.75rem', fontWeight: 900, margin: 0, color: 'var(--color-text)', letterSpacing: '-0.02em' }}>Super Admin</h1>
                         <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.9rem', fontWeight: 500 }}>Gestion des pâtisseries et licences SaaS</p>
                     </div>
                     <button onClick={() => setViewMode(v => v === 'list' ? 'analytics' : 'list')}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: viewMode === 'analytics' ? '#FEF3EC' : 'white', color: viewMode === 'analytics' ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: viewMode === 'analytics' ? 'var(--color-well)' : 'white', color: viewMode === 'analytics' ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
                         <BarChart2 size={16} /> {viewMode === 'analytics' ? 'Vue liste' : 'Analytique'}
                     </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
                     {[
                         { icon: '🏢', label: 'Actives', value: totalActive, color: '#4C9E6A', bg: '#E8F5EE' },
-                        { icon: '⚠️', label: 'Expire < 7j', value: atRisk, color: '#D97757', bg: '#FEF3EC' },
+                        { icon: '⚠️', label: 'Expire < 7j', value: atRisk, color: '#D97757', bg: 'var(--color-well)' },
                         { icon: '📅', label: 'Expire < 30j', value: expiringSoon30, color: '#C08A63', bg: '#FDF5EC' },
                         { icon: '👥', label: 'Utilisateurs', value: totalUsers, color: '#6A9CC4', bg: '#EEF4FA' },
                         { icon: '📊', label: 'Usage moyen', value: `${avgUsagePct}%`, color: '#815431', bg: '#F5EEE4' },
@@ -540,11 +542,11 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     <div style={{ flex: 1, position: 'relative' }}>
                         <input type="text" placeholder="Rechercher une pâtisserie (nom, contact...)"
                             value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                            className="input" style={{ paddingLeft: '44px', height: '48px', border: '2px solid #FEF3EC', fontWeight: 600 }} />
+                            className="input" style={{ paddingLeft: '44px', height: '48px', border: '2px solid var(--color-well)', fontWeight: 600 }} />
                         <LayoutDashboard size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#d97757' }} />
                     </div>
                     <button onClick={() => setShowFilters(v => !v)}
-                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: `1.5px solid ${showFilters ? '#D97757' : 'var(--color-border)'}`, background: showFilters ? '#FEF3EC' : 'white', color: showFilters ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: `1.5px solid ${showFilters ? '#D97757' : 'var(--color-border)'}`, background: showFilters ? 'var(--color-well)' : 'white', color: showFilters ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
                         <Filter size={15} /> Filtres
                     </button>
                     <button onClick={handleExportCSV}
@@ -561,7 +563,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Statut :</span>
                         {(['all', 'actif', 'risk', 'expire'] as const).map(s => (
                             <button key={s} onClick={() => setFilterStatus(s)}
-                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterStatus === s ? '#D97757' : 'var(--color-border)', background: filterStatus === s ? '#FEF3EC' : 'white', color: filterStatus === s ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterStatus === s ? '#D97757' : 'var(--color-border)', background: filterStatus === s ? 'var(--color-well)' : 'white', color: filterStatus === s ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
                                 {s === 'all' ? 'Tous' : s === 'actif' ? 'Actif' : s === 'risk' ? '⚠️ À risque' : 'Expiré'}
                             </button>
                         ))}
@@ -603,7 +605,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                 <span style={{ fontSize: '0.82rem', color: 'var(--color-muted)', fontWeight: 600 }}>{count} org · {pct}%</span>
                                             </div>
                                             <div style={{ height: '8px', background: '#F5F5F5', borderRadius: '4px', overflow: 'hidden' }}>
-                                                <div style={{ height: '100%', width: `${pct}%`, background: colors[tier], borderRadius: '4px', transition: 'width 0.5s' }} />
+                                                <div style={{ height: '100%', width: '100%', background: colors[tier], borderRadius: '4px', transform: `scaleX(${pct / 100})`, transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
                                             </div>
                                         </div>
                                     )
@@ -625,10 +627,13 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     return (
                                         <div key={ym} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', width: '42px', textAlign: 'right' }}>{label}</span>
-                                            <div style={{ flex: 1, height: '20px', background: '#F5F5F5', borderRadius: '6px', overflow: 'hidden' }}>
-                                                <div style={{ height: '100%', width: `${(count / maxCount) * 100}%`, background: count > 2 ? '#D94F38' : '#D97757', borderRadius: '6px', transition: 'width 0.5s', display: 'flex', alignItems: 'center', paddingLeft: count > 0 ? '6px' : 0 }}>
-                                                    {count > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white' }}>{count}</span>}
-                                                </div>
+                                            <div style={{ flex: 1, height: '20px', background: '#F5F5F5', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                                                <div style={{ height: '100%', width: '100%', background: count > 2 ? '#D94F38' : '#D97757', borderRadius: '6px', transform: `scaleX(${count / maxCount})`, transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
+                                                {count > 0 && (
+                                                    <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', display: 'flex', alignItems: 'center', paddingLeft: '6px' }}>
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white' }}>{count}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )
@@ -636,7 +641,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                             </div>
                             {/* Stats usage */}
                             <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
-                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Taux d'occupation des licences</h4>
+                                <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Taux d&apos;occupation des licences</h4>
                                 {orgs.slice(0, 8).map(o => {
                                     const pct = Math.round((o.member_count / (o.max_users || 1)) * 100)
                                     const color = pct >= 90 ? '#D94F38' : pct >= 60 ? '#D97757' : '#4C9E6A'
@@ -679,7 +684,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         </h3>
                         {/* G — Actions en masse */}
                         {selectedOrgIds.size > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FEF3EC', padding: '8px 14px', borderRadius: '14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-well)', padding: '8px 14px', borderRadius: '14px' }}>
                                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#D97757' }}>{selectedOrgIds.size} sélectionnée{selectedOrgIds.size > 1 ? 's' : ''}</span>
                                 {[1, 3, 6, 12].map(m => (
                                     <button key={m} onClick={() => handleBulkRenew(m)} disabled={isBulkRenewing}
@@ -719,7 +724,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     const isSelected = selectedOrgIds.has(o.id)
                                     return (
                                         <tr key={o.id}
-                                            style={{ borderBottom: '1px solid #F5F5F5', transition: 'background 0.15s', background: isSelected ? '#FEF3EC' : isExpiringSoon ? '#FFFBF5' : 'white' }}
+                                            style={{ borderBottom: '1px solid #F5F5F5', transition: 'background 0.15s', background: isSelected ? 'var(--color-well)' : isExpiringSoon ? '#FFFBF5' : 'white' }}
                                             className="table-row-hover">
                                             <td style={{ padding: '14px 16px' }} onClick={e => { e.stopPropagation(); toggleSelectOrg(o.id) }}>
                                                 <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D97757', display: 'flex' }}>
@@ -728,11 +733,11 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             </td>
                                             <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: '#FEF3EC', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', flexShrink: 0 }}>
+                                                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'var(--color-well)', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', flexShrink: 0 }}>
                                                         {initials(o.name)}
                                                     </div>
                                                     <div>
-                                                        <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '0.875rem' }}>{o.name}</div>
+                                                        <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: '0.875rem' }}>{o.name}</div>
                                                         <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>{o.contact_email || 'Pas d\'email contact'}</div>
                                                     </div>
                                                 </div>
@@ -785,23 +790,23 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 <div className="animate-fadeIn">
                     <button 
                         onClick={() => setSelectedOrgId('')}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '10px 16px', borderRadius: '16px', background: '#FEF3EC', color: '#D97757', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '10px 16px', borderRadius: '16px', background: 'var(--color-well)', color: '#D97757', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem' }}
                     >
                         <ArrowLeft size={20} />
                         RETOUR À TOUTES LES PÂTISSERIES
                     </button>
                     {/* Detail Navigation Tabs */}
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-                        {[
+                        {([
                             { id: 'info', label: 'Configuration & Licence', icon: <Building2 size={18} /> },
                             { id: 'team', label: 'Équipe & Utilisateurs', icon: <Users size={18} /> },
                             { id: 'support', label: 'Support & Activité', icon: <AlertTriangle size={18} /> },
                             { id: 'danger', label: 'Zone de Danger', icon: <ShieldAlert size={18} /> },
 
-                        ].map(t => (
+                        ] satisfies Array<{ id: AdminTab; label: string; icon: ReactNode }>).map(t => (
                             <button
                                 key={t.id}
-                                onClick={() => setTab(t.id as any)}
+                                onClick={() => setTab(t.id)}
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: '8px',
                                     padding: '12px 20px', borderRadius: '16px', border: 'none', cursor: 'pointer',
@@ -822,7 +827,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         {tab === 'info' && (
                             <div style={{ maxWidth: '600px' }}>
                                 <div style={{ marginBottom: '32px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, #D97757, #C4836A)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.25rem', fontWeight: 900 }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, #D97757, var(--color-rose-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.25rem', fontWeight: 900 }}>
                                         {initials(selectedOrg.name)}
                                     </div>
                                     <div>
@@ -916,7 +921,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     </div>
 
 
-                                    <div style={{ background: '#FDFCFB', padding: '20px', borderRadius: '20px', border: '1px solid #FEF3EC' }}>
+                                    <div style={{ background: '#FDFCFB', padding: '20px', borderRadius: '20px', border: '1px solid var(--color-well)' }}>
                                         <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97757', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prolonger l&apos;abonnement</p>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                             {[{ l: '+1 Mois', m: 1 }, { l: '+3 Mois', m: 3 }, { l: '+6 Mois', m: 6 }, { l: '+1 An', m: 12 }].map(b => (
@@ -944,7 +949,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         <button onClick={() => setIsAddUserModalOpen(true)} className="btn-secondary" style={{ height: '40px', fontSize: '0.8rem' }}>
                                             <Plus size={16} /> Créer un utilisateur
                                         </button>
-                                        <div style={{ background: '#FEF3EC', color: '#d97757', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                        <div style={{ background: 'var(--color-well)', color: '#d97757', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
                                             {orgTeam.length} utilisateurs
                                         </div>
                                     </div>
@@ -1017,7 +1022,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             <ShieldAlert size={24} /> Prise de main (Impersonation)
                                         </h3>
                                         <p style={{ fontSize: '0.9rem', opacity: 0.9, lineHeight: 1.5, marginBottom: '20px' }}>
-                                            Connectez-vous à l'interface POS comme si vous étiez le gérant de cet établissement. 
+                                            Connectez-vous à l&apos;interface POS comme si vous étiez le gérant de cet établissement. 
                                             Utile pour débugger ou configurer le compte client en direct.
                                         </p>
                                         <button 
@@ -1039,7 +1044,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         <div style={{ display: 'grid', gap: '12px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                                                 <span style={{ color: '#64748B' }}>Dernière Synchro :</span>
-                                                <span style={{ fontWeight: 700 }}>Aujourd'hui, 14:22</span>
+                                                <span style={{ fontWeight: 700 }}>Aujourd&apos;hui, 14:22</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                                                 <span style={{ color: '#64748B' }}>Version Client :</span>
@@ -1084,7 +1089,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: '#D94F38', margin: '0 0 12px' }}>
                                         <ShieldAlert size={24} /> Suspension de Licence
                                     </h3>
-                                    <p style={{ fontSize: '0.95rem', color: '#2D1B0E', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
+                                    <p style={{ fontSize: '0.95rem', color: 'var(--color-text)', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
                                         La suspension de <strong>{selectedOrg.name}</strong> coupera immédiatement l&apos;accès à tous les membres de cette pâtisserie. Les données (ventes, stocks, profils) resteront intactes mais inaccessibles.
                                     </p>
 
@@ -1113,7 +1118,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: '#D94F38', margin: '0 0 12px' }}>
                                         <ShieldAlert size={24} /> Suppression Définitive
                                     </h3>
-                                    <p style={{ fontSize: '0.95rem', color: '#2D1B0E', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
+                                    <p style={{ fontSize: '0.95rem', color: 'var(--color-text)', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
                                         Cette action est <strong>IRRÉVERSIBLE</strong>. Elle supprimera l&apos;organisation <strong>{selectedOrg.name}</strong>, tous ses profils utilisateurs, ses ventes, ses produits et ses stocks.
                                     </p>
 
@@ -1148,7 +1153,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         
                         <div style={{ padding: '32px', borderBottom: '1px solid #EEE' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#2D1B0E' }}>Nouvelle Pâtisserie</h2>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: 'var(--color-text)' }}>Nouvelle Pâtisserie</h2>
                                 <button onClick={() => setIsCreateModalOpen(false)} className="btn-ghost" style={{ padding: '8px' }}><X size={24} /></button>
                             </div>
                             <p style={{ fontSize: '0.9rem', color: 'var(--color-muted)', margin: 0 }}>L&apos;organisation et son premier Gérant seront créés simultanément.</p>
@@ -1281,7 +1286,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     animation: fadeIn 0.3s ease-out;
                 }
                 .animate-scaleIn {
-                    animation: scaleIn 0.3s cubic-bezier(.22, .68, 0, 1.2);
+                    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
                 }
                 @keyframes fadeIn {
                     from { opacity: 0; }

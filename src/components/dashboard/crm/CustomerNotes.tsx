@@ -2,7 +2,6 @@
 
 import React from "react";
 import { FileText, Save, Clock } from "lucide-react";
-import { Customer } from "./types";
 
 interface CustomerNotesProps {
   localNotes: string;
@@ -25,7 +24,7 @@ export default function CustomerNotes({
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
             <FileText size={16} />
-            Notes de l'Atelier
+            Notes de l&apos;Atelier
           </h4>
           <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-lg text-[10px] font-black uppercase">
             Interne uniquement

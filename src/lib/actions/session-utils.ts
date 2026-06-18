@@ -2,16 +2,51 @@ import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { calculateCaisseMetrics } from '@/lib/domain/caisse-metrics'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function createAdminClient() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+}
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SessionResult = Record<string, any>
+type OrganizationSummary = {
+    name?: string | null
+    currency_symbol?: string | null
+}
+
+type ProfileSummary = {
+    full_name?: string | null
+    role_slug?: string | null
+}
+
+type SessionOrderSummary = {
+    is_historical: boolean | null
+    created_by: string | null
+    profiles: ProfileSummary | ProfileSummary[] | null
+}
+
+export type SessionResult = {
+    sessionId?: string
+    id?: string
+    organization_id?: string | null
+    opened_at?: string | null
+    opened_by?: string | null
+    organizations?: OrganizationSummary | OrganizationSummary[] | null
+    success?: boolean
+    error?: string
+    emailSent?: boolean
+    reason?: string
+    to?: string
+}
+
+function getRelation<T>(relation: T | T[] | null | undefined): T | null {
+    if (Array.isArray(relation)) return relation[0] ?? null
+    return relation ?? null
+}
 
 /**
  * Logique centrale de clôture d'une session de vente.
@@ -20,8 +55,10 @@ export type SessionResult = Record<string, any>
 export async function closeSingleSession(
     sessionId: string, 
     closedBy: string | null, 
-    preloadedSession?: SessionResult
+    preloadedSession?: SessionResult,
+    expectedOrgId?: string
 ): Promise<SessionResult> {
+    const supabaseAdmin = createAdminClient()
     
     // 1. Récupération de la session et de l'organisation
     let session = preloadedSession
@@ -36,9 +73,17 @@ export async function closeSingleSession(
     }
     if (!session) return { sessionId, success: false, error: 'Session not found' }
 
-    const org = (session as SessionResult).organizations as SessionResult
-    const orgId = (session as SessionResult).organization_id
-    const sessionStart = (session as SessionResult).opened_at
+    const org = getRelation(session.organizations)
+    const orgId = session.organization_id
+    const sessionStart = session.opened_at
+
+    if (!orgId || !sessionStart) {
+        return { sessionId, success: false, error: 'Session invalide' }
+    }
+
+    if (expectedOrgId && orgId !== expectedOrgId) {
+        return { sessionId, success: false, error: 'Session hors organisation' }
+    }
 
     // 2. CALCUL DES MÉTRIQUES
     // Récupération des transactions depuis l'ouverture de la session
@@ -58,59 +103,24 @@ export async function closeSingleSession(
     const transactions = periodTransactions ?? []
     const orders = periodOrders ?? []
 
-    const totalOrders = orders.length
-    const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length
-
-    let totalEspeces = 0
-    let totalOrangeMoney = 0
-    let totalWave = 0
-    let totalMtnMomo = 0
-    let totalMoovMoney = 0
-    let totalAcomptes = 0
-    let totalSoldes = 0
-    let totalVentesDirectes = 0
-    let totalPending = 0
-
-    // Les finances sont calculées à partir des transactions (Acomptes, Soldes, Ventes Directes)
-    for (const tx of transactions) {
-        const amount = Number(tx.amount) || 0
-
-        // Ventilation par type de transaction
-        if (tx.label_type === 'ACOMPTE') totalAcomptes += amount
-        else if (tx.label_type === 'SOLDE') totalSoldes += amount
-        else if (tx.label_type === 'VENTE_DIRECTE') totalVentesDirectes += amount
-
-        // Ventilation par méthode de paiement
-        if (tx.payment_details && Object.keys(tx.payment_details).length > 0) {
-            // Paiement mixte : les parts sont dans payment_details (clés = valeurs enum)
-            totalEspeces += tx.payment_details['Espèces'] || tx.payment_details['especes'] || 0
-            totalOrangeMoney += tx.payment_details['Orange Money'] || tx.payment_details['mobile_money'] || 0
-            totalWave += tx.payment_details['Wave'] || 0
-            totalMtnMomo += tx.payment_details['MTN MOMO'] || 0
-            totalMoovMoney += tx.payment_details['Moov Money'] || 0
-        } else {
-            // Paiement simple : utiliser payment_method directement
-            const method = tx.payment_method
-            if (method === 'Espèces') totalEspeces += amount
-            else if (method === 'Orange Money') totalOrangeMoney += amount
-            else if (method === 'Wave') totalWave += amount
-            else if (method === 'MTN MOMO') totalMtnMomo += amount
-            else if (method === 'Moov Money') totalMoovMoney += amount
-        }
-    }
-
-    // Le total en attente se base sur les commandes non soldées
-    for (const order of orders) {
-        if (order.status !== 'completed' && order.status !== 'delivered' && order.status !== 'cancelled') {
-            const paid = order.deposit_amount ?? 0
-            const remaining = (order.total_amount ?? 0) - paid
-            totalPending += remaining
-        }
-    }
-
-    const totalMobileMoney = totalOrangeMoney + totalWave + totalMtnMomo + totalMoovMoney
-    const totalCash = totalEspeces
-    const totalRevenue = totalCash + totalMobileMoney
+    const metrics = calculateCaisseMetrics(transactions, orders)
+    const {
+        paymentBreakdown,
+        totalCash,
+        totalMobileMoney,
+        totalRevenue,
+        totalAcomptes,
+        totalSoldes,
+        totalVentesDirectes,
+        totalPending,
+        totalOrders,
+        completedOrders,
+    } = metrics
+    const totalEspeces = paymentBreakdown['Espèces']
+    const totalOrangeMoney = paymentBreakdown['Orange Money']
+    const totalWave = paymentBreakdown.Wave
+    const totalMtnMomo = paymentBreakdown['MTN MOMO']
+    const totalMoovMoney = paymentBreakdown['Moov Money']
     const currency = org?.currency_symbol ?? ''
 
     // 3. VÉRIFICATION DES STOCKS BAS — filtre côté serveur pour comparer deux colonnes
@@ -140,6 +150,10 @@ export async function closeSingleSession(
             }
         })
         .eq('id', sessionId)
+        .eq('organization_id', orgId)
+        .eq('status', 'open')
+        .select('id')
+        .single()
 
     if (updateError) {
         console.error('Error closing session in DB:', updateError)
@@ -202,14 +216,14 @@ export async function closeSingleSession(
         .from('orders')
         .select('is_historical, created_by, profiles!orders_created_by_fkey(full_name, role_slug)')
         .eq('organization_id', orgId)
-        .gte('inserted_at', sessionStart)
+        .gte('created_at', sessionStart)
 
     const vendorStats: Record<string, { name: string; role: string; newOrders: number; historicalOrders: number }> = {}
 
     if (sessionOrders) {
-        for (const order of sessionOrders) {
+        for (const order of sessionOrders as SessionOrderSummary[]) {
             const creatorId = order.created_by || 'unknown'
-            const profileInfo = order.profiles as any
+            const profileInfo = getRelation(order.profiles)
             const creatorName = profileInfo?.full_name || 'Utilisateur inconnu'
             const creatorRoleSlug = profileInfo?.role_slug || ''
             const creatorRole = creatorRoleSlug === 'gerant' ? 'Gérant' : creatorRoleSlug === 'vendeur' ? 'Vendeur' : creatorRoleSlug === 'patissier' ? 'Pâtissier' : creatorRoleSlug
@@ -247,7 +261,7 @@ export async function closeSingleSession(
             <p style="margin:0;color:#155724;">✅ Tous les stocks sont au-dessus des seuils d'alerte.</p>
            </div>`
 
-    const paymentCardStyle = (bg: string, color: string) =>
+    const paymentCardStyle = (bg: string) =>
         `background:${bg};border-radius:10px;padding:16px;text-align:center;`
     const labelStyle = (color: string) =>
         `margin:0;font-size:11px;font-weight:700;letter-spacing:1px;color:${color};`
@@ -295,27 +309,27 @@ export async function closeSingleSession(
     <h2 style="margin:0 0 16px;font-size:17px;color:#2D1B0E;">💳 Détail par mode de paiement</h2>
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px;">
       <tr>
-        <td width="50%" style="${paymentCardStyle('#e6f4ea', '#137333')}">
+        <td width="50%" style="${paymentCardStyle('#e6f4ea')}">
           <p style="${labelStyle('#137333')}">ESPÈCES</p>
           <p style="${amountStyle('#137333')}">${totalEspeces.toLocaleString('fr-FR')} ${currency}</p>
         </td>
-        <td width="50%" style="${paymentCardStyle('#fff4e5', '#e65100')}">
+        <td width="50%" style="${paymentCardStyle('#fff4e5')}">
           <p style="${labelStyle('#e65100')}">ORANGE MONEY</p>
           <p style="${amountStyle('#e65100')}">${totalOrangeMoney.toLocaleString('fr-FR')} ${currency}</p>
         </td>
       </tr>
       <tr>
-        <td width="50%" style="${paymentCardStyle('#e3f2fd', '#0d47a1')}">
+        <td width="50%" style="${paymentCardStyle('#e3f2fd')}">
           <p style="${labelStyle('#0d47a1')}">WAVE</p>
           <p style="${amountStyle('#0d47a1')}">${totalWave.toLocaleString('fr-FR')} ${currency}</p>
         </td>
-        <td width="50%" style="${paymentCardStyle('#fce4ec', '#880e4f')}">
+        <td width="50%" style="${paymentCardStyle('#fce4ec')}">
           <p style="${labelStyle('#880e4f')}">MTN MOMO</p>
           <p style="${amountStyle('#880e4f')}">${totalMtnMomo.toLocaleString('fr-FR')} ${currency}</p>
         </td>
       </tr>
       <tr>
-        <td width="50%" style="${paymentCardStyle('#e8eaf6', '#283593')}">
+        <td width="50%" style="${paymentCardStyle('#e8eaf6')}">
           <p style="${labelStyle('#283593')}">MOOV MONEY</p>
           <p style="${amountStyle('#283593')}">${totalMoovMoney.toLocaleString('fr-FR')} ${currency}</p>
         </td>

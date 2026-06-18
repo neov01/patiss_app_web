@@ -38,7 +38,7 @@ export default function RootLayout({
           {children}
           <RegisterSW />
           <Toaster
-            position="bottom-right"
+            position="bottom-center"
             toastOptions={{
               style: {
                 fontFamily: 'var(--font-sans)',

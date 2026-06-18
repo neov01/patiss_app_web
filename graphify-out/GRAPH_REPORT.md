@@ -1,612 +1,669 @@
-# Graph Report - /Users/willmac/patiss-app copie 2  (2026-05-24)
+# Graph Report - src  (2026-06-16)
 
 ## Corpus Check
-- 125 files · ~123,505 words
+- 124 files · ~97,394 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 407 nodes · 457 edges · 88 communities detected
-- Extraction: 67% EXTRACTED · 33% INFERRED · 0% AMBIGUOUS · INFERRED: 151 edges (avg confidence: 0.8)
+- 495 nodes · 705 edges · 97 communities detected
+- Extraction: 70% EXTRACTED · 30% INFERRED · 0% AMBIGUOUS · INFERRED: 213 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Community 0|Community 0]]
-- [[_COMMUNITY_Community 1|Community 1]]
-- [[_COMMUNITY_Community 2|Community 2]]
-- [[_COMMUNITY_Community 3|Community 3]]
-- [[_COMMUNITY_Community 4|Community 4]]
-- [[_COMMUNITY_Community 5|Community 5]]
-- [[_COMMUNITY_Community 6|Community 6]]
-- [[_COMMUNITY_Community 7|Community 7]]
-- [[_COMMUNITY_Community 8|Community 8]]
-- [[_COMMUNITY_Community 9|Community 9]]
-- [[_COMMUNITY_Community 10|Community 10]]
-- [[_COMMUNITY_Community 11|Community 11]]
-- [[_COMMUNITY_Community 12|Community 12]]
-- [[_COMMUNITY_Community 13|Community 13]]
-- [[_COMMUNITY_Community 14|Community 14]]
-- [[_COMMUNITY_Community 15|Community 15]]
-- [[_COMMUNITY_Community 16|Community 16]]
-- [[_COMMUNITY_Community 17|Community 17]]
-- [[_COMMUNITY_Community 18|Community 18]]
-- [[_COMMUNITY_Community 19|Community 19]]
-- [[_COMMUNITY_Community 20|Community 20]]
-- [[_COMMUNITY_Community 21|Community 21]]
-- [[_COMMUNITY_Community 22|Community 22]]
-- [[_COMMUNITY_Community 23|Community 23]]
-- [[_COMMUNITY_Community 24|Community 24]]
-- [[_COMMUNITY_Community 25|Community 25]]
-- [[_COMMUNITY_Community 26|Community 26]]
-- [[_COMMUNITY_Community 27|Community 27]]
-- [[_COMMUNITY_Community 28|Community 28]]
-- [[_COMMUNITY_Community 29|Community 29]]
-- [[_COMMUNITY_Community 30|Community 30]]
-- [[_COMMUNITY_Community 31|Community 31]]
-- [[_COMMUNITY_Community 32|Community 32]]
-- [[_COMMUNITY_Community 33|Community 33]]
-- [[_COMMUNITY_Community 34|Community 34]]
-- [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
-- [[_COMMUNITY_Community 40|Community 40]]
-- [[_COMMUNITY_Community 41|Community 41]]
-- [[_COMMUNITY_Community 42|Community 42]]
-- [[_COMMUNITY_Community 43|Community 43]]
-- [[_COMMUNITY_Community 44|Community 44]]
-- [[_COMMUNITY_Community 45|Community 45]]
-- [[_COMMUNITY_Community 46|Community 46]]
-- [[_COMMUNITY_Community 47|Community 47]]
-- [[_COMMUNITY_Community 48|Community 48]]
-- [[_COMMUNITY_Community 49|Community 49]]
-- [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Community 51|Community 51]]
-- [[_COMMUNITY_Community 52|Community 52]]
-- [[_COMMUNITY_Community 53|Community 53]]
-- [[_COMMUNITY_Community 54|Community 54]]
-- [[_COMMUNITY_Community 55|Community 55]]
-- [[_COMMUNITY_Community 56|Community 56]]
-- [[_COMMUNITY_Community 57|Community 57]]
-- [[_COMMUNITY_Community 58|Community 58]]
-- [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
-- [[_COMMUNITY_Community 61|Community 61]]
-- [[_COMMUNITY_Community 62|Community 62]]
-- [[_COMMUNITY_Community 63|Community 63]]
-- [[_COMMUNITY_Community 64|Community 64]]
-- [[_COMMUNITY_Community 65|Community 65]]
-- [[_COMMUNITY_Community 66|Community 66]]
-- [[_COMMUNITY_Community 67|Community 67]]
-- [[_COMMUNITY_Community 68|Community 68]]
-- [[_COMMUNITY_Community 69|Community 69]]
-- [[_COMMUNITY_Community 70|Community 70]]
-- [[_COMMUNITY_Community 71|Community 71]]
-- [[_COMMUNITY_Community 72|Community 72]]
-- [[_COMMUNITY_Community 73|Community 73]]
-- [[_COMMUNITY_Community 74|Community 74]]
-- [[_COMMUNITY_Community 75|Community 75]]
-- [[_COMMUNITY_Community 76|Community 76]]
-- [[_COMMUNITY_Community 77|Community 77]]
-- [[_COMMUNITY_Community 78|Community 78]]
-- [[_COMMUNITY_Community 79|Community 79]]
-- [[_COMMUNITY_Community 80|Community 80]]
-- [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 82|Community 82]]
-- [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 84|Community 84]]
-- [[_COMMUNITY_Community 85|Community 85]]
-- [[_COMMUNITY_Community 86|Community 86]]
-- [[_COMMUNITY_Community 87|Community 87]]
+- [[_COMMUNITY_map  encaisser Transaction|map / encaisser Transaction]]
+- [[_COMMUNITY_initials  add Pay Event|initials / add Pay Event]]
+- [[_COMMUNITY_check Super Admin  generate Kiosk Code|check Super Admin / generate Kiosk Code]]
+- [[_COMMUNITY_add Months  initials|add Months / initials]]
+- [[_COMMUNITY_find Customer By Phone  search Customers|find Customer By Phone / search Customers]]
+- [[_COMMUNITY_login With Pin  logout Kiosk|login With Pin / logout Kiosk]]
+- [[_COMMUNITY_product Id  select Existing Product|product Id / select Existing Product]]
+- [[_COMMUNITY_Caisse Page  check Rate Limit|Caisse Page / check Rate Limit]]
+- [[_COMMUNITY_cache Products  cache Ready Orders|cache Products / cache Ready Orders]]
+- [[_COMMUNITY_ask AI  clear History|ask AI / clear History]]
+- [[_COMMUNITY_dd Mm Yyyy To Iso String  normalize Excel Cell Value|dd Mm Yyyy To Iso String / normalize Excel Cell Value]]
+- [[_COMMUNITY_require Stock Mutation Context  toggle Ingredient Status|require Stock Mutation Context / toggle Ingredient Status]]
+- [[_COMMUNITY_New Order Modal  New Order Modal|New Order Modal / New Order Modal]]
+- [[_COMMUNITY_handler  Quick Product Selection Overlay|handler / Quick Product Selection Overlay]]
+- [[_COMMUNITY_Time Digi Pad  display Time|Time Digi Pad / display Time]]
+- [[_COMMUNITY_Network Status Bar  Offline Provider|Network Status Bar / Offline Provider]]
+- [[_COMMUNITY_build Whats App Url  stock Color|build Whats App Url / stock Color]]
+- [[_COMMUNITY_Orders Client  Orders Client|Orders Client / Orders Client]]
+- [[_COMMUNITY_Image Cropper  crop image|Image Cropper / crop image]]
+- [[_COMMUNITY_average  build Leaderboard|average / build Leaderboard]]
+- [[_COMMUNITY_open Create  open Edit|open Create / open Edit]]
+- [[_COMMUNITY_add Allergy  remove Allergy|add Allergy / remove Allergy]]
+- [[_COMMUNITY_handler  Date Picker|handler / Date Picker]]
+- [[_COMMUNITY_component Did Catch  constructor|component Did Catch / constructor]]
+- [[_COMMUNITY_fmt  Receipt Modal|fmt / Receipt Modal]]
+- [[_COMMUNITY_save Field  Order Drawer|save Field / Order Drawer]]
+- [[_COMMUNITY_is Network Error  offline Aware Fetch|is Network Error / offline Aware Fetch]]
+- [[_COMMUNITY_Currency Provider  use Currency|Currency Provider / use Currency]]
+- [[_COMMUNITY_Catalogue Modal  Catalogue Modal|Catalogue Modal / Catalogue Modal]]
+- [[_COMMUNITY_Customer Create Modal|Customer Create Modal]]
+- [[_COMMUNITY_Stock Movement Modal|Stock Movement Modal]]
+- [[_COMMUNITY_normalize French Phone  customer.schema|normalize French Phone / customer.schema]]
+- [[_COMMUNITY_Zero Latency Architecture  PROJECT SNAPSHOT|Zero Latency Architecture / PROJECT SNAPSHOT]]
+- [[_COMMUNITY_Server Action create Employee  React 19.2.3|Server Action create Employee / React 19.2.3]]
+- [[_COMMUNITY_docsARCHITECTURE  Rôle Gérant|docs/ARCHITECTURE / Rôle Gérant]]
+- [[_COMMUNITY_middleware  middleware|middleware / middleware]]
+- [[_COMMUNITY_sw  process Offline Queue|sw / process Offline Queue]]
+- [[_COMMUNITY_Root Layout  layout|Root Layout / layout]]
+- [[_COMMUNITY_Super Admin Root Layout  layout|Super Admin Root Layout / layout]]
+- [[_COMMUNITY_layout|layout]]
+- [[_COMMUNITY_compute Start Date  page|compute Start Date / page]]
+- [[_COMMUNITY_Pagination|Pagination]]
+- [[_COMMUNITY_Touch Select|Touch Select]]
+- [[_COMMUNITY_Stat Card  Stat Card|Stat Card / Stat Card]]
+- [[_COMMUNITY_Month Picker  Month Picker|Month Picker / Month Picker]]
+- [[_COMMUNITY_Skeleton  Skeleton|Skeleton / Skeleton]]
+- [[_COMMUNITY_Register SW  Register SW|Register SW / Register SW]]
+- [[_COMMUNITY_React Query Provider  React Query Provider|React Query Provider / React Query Provider]]
+- [[_COMMUNITY_Admin Users Client|Admin Users Client]]
+- [[_COMMUNITY_Realtime Sync  Realtime Sync|Realtime Sync / Realtime Sync]]
+- [[_COMMUNITY_Customer Notes  Customer Notes|Customer Notes / Customer Notes]]
+- [[_COMMUNITY_QRCode Overlay  QRCode Overlay|QRCode Overlay / QRCode Overlay]]
+- [[_COMMUNITY_Ingredient Modal|Ingredient Modal]]
+- [[_COMMUNITY_use Phone CRMLookup  use Phone CRMLookup|use Phone CRMLookup / use Phone CRMLookup]]
+- [[_COMMUNITY_use Product Filter  use Product Filter|use Product Filter / use Product Filter]]
+- [[_COMMUNITY_Table profiles  Supabase 0.8.0|Table profiles / Supabase 0.8.0]]
+- [[_COMMUNITY_Caisse Sessions Page  page|Caisse Sessions Page / page]]
+- [[_COMMUNITY_Sessions History Client|Sessions History Client]]
+- [[_COMMUNITY_check  check manager|check / check manager]]
+- [[_COMMUNITY_check  check sessions|check / check sessions]]
+- [[_COMMUNITY_next env.d|next env.d]]
+- [[_COMMUNITY_tailwind.config.mjs|tailwind.config.mjs]]
+- [[_COMMUNITY_postcss.config|postcss.config]]
+- [[_COMMUNITY_eslint.config.mjs|eslint.config.mjs]]
+- [[_COMMUNITY_next.config|next.config]]
+- [[_COMMUNITY_index|index]]
+- [[_COMMUNITY_supabase|supabase]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_Production Plan|Production Plan]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_Confirm Modal|Confirm Modal]]
+- [[_COMMUNITY_Touch Input|Touch Input]]
+- [[_COMMUNITY_Auto Lock Provider|Auto Lock Provider]]
+- [[_COMMUNITY_Network Banner|Network Banner]]
+- [[_COMMUNITY_Dashboard New Order Button|Dashboard New Order Button]]
+- [[_COMMUNITY_types|types]]
+- [[_COMMUNITY_Customer Timeline|Customer Timeline]]
+- [[_COMMUNITY_Catalogue Header|Catalogue Header]]
+- [[_COMMUNITY_catalogue|catalogue]]
+- [[_COMMUNITY_product|product]]
+- [[_COMMUNITY_order.schema|order.schema]]
+- [[_COMMUNITY_transactions|transactions]]
+- [[_COMMUNITY_employee.schema|employee.schema]]
+- [[_COMMUNITY_README|README]]
+- [[_COMMUNITY_GEMINI|GEMINI]]
+- [[_COMMUNITY_HANDOFF|HANDOFF]]
+- [[_COMMUNITY_icon 192.png|icon 192.png]]
+- [[_COMMUNITY_icon 512.png|icon 512.png]]
+- [[_COMMUNITY_Next 16.1.6|Next 16.1.6]]
+- [[_COMMUNITY_Offline First Mode|Offline First Mode]]
+- [[_COMMUNITY_supabase|supabase]]
+- [[_COMMUNITY_page|page]]
+- [[_COMMUNITY_Touch Input|Touch Input]]
+- [[_COMMUNITY_order.schema|order.schema]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `createClient()` - 67 edges
-2. `map()` - 30 edges
-3. `openDB()` - 13 edges
-4. `ensureActiveSubscription()` - 11 edges
-5. `GET()` - 10 edges
-6. `POST()` - 9 edges
-7. `checkSuperAdmin()` - 6 edges
-8. `handleEncaisser()` - 5 edges
-9. `onSubmit()` - 5 edges
-10. `getOrgId()` - 5 edges
+1. `createClient()` - 69 edges
+2. `map()` - 37 edges
+3. `requireOrgRole()` - 14 edges
+4. `ensureActiveSubscription()` - 13 edges
+5. `checkSuperAdmin()` - 13 edges
+6. `openDB()` - 13 edges
+7. `requireOrganizationContext()` - 13 edges
+8. `requireRoleContext()` - 13 edges
+9. `POST()` - 12 edges
+10. `GET()` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `initials()` --calls--> `map()`  [INFERRED]
   src/app/(auth)/kiosk/page.tsx → /Users/willmac/patiss-app copie 2/src/components/dashboard/AIAssistant.tsx
-- `initials()` --calls--> `map()`  [INFERRED]
-  src/components/equipe/EmployeeCard.tsx → /Users/willmac/patiss-app copie 2/src/components/dashboard/AIAssistant.tsx
-- `createClient()` --calls--> `getMonthlyPayslip()`  [INFERRED]
-  /Users/willmac/patiss-app copie 2/src/lib/supabase/server.ts → src/lib/actions/employees.ts
-- `createClient()` --calls--> `getDailyStats()`  [INFERRED]
-  /Users/willmac/patiss-app copie 2/src/lib/supabase/server.ts → src/lib/actions/stats.ts
-- `createClient()` --calls--> `getOpenSession()`  [INFERRED]
-  /Users/willmac/patiss-app copie 2/src/lib/supabase/server.ts → src/lib/actions/sessions.ts
+- `handleImpersonate()` --calls--> `impersonateUser()`  [INFERRED]
+  /Users/willmac/patiss-app copie 2/src/components/admin/AdminClient.tsx → src/lib/actions/admin.ts
+- `map()` --calls--> `initials()`  [INFERRED]
+  /Users/willmac/patiss-app copie 2/src/components/dashboard/AIAssistant.tsx → src/components/equipe/EmployeeCard.tsx
+- `map()` --calls--> `normalizeExcelCellValue()`  [INFERRED]
+  /Users/willmac/patiss-app copie 2/src/components/dashboard/AIAssistant.tsx → src/components/orders/HistoricalImportModal.tsx
+- `POST()` --calls--> `map()`  [INFERRED]
+  src/app/api/cron/daily-report/route.ts → /Users/willmac/patiss-app copie 2/src/components/dashboard/AIAssistant.tsx
 
 ## Communities
 
-### Community 0 - "Community 0"
-Cohesion: 0.07
-Nodes (30): checkSuperAdmin(), createClientUser(), createOrganizationWithGerant(), deleteOrganization(), generateKioskCode(), impersonateUser(), reactivateOrganization(), resetEmployeePin() (+22 more)
-
-### Community 1 - "Community 1"
+### Community 0 - "map / encaisser Transaction"
 Cohesion: 0.08
-Nodes (13): handleExportCSV(), map(), getInitials(), handleExportCSV(), validateEnv(), exportCSV(), AdminPage(), CataloguePage() (+5 more)
+Nodes (24): map(), encaisserTransaction(), finaliserCommandeDejaPayee(), rembourserTransaction(), getInitials(), handleExportCSV(), validateEnv(), handleManualSubmit() (+16 more)
 
-### Community 2 - "Community 2"
+### Community 1 - "initials / add Pay Event"
 Cohesion: 0.08
-Nodes (10): addMonths(), formatDate(), handleBulkRenew(), handleImpersonate(), handleSendReminder(), initials(), toggleSelectAll(), deletePayEvent() (+2 more)
+Nodes (31): handleDeactivate(), handleReactivate(), initials(), getInitials(), handleAvatarChange(), handleCropComplete(), onSubmit(), addPayEvent() (+23 more)
 
-### Community 3 - "Community 3"
+### Community 2 - "check Super Admin / generate Kiosk Code"
+Cohesion: 0.1
+Nodes (26): checkSuperAdmin(), createClientUser(), createOrganizationWithGerant(), deleteOrganization(), generateKioskCode(), getErrorMessage(), impersonateUser(), reactivateOrganization() (+18 more)
+
+### Community 3 - "add Months / initials"
+Cohesion: 0.09
+Nodes (9): addMonths(), formatDate(), handleBulkRenew(), handleExportCSV(), handleImpersonate(), handleSendReminder(), initials(), toggleSelectAll() (+1 more)
+
+### Community 4 - "find Customer By Phone / search Customers"
+Cohesion: 0.15
+Nodes (14): handleSearch(), onSubmit(), fetchOrders(), createOrUpdateCustomer(), deleteCustomer(), findCustomerByPhone(), getCustomerOrders(), searchCustomers() (+6 more)
+
+### Community 5 - "login With Pin / logout Kiosk"
 Cohesion: 0.12
-Nodes (15): handleDeactivate(), handleReactivate(), initials(), getInitials(), onSubmit(), addPayEvent(), createEmployee(), deleteEmployee() (+7 more)
+Nodes (14): getKioskProfiles(), loginWithPin(), logoutKiosk(), verifyKioskCode(), handleLogout(), handleSwitchToKiosk(), initials(), createAdminClient() (+6 more)
 
-### Community 4 - "Community 4"
-Cohesion: 0.11
-Nodes (9): clearHistory(), encaisserTransaction(), finaliserCommandeDejaPayee(), rembourserTransaction(), chargerCommande(), handleEncaisser(), removeItem(), viderPanier() (+1 more)
-
-### Community 5 - "Community 5"
-Cohesion: 0.13
-Nodes (11): getKioskProfiles(), logoutKiosk(), verifyKioskCode(), handleLogout(), handleSwitchToKiosk(), initials(), fetchProfiles(), handleGerantLogin() (+3 more)
-
-### Community 6 - "Community 6"
+### Community 6 - "product Id / select Existing Product"
 Cohesion: 0.16
-Nodes (12): createIngredient(), createInventoryLog(), deleteIngredient(), toggleIngredientStatus(), updateIngredient(), createOrder(), createVitrineSale(), deleteOrder() (+4 more)
+Nodes (14): handleDelete(), handleToggleActive(), handleKeyDown(), handleCropCancel(), handleCropComplete(), handleFormSubmit(), handleImageChange(), productId() (+6 more)
 
-### Community 7 - "Community 7"
+### Community 7 - "Caisse Page / check Rate Limit"
+Cohesion: 0.15
+Nodes (7): CaissePage(), checkRateLimit(), GET(), getCachedContext(), POST(), getCurrency(), getCurrentSession()
+
+### Community 8 - "cache Products / cache Ready Orders"
 Cohesion: 0.23
 Nodes (14): cacheProducts(), cacheReadyOrders(), getCachedProducts(), getCachedReadyOrders(), getPendingCounts(), getPendingOrders(), getPendingTransactions(), openDB() (+6 more)
 
-### Community 8 - "Community 8"
-Cohesion: 0.17
-Nodes (6): CaissePage(), checkRateLimit(), GET(), getCachedContext(), POST(), getCurrentSession()
+### Community 9 - "ask AI / clear History"
+Cohesion: 0.22
+Nodes (8): clearHistory(), addToCart(), chargerCommande(), detachClient(), handleEncaisser(), removeItem(), updateQty(), viderPanier()
 
-### Community 9 - "Community 9"
-Cohesion: 0.14
-Nodes (5): handleDelete(), handleKeyDown(), handleFormSubmit(), createProduct(), deleteProduct()
+### Community 10 - "dd Mm Yyyy To Iso String / normalize Excel Cell Value"
+Cohesion: 0.18
+Nodes (5): ddMmYyyyToIsoString(), formatDateToDDMMYYYY(), handleImportExcelOrders(), normalizeExcelCellValue(), parseAndFormatDate()
 
-### Community 10 - "Community 10"
+### Community 11 - "require Stock Mutation Context / toggle Ingredient Status"
+Cohesion: 0.47
+Nodes (9): createIngredient(), createInventoryLog(), deleteIngredient(), getActionError(), requireStockMutationContext(), toggleIngredientStatus(), updateIngredient(), checkSubscriptionStatus() (+1 more)
+
+### Community 12 - "New Order Modal / New Order Modal"
+Cohesion: 0.35
+Nodes (9): fetchSearch(), handleAddItem(), handleAddManual(), handleClickOutside(), handleClose(), handleRemoveItem(), handleReset(), handleSubmit() (+1 more)
+
+### Community 13 - "handler / Quick Product Selection Overlay"
 Cohesion: 0.2
 Nodes (3): formatCurrency(), getInitials(), handleProductClick()
 
-### Community 11 - "Community 11"
-Cohesion: 0.22
-Nodes (2): handleClose(), handleReset()
-
-### Community 12 - "Community 12"
-Cohesion: 0.28
-Nodes (5): closeSingleSession(), doToggle(), handleToggle(), getOpenSession(), toggleSession()
-
-### Community 13 - "Community 13"
+### Community 14 - "Time Digi Pad / display Time"
 Cohesion: 0.29
 Nodes (0): 
 
-### Community 14 - "Community 14"
+### Community 15 - "Network Status Bar / Offline Provider"
 Cohesion: 0.29
 Nodes (3): NetworkStatusBar(), OfflineProvider(), useNetworkStatus()
 
-### Community 15 - "Community 15"
+### Community 16 - "build Whats App Url / stock Color"
 Cohesion: 0.29
 Nodes (0): 
 
-### Community 16 - "Community 16"
+### Community 17 - "Orders Client / Orders Client"
+Cohesion: 0.38
+Nodes (3): handleDelete(), handleFilterChange(), handleStatusChange()
+
+### Community 18 - "Image Cropper / crop image"
 Cohesion: 0.33
 Nodes (3): createImage(), getCroppedImg(), handleConfirm()
 
-### Community 17 - "Community 17"
+### Community 19 - "average / build Leaderboard"
+Cohesion: 0.33
+Nodes (2): buildLeaderboard(), groupBy()
+
+### Community 20 - "open Create / open Edit"
 Cohesion: 0.33
 Nodes (0): 
 
-### Community 18 - "Community 18"
+### Community 21 - "add Allergy / remove Allergy"
 Cohesion: 0.6
 Nodes (3): addAllergy(), removeAllergy(), saveAllergies()
 
-### Community 19 - "Community 19"
+### Community 22 - "handler / Date Picker"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 20 - "Community 20"
+### Community 23 - "component Did Catch / constructor"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 21 - "Community 21"
+### Community 24 - "fmt / Receipt Modal"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 22 - "Community 22"
-Cohesion: 0.5
-Nodes (0): 
+### Community 25 - "save Field / Order Drawer"
+Cohesion: 0.67
+Nodes (3): handleClose(), handleEsc(), saveField()
 
-### Community 23 - "Community 23"
+### Community 26 - "is Network Error / offline Aware Fetch"
 Cohesion: 0.67
 Nodes (2): isNetworkError(), offlineAwareFetch()
 
-### Community 24 - "Community 24"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 25 - "Community 25"
+### Community 27 - "Currency Provider / use Currency"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 26 - "Community 26"
+### Community 28 - "Catalogue Modal / Catalogue Modal"
+Cohesion: 0.67
+Nodes (1): handleKeyDown()
+
+### Community 29 - "Customer Create Modal"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 27 - "Community 27"
+### Community 30 - "Stock Movement Modal"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 28 - "Community 28"
-Cohesion: 1.0
-Nodes (2): handleClose(), handleEsc()
-
-### Community 29 - "Community 29"
+### Community 31 - "normalize French Phone / customer.schema"
 Cohesion: 0.67
-Nodes (3): docs/ARCHITECTURE.md, Rôle Gérant, Expert Comptable IA (Gemini)
+Nodes (1): normalizeFrenchPhone()
 
-### Community 30 - "Community 30"
+### Community 32 - "Zero Latency Architecture / PROJECT SNAPSHOT"
 Cohesion: 0.67
 Nodes (2): Zero Latency Architecture, IndexedDB Storage
 
-### Community 31 - "Community 31"
+### Community 33 - "Server Action create Employee / React 19.2.3"
 Cohesion: 0.67
 Nodes (3): Server Action createEmployee, React 19.2.3, Composant EquipeClient
 
-### Community 32 - "Community 32"
+### Community 34 - "docs/ARCHITECTURE / Rôle Gérant"
+Cohesion: 0.67
+Nodes (3): docs/ARCHITECTURE.md, Rôle Gérant, Expert Comptable IA (Gemini)
+
+### Community 35 - "middleware / middleware"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 33 - "Community 33"
+### Community 36 - "sw / process Offline Queue"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 34 - "Community 34"
+### Community 37 - "Root Layout / layout"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 35 - "Community 35"
+### Community 38 - "Super Admin Root Layout / layout"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 36 - "Community 36"
+### Community 39 - "layout"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 37 - "Community 37"
+### Community 40 - "compute Start Date / page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 38 - "Community 38"
+### Community 41 - "Pagination"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 39 - "Community 39"
+### Community 42 - "Touch Select"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 40 - "Community 40"
+### Community 43 - "Stat Card / Stat Card"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 41 - "Community 41"
+### Community 44 - "Month Picker / Month Picker"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 42 - "Community 42"
+### Community 45 - "Skeleton / Skeleton"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 43 - "Community 43"
+### Community 46 - "Register SW / Register SW"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 44 - "Community 44"
+### Community 47 - "React Query Provider / React Query Provider"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 45 - "Community 45"
+### Community 48 - "Admin Users Client"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 46 - "Community 46"
+### Community 49 - "Realtime Sync / Realtime Sync"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 47 - "Community 47"
+### Community 50 - "Customer Notes / Customer Notes"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 48 - "Community 48"
+### Community 51 - "QRCode Overlay / QRCode Overlay"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 49 - "Community 49"
+### Community 52 - "Ingredient Modal"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 50 - "Community 50"
+### Community 53 - "use Phone CRMLookup / use Phone CRMLookup"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 51 - "Community 51"
+### Community 54 - "use Product Filter / use Product Filter"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 52 - "Community 52"
-Cohesion: 1.0
-Nodes (0): 
-
-### Community 53 - "Community 53"
+### Community 55 - "Table profiles / Supabase 0.8.0"
 Cohesion: 1.0
 Nodes (2): Table profiles, Supabase 0.8.0
 
-### Community 54 - "Community 54"
+### Community 56 - "Caisse Sessions Page / page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 55 - "Community 55"
+### Community 57 - "Sessions History Client"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 56 - "Community 56"
+### Community 58 - "check / check manager"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 57 - "Community 57"
+### Community 59 - "check / check sessions"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 58 - "Community 58"
+### Community 60 - "next env.d"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 59 - "Community 59"
+### Community 61 - "tailwind.config.mjs"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 60 - "Community 60"
+### Community 62 - "postcss.config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 61 - "Community 61"
+### Community 63 - "eslint.config.mjs"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 62 - "Community 62"
+### Community 64 - "next.config"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 63 - "Community 63"
+### Community 65 - "index"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 64 - "Community 64"
+### Community 66 - "supabase"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 65 - "Community 65"
+### Community 67 - "page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 66 - "Community 66"
+### Community 68 - "page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 67 - "Community 67"
+### Community 69 - "page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 68 - "Community 68"
+### Community 70 - "Production Plan"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 69 - "Community 69"
+### Community 71 - "page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 70 - "Community 70"
+### Community 72 - "page"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 71 - "Community 71"
+### Community 73 - "Confirm Modal"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 72 - "Community 72"
+### Community 74 - "Touch Input"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 73 - "Community 73"
+### Community 75 - "Auto Lock Provider"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 74 - "Community 74"
+### Community 76 - "Network Banner"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 75 - "Community 75"
+### Community 77 - "Dashboard New Order Button"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 76 - "Community 76"
+### Community 78 - "types"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 77 - "Community 77"
+### Community 79 - "Customer Timeline"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 78 - "Community 78"
+### Community 80 - "Catalogue Header"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 79 - "Community 79"
+### Community 81 - "catalogue"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 80 - "Community 80"
+### Community 82 - "product"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 81 - "Community 81"
+### Community 83 - "order.schema"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 82 - "Community 82"
+### Community 84 - "transactions"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 83 - "Community 83"
+### Community 85 - "employee.schema"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 84 - "Community 84"
+### Community 86 - "README"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 85 - "Community 85"
+### Community 87 - "GEMINI"
 Cohesion: 1.0
 Nodes (0): 
 
-### Community 86 - "Community 86"
+### Community 88 - "HANDOFF"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 89 - "icon 192.png"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 90 - "icon 512.png"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 91 - "Next 16.1.6"
 Cohesion: 1.0
 Nodes (1): Next.js 16.1.6
 
-### Community 87 - "Community 87"
+### Community 92 - "Offline First Mode"
 Cohesion: 1.0
 Nodes (1): Offline-First Mode
+
+### Community 93 - "supabase"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 94 - "page"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 95 - "Touch Input"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 96 - "order.schema"
+Cohesion: 1.0
+Nodes (0): 
 
 ## Knowledge Gaps
 - **9 isolated node(s):** `docs/ARCHITECTURE.md`, `React 19.2.3`, `Next.js 16.1.6`, `Supabase 0.8.0`, `IndexedDB Storage` (+4 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 32`** (2 nodes): `middleware()`, `middleware.ts`
+- **Thin community `middleware / middleware`** (2 nodes): `middleware()`, `middleware.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (2 nodes): `sw.js`, `processOfflineQueue()`
+- **Thin community `sw / process Offline Queue`** (2 nodes): `sw.js`, `processOfflineQueue()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (2 nodes): `RootLayout()`, `layout.tsx`
+- **Thin community `Root Layout / layout`** (2 nodes): `RootLayout()`, `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (2 nodes): `SuperAdminRootLayout()`, `layout.tsx`
+- **Thin community `Super Admin Root Layout / layout`** (2 nodes): `SuperAdminRootLayout()`, `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (2 nodes): `computeStartDate()`, `page.tsx`
+- **Thin community `layout`** (2 nodes): `getOrganization()`, `layout.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (2 nodes): `createPageURL()`, `Pagination.tsx`
+- **Thin community `compute Start Date / page`** (2 nodes): `computeStartDate()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (2 nodes): `handleSelect()`, `TouchSelect.tsx`
+- **Thin community `Pagination`** (2 nodes): `createPageURL()`, `Pagination.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (2 nodes): `StatCard()`, `StatCard.tsx`
+- **Thin community `Touch Select`** (2 nodes): `handleSelect()`, `TouchSelect.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (2 nodes): `MonthPicker()`, `MonthPicker.tsx`
+- **Thin community `Stat Card / Stat Card`** (2 nodes): `StatCard()`, `StatCard.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (2 nodes): `Skeleton()`, `Skeleton.tsx`
+- **Thin community `Month Picker / Month Picker`** (2 nodes): `MonthPicker()`, `MonthPicker.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (2 nodes): `handleKeyDown()`, `CatalogueModal.tsx`
+- **Thin community `Skeleton / Skeleton`** (2 nodes): `Skeleton()`, `Skeleton.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (2 nodes): `RegisterSW()`, `RegisterSW.tsx`
+- **Thin community `Register SW / Register SW`** (2 nodes): `RegisterSW()`, `RegisterSW.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (2 nodes): `ReactQueryProvider()`, `ReactQueryProvider.tsx`
+- **Thin community `React Query Provider / React Query Provider`** (2 nodes): `ReactQueryProvider()`, `ReactQueryProvider.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (2 nodes): `handleChangeRole()`, `AdminUsersClient.tsx`
+- **Thin community `Admin Users Client`** (2 nodes): `handleChangeRole()`, `AdminUsersClient.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (2 nodes): `RealtimeSync()`, `RealtimeSync.tsx`
+- **Thin community `Realtime Sync / Realtime Sync`** (2 nodes): `RealtimeSync()`, `RealtimeSync.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (2 nodes): `CustomerNotes()`, `CustomerNotes.tsx`
+- **Thin community `Customer Notes / Customer Notes`** (2 nodes): `CustomerNotes()`, `CustomerNotes.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 48`** (2 nodes): `QRCodeOverlay()`, `QRCodeOverlay.tsx`
+- **Thin community `QRCode Overlay / QRCode Overlay`** (2 nodes): `QRCodeOverlay()`, `QRCodeOverlay.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 49`** (2 nodes): `handleSubmit()`, `IngredientModal.tsx`
+- **Thin community `Ingredient Modal`** (2 nodes): `handleSubmit()`, `IngredientModal.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 50`** (2 nodes): `usePhoneCRMLookup()`, `usePhoneCRMLookup.ts`
+- **Thin community `use Phone CRMLookup / use Phone CRMLookup`** (2 nodes): `usePhoneCRMLookup()`, `usePhoneCRMLookup.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 51`** (2 nodes): `useProductFilter()`, `useProductFilter.ts`
+- **Thin community `use Product Filter / use Product Filter`** (2 nodes): `useProductFilter()`, `useProductFilter.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 52`** (2 nodes): `normalizeFrenchPhone()`, `customer.schema.ts`
+- **Thin community `Table profiles / Supabase 0.8.0`** (2 nodes): `Table profiles`, `Supabase 0.8.0`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (2 nodes): `Table profiles`, `Supabase 0.8.0`
+- **Thin community `Caisse Sessions Page / page`** (2 nodes): `CaisseSessionsPage()`, `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (1 nodes): `next-env.d.ts`
+- **Thin community `Sessions History Client`** (2 nodes): `getRoleLabel()`, `SessionsHistoryClient.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 55`** (1 nodes): `tailwind.config.mjs`
+- **Thin community `check / check manager`** (2 nodes): `check()`, `check-manager.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 56`** (1 nodes): `postcss.config.js`
+- **Thin community `check / check sessions`** (2 nodes): `check()`, `check-sessions.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 57`** (1 nodes): `eslint.config.mjs`
+- **Thin community `next env.d`** (1 nodes): `next-env.d.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 58`** (1 nodes): `next.config.ts`
+- **Thin community `tailwind.config.mjs`** (1 nodes): `tailwind.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 59`** (1 nodes): `index.ts`
+- **Thin community `postcss.config`** (1 nodes): `postcss.config.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 60`** (1 nodes): `supabase.ts`
+- **Thin community `eslint.config.mjs`** (1 nodes): `eslint.config.mjs`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (1 nodes): `page.tsx`
+- **Thin community `next.config`** (1 nodes): `next.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 62`** (1 nodes): `layout.tsx`
+- **Thin community `index`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 63`** (1 nodes): `page.tsx`
+- **Thin community `supabase`** (1 nodes): `supabase.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 64`** (1 nodes): `page.tsx`
+- **Thin community `page`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 65`** (1 nodes): `ProductionPlan.tsx`
+- **Thin community `page`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 66`** (1 nodes): `page.tsx`
+- **Thin community `page`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 67`** (1 nodes): `page.tsx`
+- **Thin community `Production Plan`** (1 nodes): `ProductionPlan.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 68`** (1 nodes): `ConfirmModal.tsx`
+- **Thin community `page`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 69`** (1 nodes): `TouchInput.tsx`
+- **Thin community `page`** (1 nodes): `page.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 70`** (1 nodes): `AutoLockProvider.tsx`
+- **Thin community `Confirm Modal`** (1 nodes): `ConfirmModal.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 71`** (1 nodes): `NetworkBanner.tsx`
+- **Thin community `Touch Input`** (1 nodes): `TouchInput.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 72`** (1 nodes): `DashboardNewOrderButton.tsx`
+- **Thin community `Auto Lock Provider`** (1 nodes): `AutoLockProvider.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 73`** (1 nodes): `types.ts`
+- **Thin community `Network Banner`** (1 nodes): `NetworkBanner.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 74`** (1 nodes): `CustomerTimeline.tsx`
+- **Thin community `Dashboard New Order Button`** (1 nodes): `DashboardNewOrderButton.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 75`** (1 nodes): `CatalogueHeader.tsx`
+- **Thin community `types`** (1 nodes): `types.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 76`** (1 nodes): `catalogue.ts`
+- **Thin community `Customer Timeline`** (1 nodes): `CustomerTimeline.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 77`** (1 nodes): `product.ts`
+- **Thin community `Catalogue Header`** (1 nodes): `CatalogueHeader.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 78`** (1 nodes): `order.schema.ts`
+- **Thin community `catalogue`** (1 nodes): `catalogue.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 79`** (1 nodes): `transactions.ts`
+- **Thin community `product`** (1 nodes): `product.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 80`** (1 nodes): `employee.schema.ts`
+- **Thin community `order.schema`** (1 nodes): `order.schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (1 nodes): `README.md`
+- **Thin community `transactions`** (1 nodes): `transactions.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (1 nodes): `GEMINI.md`
+- **Thin community `employee.schema`** (1 nodes): `employee.schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (1 nodes): `HANDOFF.md`
+- **Thin community `README`** (1 nodes): `README.md`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 84`** (1 nodes): `icon-192.png`
+- **Thin community `GEMINI`** (1 nodes): `GEMINI.md`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 85`** (1 nodes): `icon-512.png`
+- **Thin community `HANDOFF`** (1 nodes): `HANDOFF.md`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 86`** (1 nodes): `Next.js 16.1.6`
+- **Thin community `icon 192.png`** (1 nodes): `icon-192.png`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 87`** (1 nodes): `Offline-First Mode`
+- **Thin community `icon 512.png`** (1 nodes): `icon-512.png`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Next 16.1.6`** (1 nodes): `Next.js 16.1.6`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Offline First Mode`** (1 nodes): `Offline-First Mode`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `supabase`** (1 nodes): `supabase.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `page`** (1 nodes): `page.tsx`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Touch Input`** (1 nodes): `TouchInput.tsx`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `order.schema`** (1 nodes): `order.schema.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `createClient()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 12`?**
-  _High betweenness centrality (0.222) - this node is a cross-community bridge._
-- **Why does `map()` connect `Community 1` to `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 10`, `Community 12`?**
-  _High betweenness centrality (0.132) - this node is a cross-community bridge._
-- **Why does `syncPendingData()` connect `Community 7` to `Community 0`, `Community 1`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
-- **Are the 66 inferred relationships involving `createClient()` (e.g. with `Home()` and `POST()`) actually correct?**
-  _`createClient()` has 66 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 29 inferred relationships involving `map()` (e.g. with `POST()` and `AdminPage()`) actually correct?**
-  _`map()` has 29 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 9 inferred relationships involving `ensureActiveSubscription()` (e.g. with `createInventoryLog()` and `createIngredient()`) actually correct?**
-  _`ensureActiveSubscription()` has 9 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 8 inferred relationships involving `GET()` (e.g. with `createClient()` and `checkRateLimit()`) actually correct?**
-  _`GET()` has 8 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `createClient()` connect `check Super Admin / generate Kiosk Code` to `map / encaisser Transaction`, `initials / add Pay Event`, `find Customer By Phone / search Customers`, `login With Pin / logout Kiosk`, `product Id / select Existing Product`, `Caisse Page / check Rate Limit`, `cache Products / cache Ready Orders`, `require Stock Mutation Context / toggle Ingredient Status`?**
+  _High betweenness centrality (0.217) - this node is a cross-community bridge._
+- **Why does `map()` connect `map / encaisser Transaction` to `initials / add Pay Event`, `check Super Admin / generate Kiosk Code`, `add Months / initials`, `login With Pin / logout Kiosk`, `product Id / select Existing Product`, `Caisse Page / check Rate Limit`, `cache Products / cache Ready Orders`, `ask AI / clear History`, `dd Mm Yyyy To Iso String / normalize Excel Cell Value`, `handler / Quick Product Selection Overlay`, `average / build Leaderboard`?**
+  _High betweenness centrality (0.169) - this node is a cross-community bridge._
+- **Why does `syncPendingData()` connect `cache Products / cache Ready Orders` to `map / encaisser Transaction`, `check Super Admin / generate Kiosk Code`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Are the 67 inferred relationships involving `createClient()` (e.g. with `Home()` and `POST()`) actually correct?**
+  _`createClient()` has 67 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 36 inferred relationships involving `map()` (e.g. with `POST()` and `AdminPage()`) actually correct?**
+  _`map()` has 36 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 11 inferred relationships involving `requireOrgRole()` (e.g. with `createEmployee()` and `updateEmployee()`) actually correct?**
+  _`requireOrgRole()` has 11 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 11 inferred relationships involving `ensureActiveSubscription()` (e.g. with `createInventoryLog()` and `createIngredient()`) actually correct?**
+  _`ensureActiveSubscription()` has 11 INFERRED edges - model-reasoned connections that need verification._

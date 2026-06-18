@@ -1,7 +1,82 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CaisseClient from '@/components/caisse/CaisseClient'
-import { startOfDay, subDays } from 'date-fns'
+import { startOfDay } from 'date-fns'
+import type { Json } from '@/types/supabase'
+import type { Session } from '@/components/caisse/SessionsHistoryClient'
+
+type ProfileWithOrganization = {
+    organization_id: string | null
+    role_slug: string | null
+    full_name: string | null
+    organizations: { currency_symbol: string | null } | { currency_symbol: string | null }[] | null
+}
+
+type TodayTransaction = {
+    id: string
+    client_name: string | null
+    amount: number
+    payment_method: string | null
+    order_id: string | null
+    customer_id: string | null
+    created_at: string | null
+    label_type: string | null
+    orders: { order_number: string | null } | { order_number: string | null }[] | null
+    transaction_items: Array<{ quantity: number }>
+}
+
+type HistoryPayment = {
+    id: string
+    amount: number
+    payment_method: string | null
+    created_at: string | null
+    label_type: string | null
+}
+
+type GroupedTransaction = {
+    id: string
+    client_name: string | null
+    is_order: boolean
+    order_number: string | null
+    has_crm: boolean
+    nb_items: number
+    created_at: string | null
+    payments: HistoryPayment[]
+}
+
+type BestSeller = {
+    id: string
+    name: string
+    selling_price: number
+    stock_qty: number
+    total_sold: number
+}
+
+function getCurrencySymbol(profile: ProfileWithOrganization): string {
+    const org = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations
+    return org?.currency_symbol || ''
+}
+
+function getOrderNumber(orders: TodayTransaction['orders']): string | null {
+    const order = Array.isArray(orders) ? orders[0] : orders
+    return order?.order_number || null
+}
+
+function parseBestSellers(value: Json): BestSeller[] {
+    if (!Array.isArray(value)) return []
+    return value.flatMap((item): BestSeller[] => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+        const record = item as Record<string, Json>
+        if (typeof record.id !== 'string' || typeof record.name !== 'string') return []
+        return [{
+            id: record.id,
+            name: record.name,
+            selling_price: Number(record.selling_price ?? 0),
+            stock_qty: Number(record.stock_qty ?? 0),
+            total_sold: Number(record.total_sold ?? 0),
+        }]
+    })
+}
 
 export default async function CaissePage() {
     const supabase = await createClient()
@@ -13,7 +88,7 @@ export default async function CaissePage() {
         .from('profiles')
         .select('*, organizations(currency_symbol)')
         .eq('id', user.id)
-        .single()
+        .single<ProfileWithOrganization>()
 
     if (!profile) redirect('/login')
 
@@ -23,9 +98,8 @@ export default async function CaissePage() {
     }
 
     const orgId = profile.organization_id!
-    const currency = (profile.organizations as any)?.currency_symbol || ''
+    const currency = getCurrencySymbol(profile)
     const todayStart = startOfDay(new Date()).toISOString()
-    const thirtyDaysAgo = subDays(new Date(), 30).toISOString()
 
     // Parallelize data fetching
     const [
@@ -60,7 +134,7 @@ export default async function CaissePage() {
             .order('created_at', { ascending: false }),
 
         // 4. Best-sellers (sur 30 jours, via RPC haute performance)
-        (supabase.rpc as any)('get_best_sellers_v2', {
+        supabase.rpc('get_best_sellers_v2', {
             p_org_id: orgId,
             p_days_limit: 30,
             p_top_n: 8
@@ -80,19 +154,20 @@ export default async function CaissePage() {
             : Promise.resolve({ data: null, error: null })
     ]);
 
-    const sessions = sessionsResult?.data || []
+    const sessions = (sessionsResult?.data || []) as Session[]
+    const transactions = (todayTransactions || []) as TodayTransaction[]
 
     // CA du jour (inclut acomptes + soldes = argent réellement reçu)
-    const caDuJour = (todayTransactions || []).reduce((acc, t) => acc + Number(t.amount), 0)
+    const caDuJour = transactions.reduce((acc, t) => acc + Number(t.amount), 0)
     // Compter uniquement les SOLDE (pas les ACOMPTE) pour éviter de compter 2x la même commande
-    const commandesEncaissees = (todayTransactions || []).filter(t => t.order_id !== null && (t as any).label_type === 'SOLDE').length
-    const ventesVitrine = (todayTransactions || []).filter(t => t.order_id === null).length
+    const commandesEncaissees = transactions.filter(t => t.order_id !== null && t.label_type === 'SOLDE').length
+    const ventesVitrine = transactions.filter(t => t.order_id === null).length
 
     // Regroupement des transactions du jour par commande
-    const groupedTransactions: any[] = []
-    const orderGroups = new Map<string, any>()
+    const groupedTransactions: GroupedTransaction[] = []
+    const orderGroups = new Map<string, GroupedTransaction>()
 
-    for (const t of todayTransactions || []) {
+    for (const t of transactions) {
         if (t.order_id) {
             if (!orderGroups.has(t.order_id)) {
                 // C'est le mouvement le plus récent pour cette commande aujourd'hui
@@ -100,9 +175,9 @@ export default async function CaissePage() {
                     id: t.id,
                     client_name: t.client_name,
                     is_order: true,
-                    order_number: (t as any).orders?.order_number || null,
-                    has_crm: !!(t as any).customer_id,
-                    nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0),
+                    order_number: getOrderNumber(t.orders),
+                    has_crm: !!t.customer_id,
+                    nb_items: t.transaction_items.reduce((s, i) => s + i.quantity, 0),
                     created_at: t.created_at,
                     payments: [
                         {
@@ -110,7 +185,7 @@ export default async function CaissePage() {
                             amount: Number(t.amount),
                             payment_method: t.payment_method,
                             created_at: t.created_at,
-                            label_type: (t as any).label_type
+                            label_type: t.label_type
                         }
                     ]
                 }
@@ -119,12 +194,13 @@ export default async function CaissePage() {
             } else {
                 // Il y a déjà un groupe pour cette commande, on ajoute ce paiement plus ancien
                 const group = orderGroups.get(t.order_id)
+                if (!group) continue
                 group.payments.push({
                     id: t.id,
                     amount: Number(t.amount),
                     payment_method: t.payment_method,
                     created_at: t.created_at,
-                    label_type: (t as any).label_type
+                    label_type: t.label_type
                 })
             }
         } else {
@@ -134,8 +210,8 @@ export default async function CaissePage() {
                 client_name: t.client_name,
                 is_order: false,
                 order_number: null,
-                has_crm: !!(t as any).customer_id,
-                nb_items: t.transaction_items.reduce((s: number, i: any) => s + i.quantity, 0),
+                has_crm: !!t.customer_id,
+                nb_items: t.transaction_items.reduce((s, i) => s + i.quantity, 0),
                 created_at: t.created_at,
                 payments: [
                     {
@@ -143,7 +219,7 @@ export default async function CaissePage() {
                         amount: Number(t.amount),
                         payment_method: t.payment_method,
                         created_at: t.created_at,
-                        label_type: (t as any).label_type
+                        label_type: t.label_type
                     }
                 ]
             })
@@ -154,7 +230,7 @@ export default async function CaissePage() {
 
     // Best-sellers fetched in parallel above
 
-    const bestSellers = (rpcBestSellers as any[] || []).map((b: any) => ({
+    const bestSellers = parseBestSellers(rpcBestSellers).map((b) => ({
         id: b.id,
         name: b.name,
         selling_price: Number(b.selling_price),
@@ -166,7 +242,7 @@ export default async function CaissePage() {
         <CaisseClient 
             organizationId={orgId}
             currency={currency}
-            profileName={profile.full_name}
+            profileName={profile.full_name || ''}
             activeSession={activeSession}
             readyOrders={pipelineOrders || []}
             caDuJour={caDuJour}

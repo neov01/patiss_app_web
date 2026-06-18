@@ -32,7 +32,8 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const { pathname } = request.nextUrl
-    const isKioskSession = request.cookies.has('kiosk_user_id') || request.cookies.has('kiosk_token')
+    const kioskToken = request.cookies.get('kiosk_token')?.value
+    const isKioskSession = !!kioskToken
 
     // Redirige vers login si tentative d'accès au dashboard sans session (sauf si session Kiosque active)
     if (!user && !isKioskSession && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {

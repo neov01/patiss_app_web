@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Clock, ChefHat, CheckCircle2, XCircle, Maximize2, Pencil, Check, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
+import { X, Maximize2, Pencil, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateOrderDetails } from '@/lib/actions/orders'
 
@@ -13,7 +14,7 @@ interface OrderItem {
     name?: string | null
 }
 
-interface Order {
+export interface Order {
     id: string
     order_number: string | null
     customer_name: string
@@ -50,7 +51,7 @@ interface Props {
     onStatusChange: (orderId: string, status: string) => void
     isPending: boolean
     roleSlug: string
-    onOrderUpdate?: (updatedOrder: any) => void
+    onOrderUpdate?: (updatedOrder: { id: string } & Record<string, unknown>) => void
 }
 
 export default function OrderDrawer({ order, onClose, onStatusChange, isPending, roleSlug, onOrderUpdate }: Props) {
@@ -71,24 +72,27 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
     useEffect(() => {
         if (order) {
-            setNameVal(order.customer_name)
-            setPhoneVal(order.customer_contact || '')
-            try {
-                const dateObj = new Date(order.pickup_date)
-                if (!isNaN(dateObj.getTime())) {
-                    const tzOffset = dateObj.getTimezoneOffset() * 60000
-                    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16)
-                    setDateVal(localISOTime)
-                } else {
+            const timer = window.setTimeout(() => {
+                setNameVal(order.customer_name)
+                setPhoneVal(order.customer_contact || '')
+                try {
+                    const dateObj = new Date(order.pickup_date)
+                    if (!isNaN(dateObj.getTime())) {
+                        const tzOffset = dateObj.getTimezoneOffset() * 60000
+                        const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 16)
+                        setDateVal(localISOTime)
+                    } else {
+                        setDateVal('')
+                    }
+                } catch {
                     setDateVal('')
                 }
-            } catch (e) {
-                setDateVal('')
-            }
-            
-            setEditName(false)
-            setEditPhone(false)
-            setEditDate(false)
+
+                setEditName(false)
+                setEditPhone(false)
+                setEditDate(false)
+            }, 0)
+            return () => window.clearTimeout(timer)
         }
     }, [order])
 
@@ -96,7 +100,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
         if (!order) return
         setIsSaving(field)
         
-        let details: { customer_name?: string; customer_contact?: string; pickup_date?: string } = {}
+        const details: { customer_name?: string; customer_contact?: string; pickup_date?: string } = {}
         if (field === 'name') details.customer_name = nameVal
         else if (field === 'phone') details.customer_contact = phoneVal || undefined
         else if (field === 'date') {
@@ -108,7 +112,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     return
                 }
                 details.pickup_date = parsedDate.toISOString()
-            } catch (e) {
+            } catch {
                 toast.error("Date invalide")
                 setIsSaving(null)
                 return
@@ -132,25 +136,27 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
     const isAuthorized = ['vendeur', 'caissier', 'gerant', 'super_admin'].includes(roleSlug)
 
+    const handleClose = useCallback(() => {
+        setIsVisible(false)
+        setTimeout(onClose, 300)
+    }, [onClose])
+
     useEffect(() => {
         if (order) {
-            requestAnimationFrame(() => setIsVisible(true))
+            const frame = requestAnimationFrame(() => setIsVisible(true))
             const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
             document.addEventListener('keydown', handleEsc)
             document.body.style.overflow = 'hidden'
             return () => {
+                cancelAnimationFrame(frame)
                 document.removeEventListener('keydown', handleEsc)
                 document.body.style.overflow = ''
             }
         } else {
-            setIsVisible(false)
+            const timer = window.setTimeout(() => setIsVisible(false), 0)
+            return () => window.clearTimeout(timer)
         }
-    }, [order])
-
-    const handleClose = () => {
-        setIsVisible(false)
-        setTimeout(onClose, 300)
-    }
+    }, [order, handleClose])
 
     if (!order) return null
 
@@ -174,22 +180,15 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
     let countdownText = ''
-    let countdownColor = 'var(--color-muted)'
     if (diffMs < 0) {
-        countdownText = '🔴 En retard'
-        countdownColor = '#D94F38'
+        countdownText = 'En retard'
     } else if (diffHours < 2) {
-        countdownText = `⚠️ Dans ${Math.max(0, Math.floor(diffMs / 60000))} min`
-        countdownColor = '#F59E0B'
+        countdownText = `Dans ${Math.max(0, Math.floor(diffMs / 60000))} min`
     } else if (diffDays < 1) {
         countdownText = `Dans ${diffHours}h`
-        countdownColor = 'var(--color-text)'
     } else {
         countdownText = `Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}`
-        countdownColor = 'var(--color-text)'
     }
-
-    const canAdvance = status.next && order.status !== 'completed' && order.status !== 'cancelled'
 
     return (
         <>
@@ -198,9 +197,9 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                 onClick={handleClose}
                 style={{
                     position: 'fixed', inset: 0, zIndex: 200,
-                    backgroundColor: isVisible ? 'rgba(45,27,14,0.5)' : 'transparent',
-                    backdropFilter: isVisible ? 'blur(4px)' : 'none',
-                    transition: 'all 0.3s ease',
+                    backgroundColor: isVisible ? 'rgba(26, 28, 26, 0.3)' : 'transparent',
+                    backdropFilter: isVisible ? 'blur(8px)' : 'none',
+                    transition: 'all 400ms cubic-bezier(0.16, 1, 0.3, 1)',
                     cursor: 'pointer'
                 }}
             />
@@ -211,53 +210,63 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                 top: 0,
                 right: 0,
                 bottom: 0,
-                width: '420px',
+                width: '460px',
                 maxWidth: '100vw',
                 zIndex: 201,
-                background: 'white',
-                boxShadow: '-8px 0 30px rgba(45,27,14,0.12)',
+                background: 'var(--color-lift)',
+                boxShadow: 'var(--shadow-lg)',
                 transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
-                transition: 'transform 0.3s ease',
+                transition: 'transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden'
             }}>
                 {/* Header */}
                 <div style={{
-                    padding: '20px 24px',
-                    borderBottom: '1.5px solid var(--color-border)',
-                    background: 'var(--color-cream)',
+                    padding: '24px',
+                    borderBottom: '1px solid var(--color-border)',
+                    background: 'var(--color-lift)',
                     flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
                                 Détail commande
                             </div>
-                            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#2D1B0E' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-text)', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
                                 {order.order_number ? `#${order.order_number}` : order.customer_name}
                             </h2>
                         </div>
                         <button 
                             onClick={handleClose} 
-                            className="btn-ghost" 
-                            style={{ minHeight: '36px', padding: '0 8px', marginTop: '-4px' }}
+                            title="Fermer"
+                            style={{ 
+                                width: '38px', 
+                                height: '38px', 
+                                borderRadius: '50%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--color-muted)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                outline: 'none',
+                                marginTop: '-4px',
+                                marginRight: '-8px'
+                            }}
+                            className="hover:bg-[var(--color-well)] hover:text-[var(--color-text)]"
                         >
                             <X size={20} />
                         </button>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                        <span style={{
-                            padding: '4px 12px', borderRadius: '99px', fontSize: '0.78rem', fontWeight: 700,
-                            color: status.color, background: status.bg
-                        }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                        <span className={`badge badge-${order.status}`} style={{ fontSize: '0.8rem', padding: '5px 12px' }}>
                             {status.label}
                         </span>
                         {priority && (
-                            <span style={{
-                                padding: '4px 12px', borderRadius: '99px', fontSize: '0.78rem', fontWeight: 700,
-                                color: priority.color, background: priority.bg
-                            }}>
+                            <span className={`badge badge-${order.priority === 'urgent' ? 'alert' : 'pending'}`} style={{ fontSize: '0.8rem', padding: '5px 12px' }}>
                                 {priority.label}
                             </span>
                         )}
@@ -269,63 +278,79 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
                     {/* Client */}
                     <section style={{ marginBottom: '24px' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                             Client
                         </div>
                         
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ 
+                            background: 'var(--color-well)', 
+                            borderRadius: 'var(--radius-md)', 
+                            padding: '16px',
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: '12px' 
+                        }}>
                             {/* Nom */}
-                            <div style={{
-                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                fontSize: '0.95rem', fontWeight: 700, color: '#2D1B0E', minHeight: '52px'
-                            }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Nom
+                                </div>
                                 {editName ? (
                                     <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
                                         <input
                                             type="text"
                                             value={nameVal}
                                             onChange={e => setNameVal(e.target.value)}
-                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600 }}
+                                            style={{ flex: 1, padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'var(--color-lift)', color: 'var(--color-text)' }}
                                             disabled={isSaving === 'name'}
                                             autoFocus
                                         />
                                         <button
                                             onClick={() => saveField('name')}
                                             disabled={isSaving === 'name'}
-                                            style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                            style={{ background: 'var(--color-secondary)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                            className="hover:opacity-90"
+                                            title="Enregistrer"
                                         >
                                             {isSaving === 'name' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                         </button>
                                         <button
                                             onClick={() => { setEditName(false); setNameVal(order.customer_name) }}
                                             disabled={isSaving === 'name'}
-                                            style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                            style={{ background: 'var(--color-lift)', color: 'var(--color-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                                            className="hover:bg-[var(--color-well)]"
+                                            title="Annuler"
                                         >
                                             <X size={16} />
                                         </button>
                                     </div>
                                 ) : (
-                                    <>
-                                        <span>👤 {order.customer_name}</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '36px' }}>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            👤 {order.customer_name}
+                                        </span>
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditName(true)}
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
+                                                title="Modifier le nom"
                                             >
                                                 <Pencil size={14} />
                                             </button>
                                         )}
-                                    </>
+                                    </div>
                                 )}
                             </div>
 
+                            {/* Separator */}
+                            <div style={{ height: '1px', background: 'var(--color-border)', opacity: 0.3 }} />
+
                             {/* Téléphone */}
-                            <div style={{
-                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E', minHeight: '52px'
-                            }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Téléphone
+                                </div>
                                 {editPhone ? (
                                     <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
                                         <input
@@ -333,37 +358,45 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                             value={phoneVal}
                                             onChange={e => setPhoneVal(e.target.value)}
                                             placeholder="Numéro de téléphone"
-                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600 }}
+                                            style={{ flex: 1, padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'var(--color-lift)', color: 'var(--color-text)' }}
                                             disabled={isSaving === 'phone'}
                                             autoFocus
                                         />
                                         <button
                                             onClick={() => saveField('phone')}
                                             disabled={isSaving === 'phone'}
-                                            style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                            style={{ background: 'var(--color-secondary)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                            className="hover:opacity-90"
+                                            title="Enregistrer"
                                         >
                                             {isSaving === 'phone' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                         </button>
                                         <button
                                             onClick={() => { setEditPhone(false); setPhoneVal(order.customer_contact || '') }}
                                             disabled={isSaving === 'phone'}
-                                            style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                            style={{ background: 'var(--color-lift)', color: 'var(--color-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                                            className="hover:bg-[var(--color-well)]"
+                                            title="Annuler"
                                         >
                                             <X size={16} />
                                         </button>
                                     </div>
                                 ) : (
-                                    <>
-                                        <span>📞 {order.customer_contact || 'Non renseigné'}</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '36px' }}>
+                                        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            📞 {order.customer_contact || 'Non renseigné'}
+                                        </span>
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditPhone(true)}
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
+                                                title="Modifier le téléphone"
                                             >
                                                 <Pencil size={14} />
                                             </button>
                                         )}
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -371,11 +404,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
                     {/* Articles */}
                     <section style={{ marginBottom: '24px' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                             Articles à préparer
                         </div>
                         <div style={{
-                            background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '4px 0',
+                            background: 'var(--color-well)', borderRadius: 'var(--radius-md)', padding: '6px 0',
                             overflow: 'hidden'
                         }}>
                             {order.order_items.map((item, i) => {
@@ -386,18 +419,18 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
                                 return (
                                     <div key={item.id} style={{
-                                        padding: '12px 16px',
+                                        padding: '14px 16px',
                                         borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border)' : 'none',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '8px'
+                                        gap: '10px'
                                     }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <span style={{
-                                                background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
-                                                color: 'white',
+                                                background: 'rgba(129, 84, 49, 0.08)',
+                                                color: 'var(--color-primary)',
                                                 fontWeight: 800,
-                                                fontSize: '0.8rem',
+                                                fontSize: '0.85rem',
                                                 width: '28px', height: '28px',
                                                 borderRadius: '8px',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -405,26 +438,26 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                             }}>
                                                 {item.quantity}
                                             </span>
-                                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#2D1B0E', flex: 1 }}>
+                                            <span style={{ fontWeight: 650, fontSize: '0.92rem', color: 'var(--color-text)', flex: 1 }}>
                                                 {itemFullName}
                                             </span>
                                         </div>
 
                                         {customInfo && (customInfo.notes || customInfo.image_url) && (
                                             <div style={{
-                                                marginLeft: '38px',
-                                                background: '#FFF9F0',
-                                                border: '1px dashed #EDCFBF',
-                                                borderRadius: '10px',
-                                                padding: '10px 12px',
-                                                fontSize: '0.82rem',
-                                                color: '#5C3D2E',
+                                                marginLeft: '40px',
+                                                background: 'var(--color-lift)',
+                                                border: '1px dashed var(--color-border)',
+                                                borderRadius: 'var(--radius-sm)',
+                                                padding: '12px',
+                                                fontSize: '0.85rem',
+                                                color: 'var(--color-text)',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                gap: '8px'
+                                                gap: '10px'
                                             }}>
                                                 {customInfo.notes && (
-                                                    <div style={{ fontStyle: 'italic', lineHeight: 1.45 }}>
+                                                    <div style={{ fontStyle: 'italic', lineHeight: 1.45, opacity: 0.9 }}>
                                                         &quot;{customInfo.notes}&quot;
                                                     </div>
                                                 )}
@@ -437,15 +470,20 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                             overflow: 'hidden',
                                                             cursor: 'pointer',
                                                             border: '1px solid var(--color-border)',
-                                                            width: '90px',
-                                                            height: '60px',
-                                                            flexShrink: 0
+                                                            width: '100px',
+                                                            height: '66px',
+                                                            flexShrink: 0,
+                                                            transition: 'transform 0.2s ease-in-out'
                                                         }}
+                                                        className="hover:scale-[1.02] active:scale-[0.98]"
                                                     >
-                                                        <img 
-                                                            src={customInfo.image_url} 
+                                                        <Image
+                                                            src={customInfo.image_url}
                                                             alt="Photo d'inspiration"
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                            fill
+                                                            unoptimized
+                                                            sizes="100px"
+                                                            style={{ objectFit: 'cover' }}
                                                         />
                                                     </div>
                                                 )}
@@ -460,18 +498,18 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     {/* Personnalisation (ancienne version textuelle brute, masquée si JSON décodé par article) */}
                     {!isJsonCustomization && (order.customization_notes || order.custom_image_url) && (
                         <section style={{ marginBottom: '24px' }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                                ✏️ Personnalisation
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                Personnalisation
                             </div>
 
                             {order.customization_notes && (
                                 <div style={{
-                                    background: '#FFF9F0',
-                                    border: '1.5px dashed #EDCFBF',
+                                    background: 'var(--color-well)',
+                                    border: '1px dashed var(--color-border)',
                                     borderRadius: 'var(--radius-md)',
                                     padding: '14px 16px',
                                     fontSize: '0.88rem',
-                                    color: '#5C3D2E',
+                                    color: 'var(--color-text)',
                                     lineHeight: 1.6,
                                     fontStyle: 'italic',
                                     marginBottom: order.custom_image_url ? '12px' : 0
@@ -488,19 +526,24 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         borderRadius: 'var(--radius-md)',
                                         overflow: 'hidden',
                                         cursor: 'pointer',
-                                        border: '1.5px solid var(--color-border)',
-                                        aspectRatio: '16/10'
+                                        border: '1px solid var(--color-border)',
+                                        aspectRatio: '16/10',
+                                        transition: 'transform 0.2s ease-in-out'
                                     }}
+                                    className="hover:scale-[1.01] active:scale-[0.99]"
                                 >
-                                    <img 
-                                        src={order.custom_image_url} 
+                                    <Image
+                                        src={order.custom_image_url}
                                         alt="Photo d'inspiration"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        fill
+                                        unoptimized
+                                        sizes="640px"
+                                        style={{ objectFit: 'cover' }}
                                     />
                                     <div style={{
                                         position: 'absolute', bottom: '8px', right: '8px',
-                                        background: 'rgba(0,0,0,0.6)', borderRadius: '8px',
-                                        padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px',
+                                        background: 'rgba(26, 28, 26, 0.75)', borderRadius: '8px',
+                                        padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px',
                                         color: 'white', fontSize: '0.7rem', fontWeight: 600
                                     }}>
                                         <Maximize2 size={12} /> Agrandir
@@ -512,11 +555,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
                     {/* Date de retrait */}
                     <section style={{ marginBottom: '24px' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                            📅 Date de retrait
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                            Date de retrait
                         </div>
                         <div style={{
-                            background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
+                            background: 'var(--color-well)', borderRadius: 'var(--radius-md)', padding: '16px',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '52px'
                         }}>
                             {editDate ? (
@@ -525,44 +568,48 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         type="datetime-local"
                                         value={dateVal}
                                         onChange={e => setDateVal(e.target.value)}
-                                        style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', border: '1.5px solid var(--color-border)', outline: 'none', fontSize: '0.85rem', fontWeight: 600 }}
+                                        style={{ flex: 1, padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.88rem', fontWeight: 600, background: 'var(--color-lift)', color: 'var(--color-text)' }}
                                         disabled={isSaving === 'date'}
                                         autoFocus
                                     />
                                     <button
                                         onClick={() => saveField('date')}
                                         disabled={isSaving === 'date'}
-                                        style={{ background: '#34A853', color: 'white', border: 'none', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        style={{ background: 'var(--color-secondary)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                        className="hover:opacity-90"
+                                        title="Enregistrer"
                                     >
                                         {isSaving === 'date' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                                     </button>
                                     <button
-                                        onClick={() => { setEditDate(false); try { setDateVal(new Date(order.pickup_date).toISOString().slice(0, 16)) } catch(e){} }}
+                                        onClick={() => { setEditDate(false); try { setDateVal(new Date(order.pickup_date).toISOString().slice(0, 16)) } catch {} }}
                                         disabled={isSaving === 'date'}
-                                        style={{ background: 'white', color: 'var(--color-muted)', border: '1.5px solid var(--color-border)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                        style={{ background: 'var(--color-lift)', color: 'var(--color-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                                        className="hover:bg-[var(--color-well)]"
+                                        title="Annuler"
                                     >
                                         <X size={16} />
                                     </button>
                                 </div>
                             ) : (
                                 <>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#2D1B0E' }}>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>
                                         {!isNaN(pickupDate.getTime())
                                             ? pickupDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
                                             : 'Non définie'}
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{
-                                            fontSize: '0.78rem', fontWeight: 700, color: countdownColor,
-                                            padding: '3px 10px', borderRadius: '99px',
-                                            background: countdownColor === '#D94F38' ? '#FEF2F2' : (countdownColor === '#F59E0B' ? '#FEF3C7' : 'transparent')
-                                        }}>
+                                        <span className={`badge ${
+                                            diffMs < 0 ? 'badge-alert' : (diffHours < 2 || diffDays < 1 ? 'badge-pending' : 'badge-completed')
+                                        }`} style={{ fontSize: '0.78rem', padding: '4px 10px' }}>
                                             {countdownText}
                                         </span>
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditDate(true)}
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}
+                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
+                                                title="Modifier la date"
                                             >
                                                 <Pencil size={14} />
                                             </button>
@@ -576,24 +623,24 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     {/* Traçabilité / Créateur */}
                     {order.creator_profile && (
                         <section style={{ marginBottom: '24px' }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                                📝 Traçabilité
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                Traçabilité
                             </div>
                             <div style={{
-                                background: 'var(--color-cream)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
-                                display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', color: '#2D1B0E'
+                                background: 'var(--color-well)', borderRadius: 'var(--radius-md)', padding: '16px',
+                                display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--color-text)'
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Enregistrée par :</span>
                                     <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         👤 {order.creator_profile.full_name} 
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)', background: 'rgba(129, 84, 49, 0.08)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--color-primary)', background: 'rgba(129, 84, 49, 0.08)', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
                                             {order.creator_profile.role_slug === 'gerant' ? 'Gérant' : order.creator_profile.role_slug === 'vendeur' ? 'Vendeur' : order.creator_profile.role_slug === 'patissier' ? 'Pâtissier' : order.creator_profile.role_slug}
                                         </span>
                                     </span>
                                 </div>
                                 {order.created_at && (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(131, 116, 107, 0.12)', paddingTop: '8px', marginTop: '4px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px', opacity: 0.9 }}>
                                         <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Date de saisie :</span>
                                         <span style={{ fontWeight: 600 }}>
                                             {(() => {
@@ -611,9 +658,9 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                 {/* Action fixe en bas (Avancer & Reculer) */}
                 {((status.next && order.status !== 'completed' && order.status !== 'cancelled') || status.prev) && (
                     <div style={{
-                        padding: '16px 24px',
-                        borderTop: '1.5px solid var(--color-border)',
-                        background: 'white',
+                        padding: '20px 24px',
+                        borderTop: '1px solid var(--color-border)',
+                        background: 'var(--color-lift)',
                         flexShrink: 0,
                         display: 'flex',
                         gap: '12px'
@@ -628,9 +675,6 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                     minHeight: '48px',
                                     fontSize: '0.9rem',
                                     fontWeight: 700,
-                                    color: '#9C8070',
-                                    border: '1.5px solid var(--color-border)',
-                                    background: 'white',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap'
                                 }}
@@ -682,9 +726,12 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     >
                         <X size={24} />
                     </button>
-                    <img 
+                    <Image
                         src={fullscreenImageUrl}
                         alt="Photo d'inspiration — Plein écran"
+                        width={1600}
+                        height={1200}
+                        unoptimized
                         style={{ 
                             maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',
                             borderRadius: '12px' 

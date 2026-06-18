@@ -1,32 +1,41 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { productSchema, ProductFormValues } from '@/lib/schemas/product'
 import { revalidatePath } from 'next/cache'
+import { AuthContextError, requireOpenSalesSession, requireRoleContext } from '@/lib/auth/organization-context'
+
+const CATALOG_ROLES = ['gerant', 'super_admin']
+
+async function requireCatalogMutationContext() {
+  const context = await requireRoleContext(CATALOG_ROLES)
+  await requireOpenSalesSession(context)
+  return context
+}
+
+function getActionError(error: unknown) {
+  if (error instanceof AuthContextError) return error.message
+  return error instanceof Error ? error.message : 'Erreur inconnue'
+}
 
 export async function createProduct(data: ProductFormValues, imageUrl?: string | null) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Non authentifié' }
-
   try {
     const valid = productSchema.parse(data)
-    
-    const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
-    const orgId = profile?.organization_id
-    if (!orgId) return { success: false, error: 'Organisation non trouvée' }
+    const { supabase, organizationId } = await requireCatalogMutationContext()
 
     if (valid.id) {
-      // UPDATE existing product
       let newStock = valid.currentStock || 0
 
-      // Si le mode est "increment", on récupère d'abord le produit pour connaître son stock actuel
       if (valid.updateMode === 'increment') {
-        const { data: existing } = await supabase.from('products').select('current_stock').eq('id', valid.id).single()
+        const { data: existing } = await supabase
+          .from('products')
+          .select('current_stock')
+          .eq('id', valid.id)
+          .eq('organization_id', organizationId)
+          .single()
         newStock = (existing?.current_stock || 0) + (valid.currentStock || 0)
       }
 
-      const { data: product, error: pError } = await supabase.from('products').update({
+      const { error: pError } = await supabase.from('products').update({
         name: valid.name,
         category: valid.category,
         type: valid.type,
@@ -35,17 +44,19 @@ export async function createProduct(data: ProductFormValues, imageUrl?: string |
         track_stock: valid.trackStock,
         current_stock: newStock,
         ...(imageUrl !== undefined && { image_url: imageUrl })
-      }).eq('id', valid.id).select().single()
+      })
+        .eq('id', valid.id)
+        .eq('organization_id', organizationId)
+        .select()
+        .single()
 
       if (pError) throw new Error(pError.message)
 
-      // Update composition if provided (on remplace l'ancienne)
-      if (valid.type === 'maison' && valid.id) {
-        // Optionnel : On supprime l'ancienne composition d'abord
+      if (valid.type === 'maison') {
+        const productId = valid.id
         await supabase.from('product_ingredients').delete().eq('product_id', valid.id)
-        
+
         if (valid.composition && valid.composition.length > 0) {
-          const productId = valid.id // narrowing
           const ingredientsToInsert = valid.composition.map(item => ({
             product_id: productId,
             ingredient_id: item.ingredientId,
@@ -57,78 +68,85 @@ export async function createProduct(data: ProductFormValues, imageUrl?: string |
       }
 
       revalidatePath('/catalogue')
-      return { success: true, id: valid.id, message: "Produit mis à jour !" }
-
-    } else {
-      // INSERT new product
-      const { data: product, error: pError } = await supabase.from('products').insert({
-        organization_id: orgId,
-        name: valid.name,
-        category: valid.category,
-        type: valid.type,
-        selling_price: valid.sellingPrice,
-        purchase_cost: valid.purchaseCost,
-        track_stock: valid.trackStock,
-        current_stock: valid.currentStock,
-        image_url: imageUrl || null
-      }).select().single()
-
-      if (pError) throw new Error(pError.message)
-
-      // Insertion composition si 'maison'
-      if (valid.type === 'maison' && valid.composition && valid.composition.length > 0) {
-        const productId = product.id
-        const ingredientsToInsert = valid.composition.map(item => ({
-          product_id: productId,
-          ingredient_id: item.ingredientId,
-          quantity: item.quantity
-        }))
-
-        const { error: iError } = await supabase.from('product_ingredients').insert(ingredientsToInsert)
-        if (iError) throw new Error(iError.message)
-      }
-
-      revalidatePath('/catalogue')
-      return { success: true, id: product.id, message: "Produit ajouté au catalogue !" }
+      return { success: true, id: valid.id, message: 'Produit mis à jour !' }
     }
 
-  } catch (error: any) {
+    const { data: product, error: pError } = await supabase.from('products').insert({
+      organization_id: organizationId,
+      name: valid.name,
+      category: valid.category,
+      type: valid.type,
+      selling_price: valid.sellingPrice,
+      purchase_cost: valid.purchaseCost,
+      track_stock: valid.trackStock,
+      current_stock: valid.currentStock,
+      image_url: imageUrl || null
+    }).select().single()
+
+    if (pError) throw new Error(pError.message)
+
+    if (valid.type === 'maison' && valid.composition && valid.composition.length > 0) {
+      const ingredientsToInsert = valid.composition.map(item => ({
+        product_id: product.id,
+        ingredient_id: item.ingredientId,
+        quantity: item.quantity
+      }))
+
+      const { error: iError } = await supabase.from('product_ingredients').insert(ingredientsToInsert)
+      if (iError) throw new Error(iError.message)
+    }
+
+    revalidatePath('/catalogue')
+    return { success: true, id: product.id, message: 'Produit ajouté au catalogue !' }
+  } catch (error: unknown) {
     console.error('Action error:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: getActionError(error) }
   }
 }
 
 export async function deleteProduct(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Non authentifié' }
-
   try {
-    // Delete composition (on cascade normally but let's be explicit)
+    const { supabase, organizationId } = await requireCatalogMutationContext()
+
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', id)
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (!product) return { success: false, error: 'Produit introuvable ou hors organisation' }
+
     await supabase.from('product_ingredients').delete().eq('product_id', id)
-    
-    const { error } = await supabase.from('products').delete().eq('id', id)
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+      .eq('organization_id', organizationId)
     if (error) throw new Error(error.message)
 
     revalidatePath('/catalogue')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    return { success: false, error: getActionError(error) }
   }
 }
 
 export async function toggleProductActive(id: string, isActive: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Non authentifié' }
-
   try {
-    const { error } = await supabase.from('products').update({ is_active: isActive }).eq('id', id)
+    const { supabase, organizationId } = await requireCatalogMutationContext()
+
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active: isActive })
+      .eq('id', id)
+      .eq('organization_id', organizationId)
     if (error) throw new Error(error.message)
 
     revalidatePath('/catalogue')
     return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    return { success: false, error: getActionError(error) }
   }
 }

@@ -1,17 +1,37 @@
 'use client'
 
 import { createContext, useContext, useState } from 'react'
-import { toggleSession } from '@/lib/actions/sessions'
+import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
 import { toast } from 'sonner'
-import { Loader2, DoorOpen, DoorClosed } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useActionFeedback } from '@/hooks/useActionFeedback'
 
 type SessionContextType = {
     isOpen: boolean;
     sessionId: string | null;
+    handleToggle: () => void;
+    doToggle: () => Promise<void>;
+    loading: boolean;
+    canCloseSession: boolean;
+    showConfirm: boolean;
+    setShowConfirm: (v: boolean) => void;
 }
 
-const SessionContext = createContext<SessionContextType>({ isOpen: false, sessionId: null })
+type InitialSession = {
+    id: string
+} | null
+
+const SessionContext = createContext<SessionContextType>({
+    isOpen: false,
+    sessionId: null,
+    handleToggle: () => {},
+    doToggle: async () => {},
+    loading: false,
+    canCloseSession: false,
+    showConfirm: false,
+    setShowConfirm: () => {},
+})
 
 export function useSession() {
     return useContext(SessionContext)
@@ -20,24 +40,27 @@ export function useSession() {
 export default function SessionMaster({ 
     children, 
     initialSession, 
-    orgId, 
-    userId,
     role
 }: { 
     children: React.ReactNode, 
-    initialSession: any, 
-    orgId: string, 
-    userId: string,
+    initialSession: InitialSession, 
     role: string
 }) {
     const [loading, setLoading] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
+    const { execute, renderFeedback } = useActionFeedback()
     const pathname = usePathname()
+    const router = useRouter()
     const isOpen = !!initialSession
     const sessionId = initialSession?.id || null
+    const canCloseSession = role === 'gerant' || role === 'super_admin'
 
     const handleToggle = () => {
         if (isOpen) {
+            if (!canCloseSession) {
+                toast.error('Seul un gérant peut clôturer la caisse')
+                return
+            }
             setShowConfirm(true)
         } else {
             doToggle()
@@ -47,13 +70,44 @@ export default function SessionMaster({
     const doToggle = async () => {
         setShowConfirm(false)
         setLoading(true)
-        const res = await toggleSession(orgId, userId, sessionId)
-        if (res.success) {
-            toast.success(isOpen ? 'Caisse clôturée avec succès' : 'Caisse ouverte, bonne journée !')
+        if (isOpen) {
+            await execute(async () => {
+                const res = await closeCurrentSession()
+                if (!res.success) {
+                    throw new Error(res.error || 'Erreur lors de la clôture')
+                }
+                return res.session
+            }, {
+                type: 'modal',
+                modalTitle: 'Journée clôturée avec succès',
+                modalDescription: 'Les ventes du jour ont été enregistrées.',
+                onSuccess: () => {
+                    router.refresh()
+                    setLoading(false)
+                },
+                onError: () => {
+                    setLoading(false)
+                }
+            })
         } else {
-            toast.error(res.error || "Erreur lors du changement d'état")
+            await execute(async () => {
+                const res = await openSession()
+                if (!res.success) {
+                    throw new Error(res.error || 'Erreur lors de l\'ouverture')
+                }
+                return res
+            }, {
+                type: 'toast',
+                successMessage: 'Caisse ouverte, bonne journée !',
+                onSuccess: () => {
+                    router.refresh()
+                    setLoading(false)
+                },
+                onError: () => {
+                    setLoading(false)
+                }
+            })
         }
-        setLoading(false)
     }
 
     // Liste des zones sensibles qui doivent être verrouillées si la caisse est fermée
@@ -67,69 +121,9 @@ export default function SessionMaster({
     const shouldLock = !isOpen && isRestrictedPage
 
     return (
-        <SessionContext.Provider value={{ isOpen, sessionId }}>
+        <SessionContext.Provider value={{ isOpen, sessionId, handleToggle, doToggle, loading, canCloseSession, showConfirm, setShowConfirm }}>
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-                {/* We only show the status banner on restricted pages to keep other pages clean */}
-                {isRestrictedPage && (
-                    <div style={{ 
-                        padding: '16px 24px', 
-                        marginBottom: '24px', 
-                        background: isOpen ? '#e6f4ea' : '#fce8e6', 
-                        borderRadius: '16px',
-                        border: isOpen ? '2px solid #34a853' : '2px solid #ea4335',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                        flexWrap: 'wrap',
-                        gap: '16px'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{
-                                width: '48px', height: '48px', borderRadius: '50%',
-                                background: isOpen ? '#ceead6' : '#fad2cf',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                {isOpen ? <DoorOpen color="#1e8e3e" size={28} /> : <DoorClosed color="#d93025" size={28} />}
-                            </div>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '1.25rem', color: isOpen ? '#137333' : '#b31412', fontWeight: 800 }}>
-                                    {isOpen ? 'Boutique Ouverte' : 'Boutique Fermée'}
-                                </h2>
-                                <p style={{ margin: 0, fontSize: '0.9rem', color: isOpen ? '#1e8e3e' : '#d93025', fontWeight: 500 }}>
-                                    {isOpen ? 'Les ventes et opérations sont autorisées.' : 'La caisse est fermée. Aucune opération possible.'}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <button 
-                            onClick={handleToggle} 
-                            disabled={loading}
-                            style={{
-                                background: isOpen ? '#ea4335' : '#34a853',
-                                color: 'white',
-                                border: 'none',
-                                padding: '14px 28px',
-                                borderRadius: '12px',
-                                fontSize: '1rem',
-                                fontWeight: 800,
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                transition: 'transform 0.1s, opacity 0.2s',
-                                opacity: loading ? 0.7 : 1,
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                            }}
-                            onMouseDown={e => { if(!loading) e.currentTarget.style.transform = 'scale(0.96)' }}
-                            onMouseUp={e => { if(!loading) e.currentTarget.style.transform = 'scale(1)' }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                        >
-                            {loading && <Loader2 size={20} className="animate-spin" />}
-                            {isOpen ? 'CLÔTURER LA JOURNÉE' : 'OUVRIR LA CAISSE'}
-                        </button>
-                    </div>
-                )}
+
                 
                 {/* Confirmation dialog — clôture only */}
                 {showConfirm && (
@@ -155,7 +149,7 @@ export default function SessionMaster({
                                 Clôturer la journée ?
                             </h2>
                             <p style={{ margin: '0 0 28px', fontSize: '0.95rem', color: '#666', lineHeight: 1.5 }}>
-                                La caisse sera fermée et aucune vente ne pourra être enregistrée jusqu'à la prochaine ouverture.
+                                La caisse sera fermée et aucune vente ne pourra être enregistrée jusqu&apos;à la prochaine ouverture.
                             </p>
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <button
@@ -184,6 +178,9 @@ export default function SessionMaster({
                         </div>
                     </div>
                 )}
+
+                {/* Action Feedback Modal (e.g. Day Closure summary) */}
+                {renderFeedback()}
 
                 {/* Content wrapper with disabled visual state ONLY if shouldLock is true */}
                 <div style={{ 

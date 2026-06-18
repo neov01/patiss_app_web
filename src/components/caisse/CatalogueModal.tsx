@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { X, Search, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useOffline } from '@/components/providers/OfflineProvider'
 import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
 
@@ -31,8 +30,6 @@ export default function CatalogueModal({
     currency: string
 }) {
     const inputRef = useRef<HTMLInputElement>(null)
-    const { isOffline } = useOffline()
-
     const { data: rawProducts = [], isLoading: loading } = useQuery({
         queryKey: ['catalog', organizationId],
         queryFn: async () => {
@@ -87,11 +84,11 @@ export default function CatalogueModal({
             }}>
                 {/* HEADER */}
                 <div style={{ padding: '20px 24px', background: 'white', borderBottom: '1px solid var(--color-border, #FDE8DB)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 id="catalogue-modal-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, #2D1B0E)', margin: 0 }}>Catalogue Produits</h2>
+                    <h2 id="catalogue-modal-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, var(--color-text))', margin: 0 }}>Catalogue Produits</h2>
                     <button
                         onClick={onClose}
                         aria-label="Fermer le catalogue"
-                        style={{ border: 'none', background: 'var(--color-blush, #FEF3EC)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark, #C4836A)' }}
+                        style={{ border: 'none', background: 'var(--color-blush, var(--color-well))', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark, var(--color-rose-dark))' }}
                     >
                         <X size={18} />
                     </button>
@@ -101,7 +98,7 @@ export default function CatalogueModal({
                 <div style={{ padding: '16px 24px', background: 'white', borderBottom: '1px solid var(--color-border, #FDE8DB)' }}>
                     {/* Barre de recherche — même style que la page */}
                     <div style={{ position: 'relative', marginBottom: '14px' }}>
-                        <Search size={18} color="#9C8070" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                        <Search size={18} color="var(--color-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                         <input
                             ref={inputRef}
                             type="search"
@@ -117,7 +114,7 @@ export default function CatalogueModal({
                                 background: 'var(--color-cream, #FDF8F3)',
                                 fontSize: '0.95rem',
                                 fontWeight: 600,
-                                color: 'var(--color-text, #2D1B0E)',
+                                color: 'var(--color-text, var(--color-text))',
                                 outline: 'none',
                             }}
                         />
@@ -136,8 +133,8 @@ export default function CatalogueModal({
                                     transition: 'all 0.2s',
                                     cursor: 'pointer',
                                     border: activeCat === cat ? 'none' : '1.5px solid var(--color-border, #E5E7EB)',
-                                    background: activeCat === cat ? 'var(--color-rose-dark, #C4836A)' : '#fff',
-                                    color: activeCat === cat ? '#fff' : 'var(--color-muted, #9C8070)',
+                                    background: activeCat === cat ? 'var(--color-rose-dark, var(--color-rose-dark))' : '#fff',
+                                    color: activeCat === cat ? '#fff' : 'var(--color-muted, var(--color-muted))',
                                     boxShadow: activeCat === cat ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
                                 }}>
                                 {cat}
@@ -150,10 +147,10 @@ export default function CatalogueModal({
                 <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
                     {loading ? (
                         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Loader2 size={32} color="var(--color-rose-dark, #C4836A)" className="animate-spin" />
+                            <Loader2 size={32} color="var(--color-rose-dark, var(--color-rose-dark))" className="animate-spin" />
                         </div>
                     ) : filtered.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: 'var(--color-muted, #9C8070)', padding: '60px 0' }}>
+                        <div style={{ textAlign: 'center', color: 'var(--color-muted, var(--color-muted))', padding: '60px 0' }}>
                             <Package size={40} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
                             <p style={{ fontWeight: 600 }}>Aucun produit trouvé</p>
                         </div>
@@ -185,7 +182,7 @@ export default function CatalogueModal({
                                         {/* Icône produit */}
                                         <div style={{
                                             width: '56px', height: '56px', borderRadius: '28px',
-                                            background: isOutOfStock ? '#FEF2F2' : 'var(--color-blush, #FEF3EC)',
+                                            background: isOutOfStock ? '#FEF2F2' : 'var(--color-blush, var(--color-well))',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontSize: '1.5rem', marginBottom: '12px',
                                             border: '2px solid var(--color-border, #FDE8DB)'
@@ -196,7 +193,7 @@ export default function CatalogueModal({
                                         {/* Nom */}
                                         <div style={{
                                             fontWeight: 700, fontSize: '0.88rem',
-                                            color: isOutOfStock ? '#9C8070' : 'var(--color-text, #2D1B0E)',
+                                            color: isOutOfStock ? 'var(--color-muted)' : 'var(--color-text, var(--color-text))',
                                             marginBottom: '6px', lineHeight: 1.2,
                                             display: '-webkit-box', WebkitLineClamp: 2,
                                             WebkitBoxOrient: 'vertical', overflow: 'hidden'
@@ -207,7 +204,7 @@ export default function CatalogueModal({
                                         {/* Prix */}
                                         <div style={{
                                             fontWeight: 900, fontSize: '1rem',
-                                            color: isOutOfStock ? '#9C8070' : 'var(--color-rose-dark, #C4836A)',
+                                            color: isOutOfStock ? 'var(--color-muted)' : 'var(--color-rose-dark, var(--color-rose-dark))',
                                             marginBottom: '10px', marginTop: 'auto'
                                         }}>
                                             {Number(product.selling_price).toLocaleString('fr-FR')} {currency}

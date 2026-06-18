@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { get, set, del } from 'idb-keyval'
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState } from 'react'
 
 export default function ReactQueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -22,19 +22,15 @@ export default function ReactQueryProvider({ children }: { children: ReactNode }
       })
   )
 
-  const [persister, setPersister] = useState<ReturnType<typeof createAsyncStoragePersister> | null>(null)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
+  const [persister] = useState<ReturnType<typeof createAsyncStoragePersister> | null>(() => {
+    if (typeof window === 'undefined') return null
       const idbStorage = {
         getItem: async (key: string) => await get(key),
         setItem: async (key: string, value: string) => await set(key, value),
         removeItem: async (key: string) => await del(key),
       }
-      const asyncPersister = createAsyncStoragePersister({ storage: idbStorage })
-      setPersister(asyncPersister)
-    }
-  }, [])
+      return createAsyncStoragePersister({ storage: idbStorage })
+  })
 
   if (!persister) {
     // Render standard provider during SSR/early client load to avoid restoreClient undefined error
@@ -51,5 +47,4 @@ export default function ReactQueryProvider({ children }: { children: ReactNode }
     </PersistQueryClientProvider>
   )
 }
-
 

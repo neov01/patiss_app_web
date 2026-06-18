@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { 
-    Clock, Search, ArrowLeft, User, DollarSign, Calendar, X, Info, TrendingUp, ShoppingBag, AlertTriangle, CheckCircle2 
+    Clock, Search, ArrowLeft, X, Info
 } from 'lucide-react'
 
 interface ProfileSummary {
@@ -13,7 +13,25 @@ interface ProfileSummary {
     role_slug: string
 }
 
-interface Session {
+type SessionMetricsSnapshot = {
+    totalOrangeMoney?: number
+    totalWave?: number
+    totalMtnMomo?: number
+    totalMoovMoney?: number
+    totalAcomptes?: number
+    totalSoldes?: number
+    totalVentesDirectes?: number
+    totalOrders?: number
+    completedOrders?: number
+    alertItems?: Array<{
+        name: string
+        current_stock: number
+        unit: string
+        alert_threshold: number
+    }>
+}
+
+export interface Session {
     id: string
     organization_id: string
     status: string
@@ -24,7 +42,7 @@ interface Session {
     total_cash: number | null
     total_mobile_money: number | null
     total_orders: number | null
-    metrics_snapshot: any
+    metrics_snapshot: SessionMetricsSnapshot | null
     opened_by_profile: ProfileSummary | null
     closed_by_profile: ProfileSummary | null
 }
@@ -32,7 +50,6 @@ interface Session {
 export default function SessionsHistoryClient({
     sessions,
     currency,
-    roleSlug,
     embedded = false
 }: {
     sessions: Session[]
@@ -94,7 +111,7 @@ export default function SessionsHistoryClient({
             <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, paddingLeft: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
-                        <Search size={18} color="#9C8070" />
+                        <Search size={18} color="var(--color-muted)" />
                     </div>
                     <input
                         type="text"
@@ -213,7 +230,7 @@ export default function SessionsHistoryClient({
                                         </div>
                                     ) : (
                                         <div style={{ marginBottom: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '10px', color: '#059669', fontSize: '0.82rem', fontWeight: 600, fontStyle: 'italic' }}>
-                                            Session en cours d'activité...
+                                            Session en cours d&apos;activité...
                                         </div>
                                     )}
                                 </div>
@@ -268,7 +285,7 @@ export default function SessionsHistoryClient({
                                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
                                     Détails de Session
                                 </div>
-                                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#2D1B0E' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-text)' }}>
                                     Session du {format(new Date(selectedSession.opened_at), 'dd MMMM yyyy', { locale: fr })}
                                 </h2>
                             </div>
@@ -281,7 +298,7 @@ export default function SessionsHistoryClient({
                         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
                             {/* Suivi opérateurs */}
                             <div style={{ background: '#FFFDFB', border: '1px solid #F3E5DC', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
-                                <h3 style={{ margin: '0 0 12px', fontSize: '0.85rem', fontWeight: 700, color: '#2D1B0E' }}>🔑 Opérateurs de Caisse</h3>
+                                <h3 style={{ margin: '0 0 12px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)' }}>🔑 Opérateurs de Caisse</h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem', color: '#5C3D2E' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                         <span>Ouvert par :</span>
@@ -304,15 +321,15 @@ export default function SessionsHistoryClient({
                             </div>
 
                             {/* Revenue Total */}
-                            <div style={{ background: '#FFFDFB', border: '2px solid #C4836A', borderRadius: '12px', padding: '20px', textAlign: 'center', marginBottom: '24px' }}>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#9C8070', letterSpacing: '0.05em' }}>TOTAL RECETTE ENCAISSÉE</div>
-                                <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#C4836A', marginTop: '6px' }}>
+                            <div style={{ background: '#FFFDFB', border: '2px solid var(--color-rose-dark)', borderRadius: '12px', padding: '20px', textAlign: 'center', marginBottom: '24px' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-muted)', letterSpacing: '0.05em' }}>TOTAL RECETTE ENCAISSÉE</div>
+                                <div style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--color-rose-dark)', marginTop: '6px' }}>
                                     {((selectedSession.total_cash || 0) + (selectedSession.total_mobile_money || 0)).toLocaleString('fr-FR')} {currency}
                                 </div>
                             </div>
 
                             {/* Ventilation modes de paiement */}
-                            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', marginBottom: '12px' }}>💳 Ventilation par mode de paiement</h3>
+                            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '12px' }}>💳 Ventilation par mode de paiement</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--color-cream)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem' }}>
                                     <span>💸 Espèces</span>
@@ -328,7 +345,7 @@ export default function SessionsHistoryClient({
                             {selectedSession.metrics_snapshot ? (
                                 <>
                                     {/* Ventilation Mobile Money précise */}
-                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', marginBottom: '12px' }}>📱 Détail Mobile Money</h3>
+                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '12px' }}>📱 Détail Mobile Money</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px', paddingLeft: '12px', borderLeft: '2px solid var(--color-border)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                                             <span>Orange Money</span>
@@ -349,7 +366,7 @@ export default function SessionsHistoryClient({
                                     </div>
 
                                     {/* Ventilation type de transactions */}
-                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', marginBottom: '12px' }}>📋 Nature des encaissements</h3>
+                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '12px' }}>📋 Nature des encaissements</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
                                             <span>Acomptes (Prises de commande)</span>
@@ -366,7 +383,7 @@ export default function SessionsHistoryClient({
                                     </div>
 
                                     {/* Métriques sur les commandes de la session */}
-                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', marginBottom: '12px' }}>📦 Commandes</h3>
+                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '12px' }}>📦 Commandes</h3>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
                                             <span>Commandes de la session</span>
@@ -387,7 +404,7 @@ export default function SessionsHistoryClient({
                                         <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '24px' }}>
                                             <h4 style={{ margin: '0 0 8px', fontSize: '0.82rem', color: '#D94F38', fontWeight: 700 }}>⚠️ Alertes Stock lors de la clôture</h4>
                                             <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.78rem', color: '#991B1B', lineHeight: 1.4 }}>
-                                                {selectedSession.metrics_snapshot.alertItems.map((item: any, index: number) => (
+                                                {selectedSession.metrics_snapshot.alertItems.map((item, index) => (
                                                     <li key={index} style={{ marginBottom: '4px' }}>
                                                         {item.name} : <strong>{item.current_stock} {item.unit}</strong> (seuil alertes : {item.alert_threshold})
                                                     </li>

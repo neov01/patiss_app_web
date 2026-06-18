@@ -51,7 +51,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
     type: 'deactivate' | 'reactivate' | null;
   }>({ isOpen: false, type: null })
 
-  const color = emp.theme_color ?? '#C4836A'
+  const color = emp.theme_color ?? 'var(--color-rose-dark)'
 
   const initials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -135,7 +135,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
 
         {/* Infos */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2D1B0E', marginBottom: '2px' }}>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--color-text)', marginBottom: '2px' }}>
             {emp.full_name}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -184,7 +184,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
               {showSalary ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
-          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2D1B0E', letterSpacing: showSalary ? '0' : '0.1em' }}>
+          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text)', letterSpacing: showSalary ? '0' : '0.1em' }}>
             {showSalary 
               ? `${Number(emp.base_salary).toLocaleString('fr-FR')} ${currency}`
               : '••••••'}

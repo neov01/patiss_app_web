@@ -14,7 +14,6 @@ import {
     ArrowUpDown,
     Filter,
     MessageCircle,
-    TrendingUp,
     Wallet,
 } from 'lucide-react'
 import IngredientModal from '@/components/inventory/IngredientModal'
@@ -23,9 +22,23 @@ import { toggleIngredientStatus } from '@/lib/actions/inventory'
 import { toast } from 'sonner'
 
 interface Props {
-    initialIngredients: any[]
+    initialIngredients: IngredientRow[]
     usageCounts: Record<string, number>
     currency: string
+}
+
+type IngredientRow = {
+    id: string
+    name: string
+    unit: string
+    cost_per_unit: number
+    created_at: string | null
+    current_stock: number
+    alert_threshold: number
+    organization_id: string
+    is_active: boolean | null
+    supplier_name: string | null
+    supplier_phone: string | null
 }
 
 type SortKey = 'name' | 'unit' | 'cost_per_unit' | 'current_stock' | 'alert_threshold' | 'status'
@@ -42,7 +55,7 @@ function stockColor(ratio: number) {
     return '#D94F38'
 }
 
-function buildWhatsAppUrl(ing: any) {
+function buildWhatsAppUrl(ing: IngredientRow) {
     const suggestedQty = Math.max(ing.alert_threshold * 2 - ing.current_stock, ing.alert_threshold)
     const rounded = Math.round(suggestedQty * 10) / 10
     const phone = (ing.supplier_phone || '').replace(/[^0-9]/g, '')
@@ -113,7 +126,7 @@ export default function IngredientsClient({
         return base
     }, [initialIngredients, view, search, unitFilter, lowStockOnly, sort])
 
-    const handleToggleStatus = async (ing: any, currentStatus: boolean) => {
+    const handleToggleStatus = async (ing: IngredientRow, currentStatus: boolean) => {
         const newStatus = !currentStatus
         let confirmMessage = `Voulez-vous ${newStatus ? 'réactiver' : 'archiver'} cet ingrédient ?`
         if (!newStatus) {
@@ -158,7 +171,7 @@ export default function IngredientsClient({
                         {initialIngredients.length} matières premières au total
                     </p>
                 </div>
-                <IngredientModal mode="create" existingNames={initialIngredients.map((i: any) => i.name)} />
+                <IngredientModal mode="create" existingNames={initialIngredients.map((i) => i.name)} />
             </div>
 
             {/* Cartes KPI */}
@@ -174,7 +187,7 @@ export default function IngredientsClient({
                 </div>
                 <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderColor: alertCount > 0 ? '#FECACA' : undefined }}>
                     <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: alertCount > 0 ? '#FEF2F2' : '#F5F5F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AlertTriangle size={20} color={alertCount > 0 ? '#D94F38' : '#9C8070'} />
+                        <AlertTriangle size={20} color={alertCount > 0 ? '#D94F38' : 'var(--color-muted)'} />
                     </div>
                     <div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>En alerte</div>
@@ -248,7 +261,7 @@ export default function IngredientsClient({
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px', alignItems: 'center' }}>
                 <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
                     <div style={{ position: 'absolute', top: 0, bottom: 0, left: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
-                        <Search size={16} color="#9C8070" />
+                        <Search size={16} color="var(--color-muted)" />
                     </div>
                     <input
                         type="text"
@@ -429,7 +442,7 @@ export default function IngredientsClient({
                                                         {formatNumber(ing.current_stock)} {ing.unit}
                                                     </div>
                                                     <div style={{ height: '4px', background: '#F1E9E0', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
-                                                        <div style={{ width: `${barWidth}%`, height: '100%', background: barColor, borderRadius: '2px', transition: 'width 0.3s' }} />
+                                                         <div style={{ width: '100%', height: '100%', background: barColor, borderRadius: '2px', transform: `scaleX(${barWidth / 100})`, transformOrigin: 'left', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '12px 16px', fontSize: '0.875rem', color: 'var(--color-muted)' }}>{formatNumber(ing.alert_threshold)} {ing.unit}</td>
@@ -472,7 +485,7 @@ export default function IngredientsClient({
                                                                 className="btn-ghost"
                                                                 title="Réactiver"
                                                                 disabled={isPending && pendingId === ing.id}
-                                                                style={{ color: '#C4836A', minHeight: '36px', padding: '0 8px', gap: '6px' }}
+                                                                style={{ color: 'var(--color-rose-dark)', minHeight: '36px', padding: '0 8px', gap: '6px' }}
                                                             >
                                                                 <RefreshCw size={16} className={isPending && pendingId === ing.id ? 'animate-spin' : ''} />
                                                                 <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Réactiver</span>
@@ -519,7 +532,7 @@ export default function IngredientsClient({
                                         </span>
                                     </div>
                                     <div style={{ height: '6px', background: '#F1E9E0', borderRadius: '3px', marginBottom: '10px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${barWidth}%`, height: '100%', background: barColor, borderRadius: '3px' }} />
+                                         <div style={{ width: '100%', height: '100%', background: barColor, borderRadius: '3px', transform: `scaleX(${barWidth / 100})`, transformOrigin: 'left', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '12px' }}>
                                         <span>Coût : <strong style={{ color: 'var(--color-text)' }}>{formatNumber(ing.cost_per_unit)} {currency}/{ing.unit}</strong></span>
@@ -556,7 +569,7 @@ export default function IngredientsClient({
                                                 className="btn-ghost"
                                                 title="Réactiver"
                                                 disabled={isPending && pendingId === ing.id}
-                                                style={{ color: '#C4836A', minHeight: '36px', padding: '0 12px', gap: '6px' }}
+                                                style={{ color: 'var(--color-rose-dark)', minHeight: '36px', padding: '0 12px', gap: '6px' }}
                                             >
                                                 <RefreshCw size={16} className={isPending && pendingId === ing.id ? 'animate-spin' : ''} />
                                                 <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Réactiver</span>
