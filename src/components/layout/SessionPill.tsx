@@ -85,7 +85,7 @@ export default function SessionPill() {
                 >
                     {loading && <Loader2 size={11} className="animate-spin" />}
                     {isOpen
-                        ? (canCloseSession ? 'Clôturer' : 'Réservé gérant')
+                        ? (canCloseSession ? 'Clôturer' : 'Réservé')
                         : 'Ouvrir'
                     }
                 </button>

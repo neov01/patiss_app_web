@@ -25,13 +25,13 @@ type TodayTransaction = {
     orders: {
         order_number: string | null
         customer_id: string | null
-        order_items?: Array<{ quantity: number }>
+        order_items?: Array<{ name: string; quantity: number }>
     } | {
         order_number: string | null
         customer_id: string | null
-        order_items?: Array<{ quantity: number }>
+        order_items?: Array<{ name: string; quantity: number }>
     }[] | null
-    transaction_items: Array<{ quantity: number }>
+    transaction_items: Array<{ name: string; quantity: number }>
 }
 
 type HistoryPayment = {
@@ -50,6 +50,7 @@ type GroupedTransaction = {
     order_number: string | null
     has_crm: boolean
     nb_items: number
+    items_summary: string
     created_at: string | null
     payments: HistoryPayment[]
 }
@@ -82,6 +83,19 @@ function getOrderItemCount(transaction: TodayTransaction): number {
     const orderItems = order?.order_items || []
     if (orderItems.length > 0) return orderItems.reduce((sum, item) => sum + item.quantity, 0)
     return transaction.transaction_items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
+function getItemsSummary(transaction: TodayTransaction): string {
+    const order = Array.isArray(transaction.orders) ? transaction.orders[0] : transaction.orders
+    const orderItems = order?.order_items || []
+    if (orderItems.length > 0) {
+        return orderItems.map(item => `${item.quantity} ${item.name || 'Article'}`).join(', ')
+    }
+    const txItems = transaction.transaction_items || []
+    if (txItems.length > 0) {
+        return txItems.map(item => `${item.quantity} ${item.name || 'Article'}`).join(', ')
+    }
+    return '0 article'
 }
 
 function getPaymentIdentity(payment: HistoryPayment): string {
@@ -145,7 +159,8 @@ export default async function CaissePage() {
         { data: pipelineOrders },
         { data: todayTransactions },
         { data: rpcBestSellers },
-        sessionsResult
+        sessionsResult,
+        { data: dbProducts }
     ] = await Promise.all([
         // 1. Session journalière (sales_sessions)
         supabase
@@ -166,7 +181,7 @@ export default async function CaissePage() {
         // 3. Métriques du jour (Ventes & Recettes)
         supabase
             .from('transactions')
-            .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, order_items(quantity)), transaction_items(quantity)')
+            .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, order_items(name, quantity)), transaction_items(name, quantity)')
             .eq('organization_id', orgId)
             .gte('created_at', todayStart)
             .order('created_at', { ascending: false }),
@@ -189,7 +204,15 @@ export default async function CaissePage() {
                 `)
                 .eq('organization_id', orgId)
                 .order('opened_at', { ascending: false })
-            : Promise.resolve({ data: null, error: null })
+            : Promise.resolve({ data: null, error: null }),
+
+        // 6. Tous les produits actifs de l'organisation
+        supabase
+            .from('products')
+            .select('id, name, selling_price, current_stock, category')
+            .eq('organization_id', orgId)
+            .eq('is_active', true)
+            .order('name')
     ]);
 
     const sessions = (sessionsResult?.data || []) as Session[]
@@ -216,6 +239,7 @@ export default async function CaissePage() {
                     order_number: getOrderNumber(t.orders),
                     has_crm: !!(t.customer_id || getOrderCustomerId(t.orders)),
                     nb_items: getOrderItemCount(t),
+                    items_summary: getItemsSummary(t),
                     created_at: t.created_at,
                     payments: [
                         {
@@ -252,14 +276,15 @@ export default async function CaissePage() {
                 order_number: null,
                 has_crm: !!t.customer_id,
                 nb_items: t.transaction_items.reduce((s, i) => s + i.quantity, 0),
+                items_summary: getItemsSummary(t),
                 created_at: t.created_at,
                 payments: [
-                        {
-                            id: t.id,
-                            order_payment_id: t.order_payment_id,
-                            amount: Number(t.amount),
-                            payment_method: t.payment_method,
-                            created_at: t.created_at,
+                    {
+                        id: t.id,
+                        order_payment_id: t.order_payment_id,
+                        amount: Number(t.amount),
+                        payment_method: t.payment_method,
+                        created_at: t.created_at,
                         label_type: t.label_type
                     }
                 ]
@@ -279,6 +304,14 @@ export default async function CaissePage() {
         quantity: Number(b.total_sold)
     }))
 
+    const initialProducts = (dbProducts || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        selling_price: Number(p.selling_price),
+        current_stock: p.current_stock,
+        category: p.category || '',
+    }))
+
     return (
         <CaisseClient 
             organizationId={orgId}
@@ -293,6 +326,7 @@ export default async function CaissePage() {
             bestSellers={bestSellers}
             sessions={sessions}
             roleSlug={profile.role_slug}
+            initialProducts={initialProducts}
         />
     )
 }

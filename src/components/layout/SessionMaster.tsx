@@ -3,7 +3,6 @@
 import { createContext, useContext, useState } from 'react'
 import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
 
@@ -53,12 +52,12 @@ export default function SessionMaster({
     const router = useRouter()
     const isOpen = !!initialSession
     const sessionId = initialSession?.id || null
-    const canCloseSession = role === 'gerant' || role === 'super_admin'
+    const canCloseSession = role === 'gerant' || role === 'super_admin' || role === 'vendeur'
 
     const handleToggle = () => {
         if (isOpen) {
             if (!canCloseSession) {
-                toast.error('Seul un gérant peut clôturer la caisse')
+                toast.error('Seul un gérant ou un vendeur peut clôturer la caisse')
                 return
             }
             setShowConfirm(true)

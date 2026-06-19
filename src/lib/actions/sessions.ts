@@ -57,7 +57,7 @@ export async function openSession() {
 
 export async function closeCurrentSession() {
     try {
-        const { supabase, organizationId, userId } = await requireOrgRole(['gerant', 'super_admin'])
+        const { supabase, organizationId, userId } = await requireOrgRole(['gerant', 'super_admin', 'vendeur'])
         const { data: openSession, error } = await supabase
             .from('sales_sessions')
             .select('*, organizations(name, currency_symbol)')
@@ -83,6 +83,6 @@ export async function closeCurrentSession() {
         return { success: true, session: closedSession }
     } catch (err: unknown) {
         const status = err instanceof AuthContextError ? err.status : 500
-        return { success: false, error: status === 403 ? 'Seul un gérant peut clôturer la caisse' : getErrorMessage(err) }
+        return { success: false, error: status === 403 ? 'Seul un gérant ou un vendeur peut clôturer la caisse' : getErrorMessage(err) }
     }
 }

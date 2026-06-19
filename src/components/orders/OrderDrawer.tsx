@@ -6,6 +6,8 @@ import { X, Maximize2, Pencil, Check, Loader2, Wallet, AlertTriangle, ArrowRight
 import { toast } from 'sonner'
 import { updateOrderDetails } from '@/lib/actions/orders'
 import AddPaymentModal from './AddPaymentModal'
+import EditPaymentModal from './EditPaymentModal'
+
 
 export interface OrderPayment {
     id: string
@@ -32,6 +34,8 @@ export interface Order {
     priority: string | null
     pickup_date: string
     created_at: string | null
+    inserted_at: string | null
+    is_historical?: boolean | null
     customization_notes: string | null
     custom_image_url: string | null
     order_items: OrderItem[]
@@ -94,6 +98,9 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
     const [showDebtAlert, setShowDebtAlert] = useState(false)
     const [debtNote, setDebtNote] = useState('')
     const [isSavingDebt, setIsSavingDebt] = useState(false)
+    const [selectedPaymentToEdit, setSelectedPaymentToEdit] = useState<OrderPayment | null>(null)
+    const [isEditPaymentModalOpen, setIsEditPaymentModalOpen] = useState(false)
+
 
     // États d'édition inline
     const [editName, setEditName] = useState(false)
@@ -765,9 +772,9 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                         background: 'var(--color-lift)', padding: '10px 12px',
                                                         borderRadius: '8px', border: '1px solid var(--color-border)',
                                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                                        fontSize: '0.8rem'
+                                                        fontSize: '0.8rem', gap: '8px'
                                                     }}>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
                                                             <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>
                                                                 {Number(payment.amount).toLocaleString('fr-FR')} {currency}
                                                             </div>
@@ -780,7 +787,32 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                                 </div>
                                                             )}
                                                         </div>
+                                                        {order.status !== 'cancelled' && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedPaymentToEdit(payment)
+                                                                    setIsEditPaymentModalOpen(true)
+                                                                }}
+                                                                style={{
+                                                                    background: 'transparent',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    padding: '6px',
+                                                                    borderRadius: '50%',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    color: 'var(--color-muted)',
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                                className="hover:bg-[rgba(0,0,0,0.05)] hover:text-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] active:scale-95"
+                                                                title="Modifier le paiement"
+                                                            >
+                                                                <Pencil size={14} />
+                                                            </button>
+                                                        )}
                                                     </div>
+
                                                 )
                                             })}
                                     </div>
@@ -812,17 +844,47 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         </span>
                                     </span>
                                 </div>
-                                {order.created_at && (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px', opacity: 0.9 }}>
-                                        <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Date de saisie :</span>
-                                        <span style={{ fontWeight: 600 }}>
-                                            {(() => {
-                                                const d = new Date(order.created_at)
-                                                return !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Inconnue'
-                                            })()}
-                                        </span>
-                                    </div>
-                                )}
+                                {(() => {
+                                    if (!order.created_at) return null;
+                                    const dCreated = new Date(order.created_at);
+                                    const formatDateTime = (d: Date) => {
+                                        return !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Inconnue';
+                                    };
+
+                                    const isHistorical = (() => {
+                                        if (order.is_historical) return true;
+                                        if (!order.inserted_at) return false;
+                                        const createdTime = dCreated.getTime();
+                                        const insertedTime = new Date(order.inserted_at).getTime();
+                                        if (isNaN(createdTime) || isNaN(insertedTime)) return false;
+                                        // Différence absolue supérieure à 2 heures
+                                        return Math.abs(insertedTime - createdTime) > 7200000;
+                                    })();
+
+                                    if (isHistorical) {
+                                        return (
+                                            <>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px', opacity: 0.9 }}>
+                                                    <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Date de prise de commande :</span>
+                                                    <span style={{ fontWeight: 600 }}>{formatDateTime(dCreated)}</span>
+                                                </div>
+                                                {order.inserted_at && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px', opacity: 0.9 }}>
+                                                        <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Saisie dans le système le :</span>
+                                                        <span style={{ fontWeight: 600 }}>{formatDateTime(new Date(order.inserted_at))}</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    }
+
+                                    return (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px', opacity: 0.9 }}>
+                                            <span style={{ color: 'var(--color-muted)', fontWeight: 500 }}>Date de saisie :</span>
+                                            <span style={{ fontWeight: 600 }}>{formatDateTime(dCreated)}</span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </section>
                     )}
@@ -897,6 +959,27 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     }
                 }}
             />
+
+            {/* Modale d'édition de paiement */}
+            <EditPaymentModal
+                open={isEditPaymentModalOpen}
+                onClose={() => {
+                    setIsEditPaymentModalOpen(false)
+                    setSelectedPaymentToEdit(null)
+                }}
+                payment={selectedPaymentToEdit}
+                orderId={order.id}
+                totalAmount={Number(order.total_amount)}
+                paidAmount={Number(order.paid_amount || 0)}
+                balance={Number(order.balance || 0)}
+                currency={currency}
+                onSuccess={() => {
+                    if (onOrderUpdate) {
+                        // Mettre à jour si nécessaire
+                    }
+                }}
+            />
+
 
             {/* Boîte de dialogue d'alerte de dette (Livraison non soldée) */}
             {showDebtAlert && (
