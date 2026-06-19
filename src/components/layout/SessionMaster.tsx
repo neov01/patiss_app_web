@@ -5,6 +5,7 @@ import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
 import { toast } from 'sonner'
 import { usePathname, useRouter } from 'next/navigation'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
+import { Lock, Loader2 } from 'lucide-react'
 
 type SessionContextType = {
     isOpen: boolean;
@@ -181,13 +182,129 @@ export default function SessionMaster({
                 {/* Action Feedback Modal (e.g. Day Closure summary) */}
                 {renderFeedback()}
 
+                {/* Overlay de verrouillage premium si shouldLock est true */}
+                {shouldLock && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(26, 28, 26, 0.3)',
+                        backdropFilter: 'blur(12px)',
+                        padding: '24px',
+                        animation: 'fadeIn 0.3s ease',
+                    }}>
+                        <div style={{
+                            background: '#ffffff',
+                            borderRadius: '24px',
+                            padding: '40px 32px',
+                            maxWidth: '460px',
+                            width: '100%',
+                            boxShadow: 'var(--shadow-lg)',
+                            textAlign: 'center',
+                            border: '1px solid var(--color-border)',
+                        }}>
+                            <div style={{
+                                width: '72px',
+                                height: '72px',
+                                borderRadius: '50%',
+                                background: 'rgba(129, 84, 49, 0.1)',
+                                margin: '0 auto 24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}>
+                                <Lock color="var(--color-primary)" size={32} />
+                            </div>
+
+                            <h2 style={{
+                                margin: '0 0 12px',
+                                fontSize: '1.5rem',
+                                fontWeight: 800,
+                                color: 'var(--color-text)',
+                                fontFamily: 'var(--font-display)',
+                                letterSpacing: '-0.02em',
+                            }}>
+                                Boutique fermée
+                            </h2>
+
+                            <p style={{
+                                margin: '0 0 32px',
+                                fontSize: '0.95rem',
+                                color: 'var(--color-muted)',
+                                lineHeight: 1.6,
+                                fontWeight: 500,
+                            }}>
+                                La caisse est actuellement fermée. Vous devez l&apos;ouvrir pour accéder aux fonctionnalités opérationnelles (ventes, commandes, inventaire et statistiques).
+                            </p>
+
+                            {canCloseSession ? (
+                                <button
+                                    onClick={doToggle}
+                                    disabled={loading}
+                                    style={{
+                                        width: '100%',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        minHeight: '48px',
+                                        padding: '0 28px',
+                                        background: 'var(--color-primary)',
+                                        color: '#fff',
+                                        fontWeight: 700,
+                                        fontSize: '1rem',
+                                        borderRadius: '9999px',
+                                        border: 'none',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
+                                        boxShadow: 'var(--shadow-sm)',
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        opacity: loading ? 0.7 : 1,
+                                    }}
+                                    onMouseDown={e => { if (!loading) e.currentTarget.style.transform = 'scale(0.98)' }}
+                                    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 size={18} className="animate-spin" />
+                                            Ouverture de la caisse...
+                                        </>
+                                    ) : (
+                                        'Ouvrir la caisse'
+                                    )}
+                                </button>
+                            ) : (
+                                <div style={{
+                                    background: '#FEE2E2',
+                                    borderRadius: '12px',
+                                    padding: '16px',
+                                    border: '1px solid #FECACA',
+                                    textAlign: 'center',
+                                }}>
+                                    <p style={{
+                                        margin: 0,
+                                        fontSize: '0.875rem',
+                                        color: '#991B1B',
+                                        fontWeight: 600,
+                                    }}>
+                                        Seul un gérant ou un vendeur peut ouvrir la caisse et démarrer la journée.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Content wrapper with disabled visual state ONLY if shouldLock is true */}
                 <div style={{ 
                     flex: 1, 
                     transition: 'opacity 0.3s, filter 0.3s',
-                    opacity: shouldLock ? 0.5 : 1, 
+                    opacity: shouldLock ? 0.6 : 1, 
                     pointerEvents: shouldLock ? 'none' : 'auto',
-                    filter: shouldLock ? 'grayscale(0.8)' : 'none'
+                    filter: shouldLock ? 'blur(5px) grayscale(0.5)' : 'none'
                 }}>
                     {children}
                 </div>
