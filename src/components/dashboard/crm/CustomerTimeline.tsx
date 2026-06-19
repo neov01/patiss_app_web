@@ -3,7 +3,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Clock, MessageSquare, ShoppingBag, CheckCircle2, Wallet, AlertTriangle } from "lucide-react";
+import { Clock, MessageSquare, ShoppingBag, CheckCircle2, Wallet, AlertTriangle, type LucideIcon } from "lucide-react";
 import { Order } from "./types";
 
 interface CustomerTimelineProps {
@@ -24,7 +24,7 @@ const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }>
   completed: { label: "✔ Livrée / Retirée", bg: "#F3F4F6", text: "#374151" },
 };
 
-const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: any }> = {
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: LucideIcon }> = {
   unpaid: { label: "Impayé", bg: "#FEE2E2", text: "#B91C1C", icon: Wallet },
   deposit_paid: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "#815431", icon: Wallet },
   partial: { label: "Partiel", bg: "rgba(217, 119, 6, 0.08)", text: "#D97706", icon: Wallet },
@@ -69,7 +69,7 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                   <div className="flex items-center gap-2">
                     <ShoppingBag size={14} className="text-[#DC5F4A]" />
                     <span className="text-sm font-black text-slate-800">
-                      Commande #{order.id.substring(0, 8)}
+                      Commande #{order.order_number || order.id.substring(0, 8)}
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">
@@ -118,6 +118,11 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                     <p className="text-lg font-black text-slate-800 leading-none">
                       {formatCurrency(order.total_amount)}
                     </p>
+                    {order.order_payments && order.order_payments.length > 0 && (
+                      <p className="mt-1 text-[10px] font-bold text-slate-400">
+                        {order.order_payments.length} paiement{order.order_payments.length > 1 ? "s" : ""} lie{order.order_payments.length > 1 ? "s" : ""}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

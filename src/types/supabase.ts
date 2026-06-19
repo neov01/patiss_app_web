@@ -330,6 +330,7 @@ export type Database = {
           order_channel: string | null
           order_number: string | null
           organization_id: string
+          paid_amount: number
           payment_status: string
           pickup_date: string
           priority: string | null
@@ -354,6 +355,7 @@ export type Database = {
           order_channel?: string | null
           order_number?: string | null
           organization_id: string
+          paid_amount?: number
           payment_status?: string
           pickup_date: string
           priority?: string | null
@@ -378,6 +380,7 @@ export type Database = {
           order_channel?: string | null
           order_number?: string | null
           organization_id?: string
+          paid_amount?: number
           payment_status?: string
           pickup_date?: string
           priority?: string | null
@@ -417,6 +420,64 @@ export type Database = {
           },
           {
             foreignKeyName: "orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          note: string | null
+          order_id: string
+          organization_id: string
+          payment_date: string
+          payment_method: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          organization_id: string
+          payment_date?: string
+          payment_method: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          organization_id?: string
+          payment_date?: string
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -770,6 +831,7 @@ export type Database = {
           id: string
           is_historical: boolean
           label_type: string
+          order_payment_id: string | null
           order_id: string | null
           organization_id: string
           payment_details: Json | null
@@ -784,6 +846,7 @@ export type Database = {
           id?: string
           is_historical?: boolean
           label_type?: string
+          order_payment_id?: string | null
           order_id?: string | null
           organization_id: string
           payment_details?: Json | null
@@ -798,6 +861,7 @@ export type Database = {
           id?: string
           is_historical?: boolean
           label_type?: string
+          order_payment_id?: string | null
           order_id?: string | null
           organization_id?: string
           payment_details?: Json | null
@@ -823,6 +887,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_order_payment_id_fkey"
+            columns: ["order_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
           {

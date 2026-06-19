@@ -349,7 +349,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_sync_transaction_to_order_payment ON public.transactions;
 CREATE TRIGGER trg_sync_transaction_to_order_payment
-BEFORE INSERT OR AFTER UPDATE OR AFTER DELETE ON public.transactions
+BEFORE INSERT OR UPDATE OR DELETE ON public.transactions
 FOR EACH ROW EXECUTE FUNCTION public.sync_transaction_to_order_payment();
 
 -- Recalculer toutes les commandes existantes pour initialiser paid_amount, balance et payment_status

@@ -47,8 +47,8 @@ export default function AddPaymentModal({
 
     useEffect(() => {
         if (open) {
-            // Pré-remplir le montant avec le reste à payer s'il est supérieur à 0
-            setAmountStr(balance > 0 ? balance.toString() : '')
+            // Initialiser le montant à 0
+            setAmountStr('0')
             setPaymentMethod('cash')
             setPaymentDate(new Date())
             setNote('')

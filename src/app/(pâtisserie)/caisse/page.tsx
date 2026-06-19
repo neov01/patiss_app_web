@@ -18,15 +18,25 @@ type TodayTransaction = {
     amount: number
     payment_method: string | null
     order_id: string | null
+    order_payment_id?: string | null
     customer_id: string | null
     created_at: string | null
     label_type: string | null
-    orders: { order_number: string | null } | { order_number: string | null }[] | null
+    orders: {
+        order_number: string | null
+        customer_id: string | null
+        order_items?: Array<{ quantity: number }>
+    } | {
+        order_number: string | null
+        customer_id: string | null
+        order_items?: Array<{ quantity: number }>
+    }[] | null
     transaction_items: Array<{ quantity: number }>
 }
 
 type HistoryPayment = {
     id: string
+    order_payment_id?: string | null
     amount: number
     payment_method: string | null
     created_at: string | null
@@ -60,6 +70,34 @@ function getCurrencySymbol(profile: ProfileWithOrganization): string {
 function getOrderNumber(orders: TodayTransaction['orders']): string | null {
     const order = Array.isArray(orders) ? orders[0] : orders
     return order?.order_number || null
+}
+
+function getOrderCustomerId(orders: TodayTransaction['orders']): string | null {
+    const order = Array.isArray(orders) ? orders[0] : orders
+    return order?.customer_id || null
+}
+
+function getOrderItemCount(transaction: TodayTransaction): number {
+    const order = Array.isArray(transaction.orders) ? transaction.orders[0] : transaction.orders
+    const orderItems = order?.order_items || []
+    if (orderItems.length > 0) return orderItems.reduce((sum, item) => sum + item.quantity, 0)
+    return transaction.transaction_items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
+function getPaymentIdentity(payment: HistoryPayment): string {
+    if (payment.order_payment_id) return `order-payment:${payment.order_payment_id}`
+    return [
+        payment.amount,
+        payment.payment_method || '',
+        payment.label_type || '',
+        payment.created_at || '',
+    ].join('|')
+}
+
+function addPaymentOnce(group: GroupedTransaction, payment: HistoryPayment) {
+    const identity = getPaymentIdentity(payment)
+    if (group.payments.some(existing => getPaymentIdentity(existing) === identity)) return
+    group.payments.push(payment)
 }
 
 function parseBestSellers(value: Json): BestSeller[] {
@@ -128,7 +166,7 @@ export default async function CaissePage() {
         // 3. Métriques du jour (Ventes & Recettes)
         supabase
             .from('transactions')
-            .select('id, client_name, amount, payment_method, order_id, customer_id, created_at, label_type, orders(order_number), transaction_items(quantity)')
+            .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, order_items(quantity)), transaction_items(quantity)')
             .eq('organization_id', orgId)
             .gte('created_at', todayStart)
             .order('created_at', { ascending: false }),
@@ -176,12 +214,13 @@ export default async function CaissePage() {
                     client_name: t.client_name,
                     is_order: true,
                     order_number: getOrderNumber(t.orders),
-                    has_crm: !!t.customer_id,
-                    nb_items: t.transaction_items.reduce((s, i) => s + i.quantity, 0),
+                    has_crm: !!(t.customer_id || getOrderCustomerId(t.orders)),
+                    nb_items: getOrderItemCount(t),
                     created_at: t.created_at,
                     payments: [
                         {
                             id: t.id,
+                            order_payment_id: t.order_payment_id,
                             amount: Number(t.amount),
                             payment_method: t.payment_method,
                             created_at: t.created_at,
@@ -195,8 +234,9 @@ export default async function CaissePage() {
                 // Il y a déjà un groupe pour cette commande, on ajoute ce paiement plus ancien
                 const group = orderGroups.get(t.order_id)
                 if (!group) continue
-                group.payments.push({
+                addPaymentOnce(group, {
                     id: t.id,
+                    order_payment_id: t.order_payment_id,
                     amount: Number(t.amount),
                     payment_method: t.payment_method,
                     created_at: t.created_at,
@@ -214,11 +254,12 @@ export default async function CaissePage() {
                 nb_items: t.transaction_items.reduce((s, i) => s + i.quantity, 0),
                 created_at: t.created_at,
                 payments: [
-                    {
-                        id: t.id,
-                        amount: Number(t.amount),
-                        payment_method: t.payment_method,
-                        created_at: t.created_at,
+                        {
+                            id: t.id,
+                            order_payment_id: t.order_payment_id,
+                            amount: Number(t.amount),
+                            payment_method: t.payment_method,
+                            created_at: t.created_at,
                         label_type: t.label_type
                     }
                 ]

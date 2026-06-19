@@ -107,7 +107,7 @@ export default function CustomerIntelligenceModal({
       if (!clientId) return [];
       const { data, error } = await supabase
         .from("orders")
-        .select("id, customer_id, total_amount, status, payment_status, balance, created_at")
+        .select("id, order_number, customer_id, total_amount, status, payment_status, balance, created_at, order_payments(id, amount, payment_method, payment_date)")
         .eq("customer_id", clientId)
         .order("created_at", { ascending: false })
         .limit(5);

@@ -300,6 +300,10 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
         setDeposit(0)
         setDepositPaymentMethod('cash')
         setPaymentType('ACOMPTE')
+        setIsMultiplePayment(false)
+        setPayments([
+            { id: '1', amount: 0, payment_method: 'cash', label_type: 'ACOMPTE' }
+        ])
         setCrmCustomerId(null)
         setCrmCustomerName(null)
         setShowErrors(false)
@@ -901,13 +905,12 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                     const initialMethod = depositPaymentMethod;
                                                     setPayments([
                                                         { id: '1', amount: initialAmount, payment_method: initialMethod, label_type: initialType },
-                                                        { id: '2', amount: Math.max(0, total - initialAmount), payment_method: 'cash', label_type: initialType === 'ACOMPTE' ? 'SOLDE' : 'ACOMPTE' }
+                                                        { id: '2', amount: 0, payment_method: 'cash', label_type: 'ACOMPTE' }
                                                     ]);
                                                 } else {
-                                                    const remaining = Math.max(0, total - payments.reduce((sum, p) => sum + p.amount, 0));
                                                     setPayments(prev => [
                                                         ...prev,
-                                                        { id: Date.now().toString(), amount: remaining, payment_method: 'cash', label_type: 'SOLDE' }
+                                                        { id: Date.now().toString(), amount: 0, payment_method: 'cash', label_type: 'ACOMPTE' }
                                                     ]);
                                                 }
                                                 setPaymentAccordionOpen(true);
