@@ -2,17 +2,26 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { verifyKioskToken } from '@/lib/kiosk-token'
 
+type OrganizationRelation = { currency_symbol: string } | { currency_symbol: string }[] | null
+
+interface SessionProfile {
+    organization_id: string | null
+    organizations: OrganizationRelation
+}
+
+function getCurrency(profile: SessionProfile) {
+    const org = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations
+    return org?.currency_symbol || ''
+}
+
 export async function getCurrentSession() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const cookieStore = await cookies()
     
-    let kioskUserId = cookieStore.get('kiosk_user_id')?.value
     const kioskToken = cookieStore.get('kiosk_token')?.value
-    if (kioskToken) {
-        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
-        kioskUserId = claims?.userId ?? (kioskToken.includes('.') ? undefined : kioskToken)
-    }
+    const claims = kioskToken ? verifyKioskToken(kioskToken) : null
+    const kioskUserId = claims?.userId
 
     if (!user && !kioskUserId) return null
 
@@ -28,7 +37,7 @@ export async function getCurrentSession() {
             user,
             profile,
             orgId: profile.organization_id,
-            currency: (profile.organizations as any)?.currency_symbol || '',
+            currency: getCurrency(profile as SessionProfile),
             isKiosk: false
         }
     } else {
@@ -48,7 +57,7 @@ export async function getCurrentSession() {
             user: null, // No official Supabase Auth user
             profile,
             orgId: profile.organization_id,
-            currency: (profile.organizations as any)?.currency_symbol || '',
+            currency: getCurrency(profile as SessionProfile),
             isKiosk: true,
             supabaseAdmin // Return the admin client for subsequent data fetching in the page
         }

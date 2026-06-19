@@ -1,6 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@theme {
+  /* ── Caisse Point of Sale Specific Tokens ── */
+  --color-caisse-bg:                  #FDF8F3;
+  --color-caisse-tab-bg:              #EAE1D4;
+  --color-caisse-border:              #FDE8DB;
+  --color-caisse-well:                #FAFAFA;
+  --color-caisse-accent:              #D97757;
+  --color-caisse-urgent-bg:           #FFFDFB;
+  --color-caisse-urgent-badge-bg:      #FDF2F0;
+
+  /* ── Session Status Colors ── */
+  --color-session-open-bg:            #e6f4ea;
+  --color-session-open-border:        #34a853;
+  --color-session-open-text:          #137333;
+  
+  --color-session-closed-bg:          #fce8e6;
+  --color-session-closed-border:      #ea4335;
+  --color-session-closed-text:        #b31412;
+
+  /* ── Shared Semantic Alerts & Badges (Tailwind Mappings) ── */
+  --color-badge-crm-bg:               #EFF6FF;
+  --color-badge-crm-text:             #3B82F6;
+  --color-badge-production-bg:        #DBEAFE;
+  --color-badge-production-text:      #1E40AF;
+  
+  --color-badge-warning-bg:           #FEF3C7;
+  --color-badge-warning-text:         #92400E;
+  --color-badge-warning-accent:       #D97706;
+  
+  --color-badge-success-bg:           #D1FAE5;
+  --color-badge-success-text:         #065F46;
+  --color-badge-success-accent:       #059669;
+  --color-badge-success-soft-bg:      #ECFDF5;
+  
+  --color-badge-danger-bg:            #FEE2E2;
+  --color-badge-danger-text:          #991B1B;
+  --color-badge-danger-accent:        #DC2626;
+}
+
 :root {
   /* ── Couleurs "The Artisanal Atelier" (Stitch) ── */
   --color-primary:    #815431; /* Terracotta */
@@ -16,13 +55,17 @@
 
   /* ── Neutrals ── */
   --color-text:     #1A1C1A; /* Charcoal */
-  --color-muted:    #51443C;
+  --color-muted:    #4A3C31;
   --color-border:   rgba(131, 116, 107, 0.28); /* 28% opacity — frontières de sections visibles */
 
   /* ── Status ── */
   --color-success:  #4B6450;
   --color-warning:  #C08A63;
   --color-error:    #BA1A1A;
+
+  /* ── Rose/Terracotta accents (Legacy/Custom support) ── */
+  --color-rose:       var(--color-primary-container); /* Terracotta Pressed pour le survol de la barre de défilement */
+  --color-rose-dark:  var(--color-primary); /* Argile/Terracotta pour les focus et surbrillances */
 
   /* ── Shadows (Warm, Ambient) ── */
   --shadow-sm:  0 2px 8px rgba(45,27,14,0.08), 0 1px 3px rgba(45,27,14,0.06);
@@ -242,14 +285,14 @@ h1, h2, h3, h4, .font-display {
 }
 
 .sidebar-icon {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-link:hover .sidebar-icon {
   transform: translateX(3px);
 }
 
 .logout-icon {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-ghost:hover .logout-icon {
   transform: translateX(-3px);

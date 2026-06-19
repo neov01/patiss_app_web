@@ -1,6 +1,5 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { createKioskToken } from '@/lib/kiosk-token'

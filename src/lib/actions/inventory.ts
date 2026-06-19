@@ -1,8 +1,22 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { ensureActiveSubscription } from '@/lib/utils/subscription'
+import { AuthContextError, requireOpenSalesSession, requireRoleContext } from '@/lib/auth/organization-context'
+
+const STOCK_ROLES = ['gerant', 'super_admin', 'vendeur', 'patissier']
+
+async function requireStockMutationContext() {
+    await ensureActiveSubscription()
+    const context = await requireRoleContext(STOCK_ROLES)
+    await requireOpenSalesSession(context)
+    return context
+}
+
+function getActionError(error: unknown) {
+    if (error instanceof AuthContextError) return error.message
+    return error instanceof Error ? error.message : 'Erreur inconnue'
+}
 
 export async function createInventoryLog(formData: {
     ingredient_id: string
@@ -10,35 +24,27 @@ export async function createInventoryLog(formData: {
     reason: 'production' | 'waste' | 'purchase' | 'adjustment'
     note?: string
 }) {
-    // Bloquer si l'abonnement est expiré
     try {
-        await ensureActiveSubscription()
-    } catch (e: any) {
-        return { error: e.message }
+        const { supabase, organizationId, userId } = await requireStockMutationContext()
+
+        const { error } = await supabase.from('inventory_logs').insert({
+            organization_id: organizationId,
+            ingredient_id: formData.ingredient_id,
+            quantity_change: formData.quantity_change,
+            reason: formData.reason,
+            note: formData.note || null,
+            created_by: userId,
+        })
+
+        if (error) return { error: error.message }
+
+        revalidatePath('/inventaire')
+        revalidatePath('/ingredients')
+        revalidatePath('/dashboard')
+        return { success: true }
+    } catch (error: unknown) {
+        return { error: getActionError(error) }
     }
-
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié' }
-
-    const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
-    if (!profile?.organization_id) return { error: 'Organisation introuvable' }
-
-    const { error } = await supabase.from('inventory_logs').insert({
-        organization_id: profile.organization_id,
-        ingredient_id: formData.ingredient_id,
-        quantity_change: formData.quantity_change,
-        reason: formData.reason,
-        note: formData.note || null,
-        created_by: user.id,
-    })
-
-    if (error) return { error: error.message }
-
-    revalidatePath('/inventaire')
-    revalidatePath('/ingredients')
-    revalidatePath('/dashboard')
-    return { success: true }
 }
 
 export async function createIngredient(formData: {
@@ -50,35 +56,27 @@ export async function createIngredient(formData: {
     supplier_name?: string | null
     supplier_phone?: string | null
 }) {
-    // Bloquer si l'abonnement est expiré
     try {
-        await ensureActiveSubscription()
-    } catch (e: any) {
-        return { error: e.message }
+        const { supabase, organizationId } = await requireStockMutationContext()
+
+        const { data, error } = await supabase.from('ingredients').insert({
+            organization_id: organizationId,
+            name: formData.name,
+            unit: formData.unit,
+            cost_per_unit: formData.cost_per_unit,
+            alert_threshold: formData.alert_threshold,
+            current_stock: formData.current_stock ?? 0,
+            supplier_name: formData.supplier_name?.trim() || null,
+            supplier_phone: formData.supplier_phone?.trim() || null,
+        }).select().single()
+
+        if (error) return { error: error.message }
+
+        revalidatePath('/ingredients')
+        return { data }
+    } catch (error: unknown) {
+        return { error: getActionError(error) }
     }
-
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Non authentifié' }
-
-    const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
-    if (!profile?.organization_id) return { error: 'Organisation introuvable' }
-
-    const { data, error } = await supabase.from('ingredients').insert({
-        organization_id: profile.organization_id,
-        name: formData.name,
-        unit: formData.unit,
-        cost_per_unit: formData.cost_per_unit,
-        alert_threshold: formData.alert_threshold,
-        current_stock: formData.current_stock ?? 0,
-        supplier_name: formData.supplier_name?.trim() || null,
-        supplier_phone: formData.supplier_phone?.trim() || null,
-    }).select().single()
-
-    if (error) return { error: error.message }
-
-    revalidatePath('/ingredients')
-    return { data }
 }
 
 export async function updateIngredient(id: string, formData: {
@@ -89,57 +87,63 @@ export async function updateIngredient(id: string, formData: {
     supplier_name?: string | null
     supplier_phone?: string | null
 }) {
-    // Bloquer si l'abonnement est expiré
     try {
-        await ensureActiveSubscription()
-    } catch (e: any) {
-        return { error: e.message }
-    }
+        const { supabase, organizationId } = await requireStockMutationContext()
 
-    const supabase = await createClient()
-    const { error } = await supabase.from('ingredients').update({
-        name: formData.name,
-        unit: formData.unit,
-        cost_per_unit: formData.cost_per_unit,
-        alert_threshold: formData.alert_threshold,
-        supplier_name: formData.supplier_name?.trim() || null,
-        supplier_phone: formData.supplier_phone?.trim() || null,
-    }).eq('id', id)
-    if (error) return { error: error.message }
-    revalidatePath('/ingredients')
-    return { success: true }
+        const { error } = await supabase.from('ingredients').update({
+            name: formData.name,
+            unit: formData.unit,
+            cost_per_unit: formData.cost_per_unit,
+            alert_threshold: formData.alert_threshold,
+            supplier_name: formData.supplier_name?.trim() || null,
+            supplier_phone: formData.supplier_phone?.trim() || null,
+        })
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+
+        if (error) return { error: error.message }
+        revalidatePath('/ingredients')
+        return { success: true }
+    } catch (error: unknown) {
+        return { error: getActionError(error) }
+    }
 }
 
 export async function toggleIngredientStatus(id: string, is_active: boolean) {
     try {
-        await ensureActiveSubscription()
-    } catch (e: any) {
-        return { error: e.message }
+        const { supabase, organizationId } = await requireStockMutationContext()
+
+        const { error } = await supabase.from('ingredients').update({
+            is_active: is_active
+        })
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+
+        if (error) return { error: error.message }
+
+        revalidatePath('/ingredients')
+        revalidatePath('/inventaire')
+        return { success: true }
+    } catch (error: unknown) {
+        return { error: getActionError(error) }
     }
-
-    const supabase = await createClient()
-    const { error } = await supabase.from('ingredients').update({
-        is_active: is_active
-    }).eq('id', id)
-
-    if (error) return { error: error.message }
-    
-    revalidatePath('/ingredients')
-    revalidatePath('/inventaire')
-    return { success: true }
 }
 
 export async function deleteIngredient(id: string) {
     // Gardé pour compatibilité mais non utilisé dans l'UI au profit de toggleIngredientStatus
     try {
-        await ensureActiveSubscription()
-    } catch (e: any) {
-        return { error: e.message }
-    }
+        const { supabase, organizationId } = await requireStockMutationContext()
 
-    const supabase = await createClient()
-    const { error } = await supabase.from('ingredients').delete().eq('id', id)
-    if (error) return { error: error.message }
-    revalidatePath('/ingredients')
-    return { success: true }
+        const { error } = await supabase
+            .from('ingredients')
+            .delete()
+            .eq('id', id)
+            .eq('organization_id', organizationId)
+
+        if (error) return { error: error.message }
+        revalidatePath('/ingredients')
+        return { success: true }
+    } catch (error: unknown) {
+        return { error: getActionError(error) }
+    }
 }

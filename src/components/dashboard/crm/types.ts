@@ -1,3 +1,12 @@
+export type CustomerPreferencesData = {
+  notes?: string;
+  allergies?: string[];
+  favorite_products?: string[];
+  last_purchased?: string | null;
+  birth_date?: string | null;
+  archived?: boolean;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -5,12 +14,7 @@ export interface Customer {
   email: string | null;
   loyalty_points: number;
   lifetime_points: number;
-  preferences: {
-    notes?: string;
-    allergies?: string[];
-    favorite_products?: string[];
-    last_purchased?: string | null;
-  } | any;
+  preferences: CustomerPreferencesData | null;
   created_at: string;
   total_spent?: number;
   total_orders?: number;
@@ -20,8 +24,17 @@ export interface Customer {
 export interface Order {
   id: string;
   customer_id: string;
+  order_number?: string | null;
   total_amount: number;
   status: string;
+  payment_status?: string | null;
+  balance?: number | null;
+  order_payments?: Array<{
+    id: string;
+    amount: number;
+    payment_method: string;
+    payment_date: string;
+  }>;
   created_at: string;
 }
 

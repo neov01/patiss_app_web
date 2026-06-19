@@ -39,7 +39,7 @@ export default function DatePicker({
 }: DatePickerProps) {
     const [open, setOpen] = useState(false)
     const [currentMonth, setCurrentMonth] = useState(value || new Date())
-    const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
+    const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -50,7 +50,8 @@ export default function DatePicker({
             setCoords({
                 top: rect.top,
                 left: rect.left,
-                width: rect.width
+                width: rect.width,
+                height: rect.height
             })
         }
     }
@@ -106,7 +107,7 @@ export default function DatePicker({
             style={{
                 position: 'fixed',
                 top: coords 
-                    ? (direction === 'up' ? coords.top - 6 : coords.top + buttonRef.current!.offsetHeight + 6) 
+                    ? (direction === 'up' ? coords.top - 6 : coords.top + coords.height + 6) 
                     : 0,
                 left: coords ? coords.left : 0,
                 width: '300px',
@@ -184,7 +185,7 @@ export default function DatePicker({
                                 cursor: disabled ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.15s',
                                 background: selected
-                                    ? 'linear-gradient(135deg, #C4836A, #C08A63)'
+                                    ? 'linear-gradient(135deg, var(--color-rose-dark), #C08A63)'
                                     : 'transparent',
                                 color: selected
                                     ? '#fff'
@@ -193,7 +194,7 @@ export default function DatePicker({
                                         : !inMonth
                                             ? '#D5CCC5'
                                             : today
-                                                ? '#C4836A'
+                                                ? 'var(--color-rose-dark)'
                                                 : 'var(--color-text)',
                                 boxShadow: selected ? '0 2px 8px rgba(196, 131, 106, 0.35)' : 'none',
                                 margin: '0 auto',
@@ -213,7 +214,7 @@ export default function DatePicker({
                     onClick={() => { setCurrentMonth(new Date()); handleSelect(new Date()) }}
                     style={{
                         padding: '6px 16px', borderRadius: '8px', border: 'none',
-                        background: 'var(--color-cream)', color: '#C4836A', fontSize: '0.8rem',
+                        background: 'var(--color-cream)', color: 'var(--color-rose-dark)', fontSize: '0.8rem',
                         fontWeight: 600, cursor: 'pointer',
                     }}
                 >
@@ -248,7 +249,7 @@ export default function DatePicker({
                     minHeight: '44px',
                 }}
             >
-                <Calendar size={16} color="#C4836A" />
+                <Calendar size={16} color="var(--color-rose-dark)" />
                 <span style={{ flex: 1 }}>
                     {value ? format(value, 'EEEE d MMMM yyyy', { locale: fr }) : placeholder}
                 </span>

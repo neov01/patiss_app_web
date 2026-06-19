@@ -90,7 +90,7 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#2D1B0E' }}>{employeeName}</div>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-text)' }}>{employeeName}</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '2px', textTransform: 'capitalize' }}>{monthLabel}</div>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'var(--color-cream)', border: 'none', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

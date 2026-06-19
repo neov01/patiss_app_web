@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Calendar, ShoppingBag, CreditCard, ChevronRight, Trophy, AlertTriangle, UserCheck, Star, Users } from "lucide-react";
+import { X, Calendar, ShoppingBag, CreditCard, Trophy, AlertTriangle, UserCheck, Star, Users } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getCustomerOrders } from "@/lib/actions/customers";

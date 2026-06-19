@@ -3,17 +3,18 @@
 import { useState, useMemo } from "react";
 import {
   Search, Trophy, AlertTriangle, UserCheck, Star, Users,
-  Gift, Crown, MessageSquare, Plus, Download, Trash2,
-  Calendar, ShoppingBag, CheckCircle2, XCircle, Clock,
-  ArrowUpRight, ArrowDownRight, ChevronRight, MoreHorizontal,
+  Crown, MessageSquare, Plus, Download,
+  Calendar, XCircle,
+  ArrowUpRight, ArrowDownRight, ChevronRight,
   Check, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import CustomerIntelligenceModal from "./CustomerIntelligenceModal";
 import CustomerCreateModal from "./CustomerCreateModal";
+import SessionPill from "@/components/layout/SessionPill";
 
-interface CustomerRFM {
+export interface CustomerRFM {
   customer_id: string;
   name: string;
   phone: string;
@@ -22,6 +23,20 @@ interface CustomerRFM {
   monetary: number;
   last_purchase_at: string;
   rfm_segment: string;
+  preferences?: {
+    archived?: boolean;
+  } | null;
+  birth_date?: string | null;
+}
+
+type SortKey = 'monetary' | 'frequency' | 'last_purchase_at';
+type SortDirection = 'asc' | 'desc';
+
+function SortIcon({ col, activeKey, direction }: { col: SortKey; activeKey: SortKey; direction: SortDirection }) {
+  if (activeKey !== col) return <ArrowUpDown size={12} className="inline ml-1 opacity-30" />;
+  return direction === 'asc'
+    ? <ArrowUp size={12} className="inline ml-1 text-slate-800" />
+    : <ArrowDown size={12} className="inline ml-1 text-slate-800" />;
 }
 
 export default function CustomerListClient({ initialCustomers }: { initialCustomers: CustomerRFM[] }) {
@@ -30,7 +45,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRFM | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ key: 'monetary' | 'frequency' | 'last_purchase_at'; dir: 'asc' | 'desc' }>({ key: 'monetary', dir: 'desc' });
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDirection }>({ key: 'monetary', dir: 'desc' });
 
   const handleExportCSV = (customers: CustomerRFM[]) => {
     const headers = ['Nom', 'Téléphone', 'Segment', 'CA Total (FCFA)', 'Commandes', 'Points fidélité', 'Dernier passage']
@@ -75,13 +90,20 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
   const filtered = useMemo(() => {
     const base = initialCustomers.filter((c) => {
       // Cacher les clients archivés
-      if ((c as any).preferences?.archived) return false;
+      if (c.preferences?.archived) return false;
       const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || (c.phone || "").includes(search);
       const matchSegment = filterSegment === "Tous" || c.rfm_segment === filterSegment;
 
       let matchQuickFilter = true;
       if (activeQuickFilter === "🎂 Anniversaire") {
-        matchQuickFilter = c.name.length % 5 === 0;
+        if (!c.birth_date) {
+          matchQuickFilter = false;
+        } else {
+          const parts = c.birth_date.split('-');
+          const birthMonth = parts[1] ? parseInt(parts[1], 10) - 1 : -1;
+          const currentMonth = new Date().getMonth();
+          matchQuickFilter = birthMonth === currentMonth;
+        }
       } else if (activeQuickFilter === "⚠️ Risque") {
         matchQuickFilter = c.rfm_segment === "À Risque";
       } else if (activeQuickFilter === "⭐ VIP") {
@@ -109,13 +131,6 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
       ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
       : { key, dir: 'desc' }
     );
-  }
-
-  function SortIcon({ col }: { col: typeof sort.key }) {
-    if (sort.key !== col) return <ArrowUpDown size={12} className="inline ml-1 opacity-30" />;
-    return sort.dir === 'asc'
-      ? <ArrowUp size={12} className="inline ml-1 text-slate-800" />
-      : <ArrowDown size={12} className="inline ml-1 text-slate-800" />;
   }
 
   const segments = ["Tous", "Champion", "Fidèle", "Prometteur", "Occasionnel", "À Risque", "Perdu"];
@@ -167,10 +182,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
     <div className="space-y-6">
       {/* Status Header Badge + Actions */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Boutique Ouverte</span>
-        </div>
+        <SessionPill />
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleExportCSV(filtered)}
@@ -323,13 +335,13 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                 <th className="px-6 py-4">Client</th>
                 <th className="px-6 py-4">Segment</th>
                 <th className="px-6 py-4 text-right cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('monetary')}>
-                  CA Total <SortIcon col="monetary" />
+                  CA Total <SortIcon col="monetary" activeKey={sort.key} direction={sort.dir} />
                 </th>
                 <th className="px-6 py-4 text-right cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('frequency')}>
-                  Fidélité <SortIcon col="frequency" />
+                  Fidélité <SortIcon col="frequency" activeKey={sort.key} direction={sort.dir} />
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none hover:text-slate-700" onClick={() => toggleSort('last_purchase_at')}>
-                  Dernier Passage <SortIcon col="last_purchase_at" />
+                  Dernier Passage <SortIcon col="last_purchase_at" activeKey={sort.key} direction={sort.dir} />
                 </th>
                 <th className="px-6 py-4 w-10"></th>
               </tr>
@@ -346,8 +358,8 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                 filtered.map((c) => (
                   <tr 
                     key={c.customer_id} 
-                    className={`hover:bg-slate-50/80 transition-all group cursor-pointer border-l-4 ${
-                      selectedIds.includes(c.customer_id) ? "border-slate-800 bg-slate-50" : "border-transparent"
+                    className={`hover:bg-slate-50/80 transition-all group cursor-pointer ${
+                      selectedIds.includes(c.customer_id) ? "bg-secondary-container/30 hover:bg-secondary-container/45" : ""
                     }`}
                   >
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>

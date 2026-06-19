@@ -267,8 +267,8 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                                 whiteSpace: 'nowrap',
                             }}
                             onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = '#C4836A'
-                                e.currentTarget.style.color = '#C4836A'
+                                e.currentTarget.style.borderColor = 'var(--color-rose-dark)'
+                                e.currentTarget.style.color = 'var(--color-rose-dark)'
                             }}
                             onMouseLeave={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-border)'

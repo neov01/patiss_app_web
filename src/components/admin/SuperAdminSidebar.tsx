@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, LogOut } from 'lucide-react'
+import { Clock3, LayoutDashboard, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -14,6 +14,7 @@ export default function SuperAdminSidebar() {
 
     const navItems = [
         { href: '/admin', icon: LayoutDashboard, label: 'Super Admin' },
+        { href: '/admin/statistiques-commandes', icon: Clock3, label: 'Temps commandes' },
     ]
 
     const handleSignOut = async () => {
@@ -32,11 +33,11 @@ export default function SuperAdminSidebar() {
         <aside className="w-64 bg-white border-r border-[#EEEEEE] h-screen flex flex-col hidden md:flex shrink-0">
             <div className="p-6">
                 <Link href="/admin" className="flex items-center gap-2 group">
-                    <div className="bg-[#FEF3EC] p-2 rounded-xl group-hover:scale-105 transition-transform">
+                    <div className="bg-[var(--color-well)] p-2 rounded-xl group-hover:scale-105 transition-transform">
                         <span className="text-xl">🛠️</span>
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-[#2D1B0E] tracking-tight leading-none">Pâtiss'App</h1>
+                        <h1 className="text-xl font-black text-[var(--color-text)] tracking-tight leading-none">Pâtiss&apos;App</h1>
                         <span className="text-[10px] uppercase font-bold text-[#D97757] tracking-wider">Super Admin</span>
                     </div>
                 </Link>
@@ -51,8 +52,8 @@ export default function SuperAdminSidebar() {
                             href={item.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group
                                 ${isActive
-                                    ? 'bg-[#2D1B0E] text-white shadow-md'
-                                    : 'text-[#8E8680] hover:bg-[#FDFCFB] hover:text-[#2D1B0E]'
+                                    ? 'bg-[var(--color-text)] text-white shadow-md'
+                                    : 'text-[#8E8680] hover:bg-[#FDFCFB] hover:text-[var(--color-text)]'
                                 }`}
                         >
                             <item.icon
@@ -68,7 +69,7 @@ export default function SuperAdminSidebar() {
             <div className="p-4 mt-auto border-t border-[#EEEEEE]">
                 <button
                     onClick={handleSignOut}
-                    className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-[#D94F38] hover:bg-[#FEF3EC] transition-colors"
+                    className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-[#D94F38] hover:bg-[var(--color-well)] transition-colors"
                 >
                     <LogOut size={16} />
                     <span>Déconnexion</span>

@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, useOptimistic, useTransition } from 'react'
+import SessionPill from '@/components/layout/SessionPill'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
-import { startOfDay, format } from 'date-fns'
+import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { useActionFeedback } from '@/hooks/useActionFeedback'
 import { 
     ShoppingBag,
     Store,
-    Clock,
-    Search,
     X,
     Minus,
     Plus,
@@ -19,13 +18,31 @@ import {
     Loader2,
     UserCheck,
     BadgeCheck,
-    Info
+    Info,
+    Clock,
+    Search,
+    Trash2,
+    Printer,
+    CheckCircle,
+    ChevronDown,
+    Coins,
+    Ticket,
+    Calendar,
+    TrendingUp,
+    Filter,
+    FileWarning,
+    DoorClosed,
+    ArrowLeft,
+    SearchIcon,
+    Copy
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CatalogueModal from './CatalogueModal'
 import DashboardNewOrderButton from '@/components/dashboard/DashboardNewOrderButton'
+import CartQuantityButton from './CartQuantityButton'
 import { encaisserTransaction, finaliserCommandeDejaPayee } from '@/lib/actions/caisse'
 import TouchInput from '@/components/ui/TouchInput'
+import TouchSelect from '@/components/ui/TouchSelect'
 import { useOffline } from '@/components/providers/OfflineProvider'
 import { getCachedReadyOrders } from '@/lib/offline/db'
 import { CRMSelector } from './CRMSelector'
@@ -91,7 +108,7 @@ export default function CaisseClient({
     const [modalCatalogueOpen, setModalCatalogueOpen] = useState(false)
     const [caisseMode, setCaisseMode] = useState<'commande' | 'vitrine'>('commande')
     const [searchClient, setSearchClient] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const { execute, isPending: isSubmitting, renderFeedback } = useActionFeedback()
     
     // Optimistic UI pour le panier (Zéro Latence)
     const [optimisticPanier, setOptimisticPanier] = useOptimistic<PanierLine[], { type: 'add' | 'update' | 'remove' | 'clear', payload?: any }>(
@@ -183,7 +200,7 @@ export default function CaisseClient({
         setActiveOrder(order)
         setActiveClient(order.customer_name)
         setActiveCustomerId(order.customer_id || null)
-        setAcompte(Number(order.deposit_amount))
+        setAcompte(Number(order.paid_amount ?? order.deposit_amount ?? 0))
         
         const lines: PanierLine[] = order.order_items.map((item: any) => ({
             product_id: item.product_id,
@@ -253,7 +270,7 @@ export default function CaisseClient({
         setActiveClientPhone(null)
         setAcompte(0)
         setMontantRemisStr('')
-        setActivePayments({ especes: 0 })
+        setActivePayments({ 'Espèces': 0 })
     }
     
     const detachClient = () => {
@@ -301,13 +318,17 @@ export default function CaisseClient({
 
         // Cas commande déjà intégralement payée : juste marquer completed, pas de nouvelle transaction
         if (totalAEncaisser === 0 && activeOrder?.id) {
-            setIsSubmitting(true)
-            const res = await finaliserCommandeDejaPayee(activeOrder.id)
-            if (res.error) { toast.error(res.error); setIsSubmitting(false); return }
-            toast.success("Commande remise au client !")
-            viderPanier()
-            setIsSubmitting(false)
-            setTimeout(() => window.location.reload(), 800)
+            await execute(
+                async () => finaliserCommandeDejaPayee(activeOrder.id),
+                {
+                    successMessage: "Commande remise au client !",
+                    type: 'simple',
+                    onSuccess: () => {
+                        viderPanier()
+                        setTimeout(() => window.location.reload(), 800)
+                    }
+                }
+            )
             return
         }
 
@@ -339,49 +360,59 @@ export default function CaisseClient({
             }))
         }
         
-        setIsSubmitting(true)
-
         // MODE OFFLINE : sauvegarder en IndexedDB
         if (isOffline) {
-            await saveTransactionOffline(payload)
-            viderPanier()
-            setIsSubmitting(false)
+            await execute(
+                async () => {
+                    await saveTransactionOffline(payload)
+                    return { success: true }
+                },
+                {
+                    successMessage: "Enregistré en local (hors-ligne) ✓",
+                    type: 'simple',
+                    onSuccess: () => {
+                        viderPanier()
+                    }
+                }
+            )
             return
         }
 
         // MODE ONLINE : envoi normal au serveur
-        const res = await encaisserTransaction(payload)
-        
-        if (res.error) {
-            toast.error(res.error)
-            setIsSubmitting(false)
-            return
-        }
-        
-        toast.success("Encaissé avec succès !")
-        viderPanier()
-        setIsSubmitting(false)
-        setTimeout(() => window.location.reload(), 800)
+        await execute(
+            async () => encaisserTransaction(payload),
+            {
+                successMessage: "Encaissé avec succès !",
+                type: 'simple',
+                onSuccess: () => {
+                    viderPanier()
+                    setTimeout(() => window.location.reload(), 800)
+                }
+            }
+        )
     }
 
     const showTabs = roleSlug === 'gerant' || roleSlug === 'super_admin'
 
     return (
-        <div className="caisse-layout-container" style={{ display: 'flex', minHeight: 'calc(100dvh - 200px)', background: '#FDF8F3', borderRadius: '24px', overflow: 'hidden' }}>
+        <div className="caisse-layout-container" style={{ display: 'flex', height: '100%', minHeight: 0, background: 'var(--color-caisse-bg)', borderRadius: '24px', overflow: 'hidden' }}>
             
             {caisseTab === 'historique' && showTabs ? (
-                <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px', flex: 1 }}>
+                <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px', flex: 1, minHeight: 0, height: '100%' }}>
                     {/* Onglets */}
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                        <div style={{
+                        <div role="tablist" aria-label="Navigation de la caisse" style={{
                             display: 'flex',
-                            background: '#EAE1D4',
+                            background: 'var(--color-caisse-tab-bg)',
                             padding: '4px',
                             borderRadius: '99px',
                             border: '1px solid rgba(131, 116, 107, 0.15)',
                         }}>
                             <button
                                 onClick={() => setCaisseTab('vente')}
+                                role="tab"
+                                aria-selected={false}
+                                aria-label="Afficher l'enregistrement des ventes"
                                 style={{
                                     padding: '8px 24px',
                                     borderRadius: '99px',
@@ -398,6 +429,9 @@ export default function CaisseClient({
                             </button>
                             <button
                                 onClick={() => setCaisseTab('historique')}
+                                role="tab"
+                                aria-selected={true}
+                                aria-label="Afficher l'historique des sessions"
                                 style={{
                                     padding: '8px 24px',
                                     borderRadius: '99px',
@@ -426,20 +460,23 @@ export default function CaisseClient({
             ) : (
                 <>
                     {/* ====== COLONNE GAUCHE (Main) ====== */}
-                    <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px' }}>
+                    <div className="caisse-main-column" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px', flex: 1, minHeight: 0, height: '100%' }}>
                         
                         {/* Onglets */}
                         {showTabs && (
                             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                                <div style={{
+                                <div role="tablist" aria-label="Navigation de la caisse" style={{
                                     display: 'flex',
-                                    background: '#EAE1D4',
+                                    background: 'var(--color-caisse-tab-bg)',
                                     padding: '4px',
                                     borderRadius: '99px',
                                     border: '1px solid rgba(131, 116, 107, 0.15)',
                                 }}>
                                     <button
                                         onClick={() => setCaisseTab('vente')}
+                                        role="tab"
+                                        aria-selected={true}
+                                        aria-label="Afficher l'enregistrement des ventes"
                                         style={{
                                             padding: '8px 24px',
                                             borderRadius: '99px',
@@ -457,6 +494,9 @@ export default function CaisseClient({
                                     </button>
                                     <button
                                         onClick={() => setCaisseTab('historique')}
+                                        role="tab"
+                                        aria-selected={false}
+                                        aria-label="Afficher l'historique des sessions"
                                         style={{
                                             padding: '8px 24px',
                                             borderRadius: '99px',
@@ -491,22 +531,14 @@ export default function CaisseClient({
                         {isOffline && (
                             <div style={{ 
                                 padding: '6px 12px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600,
-                                background: '#FEF3C7', color: '#92400E',
+                                background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)',
                                 display: 'flex', alignItems: 'center', gap: '6px'
                             }}>
                                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
                                 Mode hors-ligne
                             </div>
                         )}
-                        <div style={{ 
-                            padding: '6px 12px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600,
-                            background: activeSession ? '#D1FAE5' : '#FEE2E2',
-                            color: activeSession ? '#065F46' : '#991B1B',
-                            display: 'flex', alignItems: 'center', gap: '6px'
-                        }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: activeSession ? '#10B981' : '#EF4444' }} />
-                            {activeSession ? 'Boutique ouverte' : 'Boutique fermée'}
-                        </div>
+                        <SessionPill />
                     </div>
                 </div>
 
@@ -555,7 +587,7 @@ export default function CaisseClient({
                     </div>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10B981' }}>{readyOrders.filter(o => o.status === 'ready').length}</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-badge-success-accent)' }}>{readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length}</div>
                     </div>
                 </div>
 
@@ -563,21 +595,21 @@ export default function CaisseClient({
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingBag size={18} color="#C4836A" /> Prêtes à encaisser
                 </h2>
-                {readyOrders.filter(o => o.status === 'ready').length === 0 ? (
-                    <div style={{ background: 'white', padding: '32px', borderRadius: '16px', textAlign: 'center', color: '#9C8070', border: '1px solid #FDE8DB', marginBottom: '32px' }}>
+                {readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length === 0 ? (
+                    <div style={{ background: 'white', padding: '32px', borderRadius: '16px', textAlign: 'center', color: '#9C8070', border: '1px solid var(--color-caisse-border)', marginBottom: '32px' }}>
                         <Clock size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                         <p>Aucune commande prête en attente.</p>
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '32px' }}>
-                        {readyOrders.filter(o => o.status === 'ready').map(order => {
+                        {readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').map(order => {
                             const isUrgent = order.priority === 'urgent'
                             const date = new Date(order.pickup_date)
                             return (
                                 <button key={order.id} onClick={() => chargerCommande(order)}
                                     style={{
                                         background: 'white', padding: '16px', borderRadius: '16px',
-                                        border: '1px solid #FDE8DB', borderLeft: isUrgent ? '4px solid #F59E0B' : '1px solid #FDE8DB',
+                                        border: '1px solid var(--color-caisse-border)', borderLeft: isUrgent ? '4px solid #F59E0B' : '1px solid #FDE8DB',
                                         textAlign: 'left', cursor: 'pointer', transition: 'transform 0.1s, box-shadow 0.1s'
                                     }}
                                     className="card-clickable"
@@ -586,7 +618,7 @@ export default function CaisseClient({
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
                                             <span style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '1.05rem' }}>{order.customer_name}</span>
                                             {order.customer_id && (
-                                                <span title="Client CRM identifié" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#EFF6FF', color: '#3B82F6', borderRadius: '99px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700 }}>
+                                                <span title="Client CRM identifié" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'var(--color-badge-crm-bg)', color: 'var(--color-badge-crm-text)', borderRadius: '99px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700 }}>
                                                     <BadgeCheck size={11} /> CRM
                                                 </span>
                                             )}
@@ -598,9 +630,9 @@ export default function CaisseClient({
                                     <div style={{ fontSize: '0.8rem', color: '#9C8070', marginBottom: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {order.order_items.map((i: any) => i.products?.name).join(' · ')}
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #FDF8F3', paddingTop: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-caisse-bg)', paddingTop: '12px' }}>
                                         <span style={{ fontSize: '0.75rem', color: '#9C8070' }}>Reste à payer</span>
-                                        <span style={{ fontWeight: 800, color: '#D97757' }}>{Number(order.balance).toLocaleString('fr-FR')} {currency}</span>
+                                        <span style={{ fontWeight: 800, color: 'var(--color-caisse-accent)' }}>{Number(order.balance).toLocaleString('fr-FR')} {currency}</span>
                                     </div>
                                 </button>
                             )
@@ -610,15 +642,15 @@ export default function CaisseClient({
 
                 {/* 3.2 PIPELINE DU JOUR */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
-                    <Clock size={18} color="#9CA3AF" /> Pipeline du jour
+                    <Clock size={18} color="var(--color-muted)" /> Pipeline du jour
                 </h2>
-                {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').length === 0 ? (
-                    <div style={{ background: 'white', padding: '16px', borderRadius: '16px', textAlign: 'center', color: '#9CA3AF', border: '1px solid #E5E7EB', marginBottom: '32px', fontSize: '0.9rem' }}>
+                {readyOrders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).length === 0 ? (
+                    <div style={{ background: 'white', padding: '16px', borderRadius: '16px', textAlign: 'center', color: 'var(--color-muted)', border: '1px solid #E5E7EB', marginBottom: '32px', fontSize: '0.9rem' }}>
                         Aucune commande en cours de production.
                     </div>
                 ) : (
                     <div className="pipeline-carousel" style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
-                        {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').map(order => {
+                        {readyOrders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).map(order => {
                             const date = new Date(order.pickup_date)
                             return (
                                 <div key={order.id}
@@ -631,17 +663,17 @@ export default function CaisseClient({
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem' }}>{order.customer_name}</div>
-                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)' }}>
                                             {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '4px' }}>
-                                        <div style={{ fontSize: '0.7rem', color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
                                             {order.order_items.map((i: any) => i.products?.name).join(' · ')}
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: order.status === 'pending' ? '#FEF3C7' : '#DBEAFE', color: order.status === 'pending' ? '#92400E' : '#1E40AF', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
-                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: order.status === 'pending' ? '#F59E0B' : '#3B82F6' }} />
-                                            {order.status === 'pending' ? 'En attente' : 'En production'}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-bg)' : 'var(--color-badge-production-bg)', color: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-text)' : 'var(--color-badge-production-text)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-accent)' : 'var(--color-badge-crm-text)' }} />
+                                            {(order.status === 'pending' || order.status === 'confirmed') ? 'En attente' : 'En préparation'}
                                         </div>
                                     </div>
                                 </div>
@@ -661,13 +693,13 @@ export default function CaisseClient({
                     {bestSellers.map(bs => (
                         <button key={bs.id} onClick={() => addToCart(bs)}
                             style={{
-                                background: 'white', padding: '12px', borderRadius: '16px', border: '1px solid #FDE8DB',
+                                background: 'white', padding: '12px', borderRadius: '16px', border: '1px solid var(--color-caisse-border)',
                                 textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center'
                             }}
                             className="card-clickable"
                         >
                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-                                <Box size={20} color="#D97757" />
+                                <Box size={20} color="var(--color-caisse-accent)" />
                             </div>
                             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2D1B0E', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {bs.name}
@@ -694,7 +726,7 @@ export default function CaisseClient({
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Clock size={18} color="#C4836A" /> Historique récent
                 </h2>
-                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #FDE8DB', overflow: 'hidden' }}>
+                <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--color-caisse-border)', overflow: 'hidden' }}>
                     {initialHistory.length === 0 ? (
                         <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>Aucune transaction aujourd'hui</div>
                     ) : (
@@ -707,13 +739,13 @@ export default function CaisseClient({
                                 const totalEncaisse = sortedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
                                 return (
-                                    <div key={t.id} style={{ padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
+                                    <div key={t.id} style={{ padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid var(--color-caisse-bg)' : 'none' }}>
                                         {/* En-tête de la commande (Famille) */}
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 {t.has_crm && (
-                                                    <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                        <UserCheck size={14} color="#3B82F6" />
+                                                    <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-badge-crm-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <UserCheck size={14} color="var(--color-badge-crm-text)" />
                                                     </div>
                                                 )}
                                                 <div>
@@ -742,7 +774,7 @@ export default function CaisseClient({
                                             flexDirection: 'column', 
                                             gap: '6px', 
                                             paddingLeft: '16px', 
-                                            borderLeft: '2px solid #FDE8DB', 
+                                            borderLeft: '2px solid var(--color-caisse-border)', 
                                             marginLeft: t.has_crm ? '13px' : '6px', 
                                             marginTop: '6px' 
                                         }}>
@@ -757,12 +789,12 @@ export default function CaisseClient({
                                                         </span>
                                                         
                                                         {p.label_type === 'ACOMPTE' && (
-                                                            <span style={{ background: '#FEF3C7', color: '#D97706', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                            <span style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                                 Acompte
                                                             </span>
                                                         )}
                                                         {p.label_type === 'SOLDE' && (
-                                                            <span style={{ background: '#D1FAE5', color: '#059669', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                            <span style={{ background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                                 Solde
                                                             </span>
                                                         )}
@@ -783,11 +815,11 @@ export default function CaisseClient({
                                 // Affichage classique s'il n'y a qu'un seul paiement (ou vente vitrine)
                                 const p = t.payments && t.payments[0];
                                 return (
-                                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid #FDF8F3' : 'none' }}>
+                                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: i < initialHistory.length - 1 ? '1px solid var(--color-caisse-bg)' : 'none' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             {t.has_crm && (
-                                                <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <UserCheck size={14} color="#3B82F6" />
+                                                <div title="Client CRM identifié" style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-badge-crm-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <UserCheck size={14} color="var(--color-badge-crm-text)" />
                                                 </div>
                                             )}
                                             <div>
@@ -799,12 +831,12 @@ export default function CaisseClient({
                                                         </span>
                                                     )}
                                                     {p && p.label_type === 'ACOMPTE' && (
-                                                        <span style={{ background: '#FEF3C7', color: '#D97706', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                        <span style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                             Acompte
                                                         </span>
                                                     )}
                                                     {p && p.label_type === 'SOLDE' && (
-                                                        <span style={{ background: '#D1FAE5', color: '#059669', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                        <span style={{ background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                             Solde
                                                         </span>
                                                     )}
@@ -835,13 +867,13 @@ export default function CaisseClient({
             </div>
 
             {/* ====== COLONNE DROITE (Panier) ====== */}
-            <div className="caisse-cart-column" style={{ background: 'white', borderLeft: '1.5px solid #FDE8DB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            <div className="caisse-cart-column" style={{ background: 'white', borderLeft: '1.5px solid var(--color-caisse-border)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 
                 {/* Header Panier */}
-                <div style={{ padding: '20px', borderBottom: '1px solid #FDE8DB', background: '#FAFAFA' }}>
+                <div style={{ padding: '20px', borderBottom: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <ShoppingBag size={20} color="#D97757" /> Panier en cours
+                            <ShoppingBag size={20} color="var(--color-caisse-accent)" /> Panier en cours
                         </h2>
                         {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} isFloating={true} />}
                     </div>
@@ -881,58 +913,15 @@ export default function CaisseClient({
                                     </div>
                                     
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', background: '#FDF8F3', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid #FDE8DB' }}>
-                                            <button 
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    line.qty > 1 ? updateQty(idx, -1) : removeItem(idx);
-                                                }}
-                                                style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderRight: '1.5px solid #FDE8DB', transition: 'all 0.1s' }}
-                                                onMouseDown={e => e.currentTarget.style.background = '#FEF3EC'}
-                                                onMouseUp={e => e.currentTarget.style.background = 'white'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                                            >
-                                                {line.qty > 1 ? <Minus size={20} /> : <X size={20} color="#EF4444" />}
-                                            </button>
-                                            
-                                            <TouchInput
-                                                value={line.qty.toString()}
-                                                onChange={(val) => {
-                                                    const newQty = Math.max(1, parseInt(val) || 1)
-                                                    setPanier(prev => prev.map((item, i) => i === idx ? { ...item, qty: newQty } : item))
-                                                }}
-                                                title={`Quantité : ${line.nom}`}
-                                                allowDecimal={false}
-                                                hideIcon={true}
-                                                style={{ 
-                                                    minHeight: '44px', 
-                                                    border: 'none', 
-                                                    background: 'transparent',
-                                                    width: '56px',
-                                                    justifyContent: 'center',
-                                                    fontSize: '1.1rem',
-                                                    borderRadius: 0
-                                                }}
-                                            />
-
-                                            <button 
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    updateQty(idx, 1);
-                                                }}
-                                                style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#C4836A', borderLeft: '1.5px solid #FDE8DB', transition: 'all 0.1s' }}
-                                                onMouseDown={e => e.currentTarget.style.background = '#FEF3EC'}
-                                                onMouseUp={e => e.currentTarget.style.background = 'white'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                                            >
-                                                <Plus size={20} />
-                                            </button>
-                                        </div>
-                                        <div style={{ width: '70px', textAlign: 'right', fontWeight: 700, fontSize: '0.9rem', color: '#2D1B0E' }}>
+                                        <CartQuantityButton 
+                                            qty={line.qty} 
+                                            productName={line.nom}
+                                            onChange={(newQty) => {
+                                                setPanier(prev => prev.map((item, i) => i === idx ? { ...item, qty: newQty } : item))
+                                            }}
+                                            onRemove={() => removeItem(idx)}
+                                        />
+                                        <div style={{ width: '80px', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: '#2D1B0E' }}>
                                             {(line.qty * line.prix).toLocaleString('fr-FR')} {currency}
                                         </div>
                                     </div>
@@ -943,20 +932,20 @@ export default function CaisseClient({
                 </div>
 
                 {/* Footer Panier */}
-                <div style={{ padding: '20px', borderTop: '1px solid #FDE8DB', background: '#FAFAFA' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#6B7280' }}>
+                <div style={{ padding: '20px', borderTop: '1px solid #FDE8DB', background: 'var(--color-caisse-well)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-muted)' }}>
                         <span>Sous-total</span>
                         <span style={{ fontWeight: 600, color: '#2D1B0E' }}>{sousTotal.toLocaleString('fr-FR')} {currency}</span>
                     </div>
                     {acompte > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#10B981' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-badge-success-accent)' }}>
                             <span>Acompte versé</span>
                             <span style={{ fontWeight: 600 }}>- {acompte.toLocaleString('fr-FR')} {currency}</span>
                         </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '1.4rem', color: '#2D1B0E', fontWeight: 800, marginTop: '12px', paddingTop: '12px', borderTop: '1.5px dashed #E5E7EB' }}>
                         <span>À encaisser</span>
-                        <span style={{ color: totalAEncaisser > 0 ? '#D97757' : '#10B981' }}>{totalAEncaisser.toLocaleString('fr-FR')} {currency}</span>
+                        <span style={{ color: totalAEncaisser > 0 ? 'var(--color-caisse-accent)' : 'var(--color-badge-success-accent)' }}>{totalAEncaisser.toLocaleString('fr-FR')} {currency}</span>
                     </div>
 
                     {/* Modes de paiement — Ventilation (masqué si commande déjà soldée) */}
@@ -970,87 +959,132 @@ export default function CaisseClient({
 
                             return (
                                 <div key={method} style={{
-                                    display: 'flex', alignItems: 'center', gap: '8px', background: 'white',
-                                    padding: '10px', borderRadius: '12px', border: amount > 0 ? '2px solid #D97757' : '1px solid #E5E7EB'
+                                    background: 'white',
+                                    padding: '12px',
+                                    borderRadius: '16px',
+                                    border: amount > 0 ? '1.5px solid var(--color-caisse-accent)' : '1.5px solid var(--color-border)',
+                                    boxShadow: 'var(--shadow-sm)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                    transition: 'all 0.2s ease'
                                 }}>
-                                    {/* Dropdown mode de paiement */}
-                                    <select
-                                        value={method}
-                                        onChange={(e) => {
-                                            const newMethod = e.target.value
-                                            setActivePayments(prev => {
-                                                const { [method]: val, ...rest } = prev
-                                                return { ...rest, [newMethod]: val }
-                                            })
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            padding: '6px 8px',
-                                            borderRadius: '8px',
-                                            border: '1px solid #E5E7EB',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            cursor: 'pointer',
-                                            background: 'white'
-                                        }}
-                                    >
-                                        {PAYMENT_METHODS.map(m => (
-                                            <option key={m.id} value={m.id}>{m.label}</option>
-                                        ))}
-                                    </select>
-
-                                    {/* Input montant */}
-                                    <div style={{ flex: 0.8 }}>
-                                        <TouchInput
-                                            value={amount.toString()}
-                                            onChange={(val) => {
-                                                const v = Math.max(0, parseFloat(val) || 0)
-                                                setActivePayments(prev => ({ ...prev, [method]: v }))
+                                    {/* Top Row: Method Selector & Delete Button */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <TouchSelect
+                                                value={method}
+                                                direction="up"
+                                                options={PAYMENT_METHODS.map(m => ({
+                                                    value: m.id,
+                                                    label: m.label,
+                                                    icon: m.id === 'Espèces' ? '💵' : '📱'
+                                                }))}
+                                                title="Mode de paiement"
+                                                onChange={(newMethod) => {
+                                                    setActivePayments(prev => {
+                                                        const { [method]: val, ...rest } = prev
+                                                        return { ...rest, [newMethod]: val }
+                                                    })
+                                                }}
+                                                style={{
+                                                    minHeight: '44px',
+                                                    background: 'var(--color-well)',
+                                                    border: '1.5px solid var(--color-border)',
+                                                    borderRadius: '12px',
+                                                    padding: '0 12px',
+                                                    fontSize: '0.9rem',
+                                                    fontWeight: 700
+                                                }}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setActivePayments(prev => {
+                                                    const { [method]: _, ...rest } = prev
+                                                    return rest
+                                                })
                                             }}
-                                            allowDecimal={true}
-                                            placeholder="0"
+                                            aria-label={`Supprimer le mode de paiement ${methodInfo.label}`}
                                             style={{
-                                                minHeight: '36px',
+                                                background: 'var(--color-badge-danger-bg)',
                                                 border: 'none',
-                                                background: '#F9FAFB',
-                                                fontSize: '0.9rem',
-                                                textAlign: 'right'
+                                                color: 'var(--color-badge-danger-accent)',
+                                                width: '44px',
+                                                height: '44px',
+                                                borderRadius: '12px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer',
+                                                fontSize: '1.1rem',
+                                                fontWeight: 800,
+                                                transition: 'all 0.15s'
                                             }}
-                                        />
+                                            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+                                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                                        >
+                                            ✕
+                                        </button>
                                     </div>
 
-                                    {/* Bouton MAX */}
-                                    <button
-                                        onClick={() => {
-                                            const otherTotal = Object.entries(activePayments)
-                                                .filter(([key]) => key !== method)
-                                                .reduce((s, [_, v]) => s + v, 0)
-                                            const needed = Math.max(0, totalAEncaisser - otherTotal)
-                                            setActivePayments(prev => ({ ...prev, [method]: needed }))
-                                        }}
-                                        style={{
-                                            background: '#FEF3EC', border: 'none', color: '#D97757',
-                                            padding: '6px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 900, cursor: 'pointer', whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        MAX
-                                    </button>
+                                    {/* Bottom Row: Amount TouchInput & MAX Button */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <TouchInput
+                                                value={amount.toString()}
+                                                onChange={(val) => {
+                                                    const v = Math.max(0, parseFloat(val) || 0)
+                                                    setActivePayments(prev => ({ ...prev, [method]: v }))
+                                                }}
+                                                allowDecimal={true}
+                                                placeholder="0"
+                                                title={`Montant pour ${methodInfo.label}`}
+                                                style={{
+                                                    minHeight: '44px',
+                                                    border: '1.5px solid var(--color-border)',
+                                                    background: 'white',
+                                                    fontSize: '1rem',
+                                                    textAlign: 'right',
+                                                    borderRadius: '12px',
+                                                    paddingRight: '12px'
+                                                }}
+                                            />
+                                        </div>
 
-                                    {/* Bouton supprimer */}
-                                    <button
-                                        onClick={() => {
-                                            setActivePayments(prev => {
-                                                const { [method]: _, ...rest } = prev
-                                                return rest
-                                            })
-                                        }}
-                                        style={{
-                                            background: '#FEE2E2', border: 'none', color: '#DC2626',
-                                            padding: '6px 8px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        ✕
-                                    </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const otherTotal = Object.entries(activePayments)
+                                                    .filter(([key]) => key !== method)
+                                                    .reduce((s, [_, v]) => s + v, 0)
+                                                const needed = Math.max(0, totalAEncaisser - otherTotal)
+                                                setActivePayments(prev => ({ ...prev, [method]: needed }))
+                                            }}
+                                            aria-label={`Attribuer le montant maximum restant pour ${methodInfo.label}`}
+                                            style={{
+                                                background: 'var(--color-badge-warning-bg)',
+                                                border: 'none',
+                                                color: 'var(--color-badge-warning-text)',
+                                                padding: '0 16px',
+                                                height: '44px',
+                                                borderRadius: '12px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 800,
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap',
+                                                transition: 'all 0.15s',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+                                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                                        >
+                                            MAX
+                                        </button>
+                                    </div>
                                 </div>
                             )
                         })}
@@ -1066,16 +1100,23 @@ export default function CaisseClient({
                                     }
                                 }}
                                 style={{
-                                    padding: '10px',
-                                    background: '#F0F9FF',
-                                    border: '2px dashed #3B82F6',
-                                    borderRadius: '12px',
-                                    color: '#1E40AF',
+                                    padding: '12px',
+                                    background: 'transparent',
+                                    border: '2px dashed var(--color-primary-container)',
+                                    borderRadius: '16px',
+                                    color: 'var(--color-primary)',
                                     fontSize: '0.85rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.2s',
+                                    textAlign: 'center',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px'
                                 }}
+                                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                             >
                                 + Ajouter un mode de paiement
                             </button>
@@ -1084,7 +1125,7 @@ export default function CaisseClient({
 
                     {/* Reste à percevoir (Alerte si non soldé) */}
                     {resteAPercevoir > 0 && totalAEncaisser > 0 && (
-                        <div style={{ marginBottom: '20px', padding: '12px', borderRadius: '12px', background: '#FEF3C7', color: '#92400E', fontSize: '0.85rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ marginBottom: '20px', padding: '12px', borderRadius: '12px', background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Reste à percevoir :</span>
                             <span style={{ fontWeight: 800 }}>{resteAPercevoir.toLocaleString('fr-FR')} {currency}</span>
                         </div>
@@ -1093,12 +1134,12 @@ export default function CaisseClient({
                     {/* Monnaie à rendre — Apparaît seulement en cas de surplus */}
                     {monnaieARendre > 0 && (
                         <div style={{ 
-                            marginBottom: '20px', background: '#ECFDF5', padding: '16px', borderRadius: '16px', 
-                            border: '1.5px solid #10B981', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            marginBottom: '20px', background: 'var(--color-badge-success-soft-bg)', padding: '16px', borderRadius: '16px', 
+                            border: '1.5px solid var(--color-badge-success-accent)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                             boxShadow: '0 4px 12px rgba(16, 185, 129, 0.1)'
                         }}>
-                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#065F46' }}>Monnaie à rendre</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10B981' }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-badge-success-text)' }}>Monnaie à rendre</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-badge-success-accent)' }}>
                                 {monnaieARendre.toLocaleString('fr-FR')} {currency}
                             </div>
                         </div>
@@ -1108,13 +1149,13 @@ export default function CaisseClient({
                     {totalAEncaisser === 0 && acompte > 0 && (
                         <div style={{
                             marginBottom: '16px', padding: '14px 16px', borderRadius: '14px',
-                            background: '#ECFDF5', border: '1.5px solid #10B981',
+                            background: 'var(--color-badge-success-soft-bg)', border: '1.5px solid var(--color-badge-success-accent)',
                             display: 'flex', alignItems: 'center', gap: '10px'
                         }}>
-                            <Info size={18} color="#10B981" style={{ flexShrink: 0 }} />
+                            <Info size={18} color="var(--color-badge-success-accent)" style={{ flexShrink: 0 }} />
                             <div>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#065F46' }}>Commande intégralement réglée</div>
-                                <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '2px' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-badge-success-text)' }}>Commande intégralement réglée</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-badge-success-accent)', marginTop: '2px' }}>
                                     Acompte versé à la prise : <strong>{acompte.toLocaleString('fr-FR')} {currency}</strong>
                                 </div>
                             </div>
@@ -1129,11 +1170,14 @@ export default function CaisseClient({
                             opacity: (!canSubmit || isSubmitting) ? 0.5 : 1
                         }}
                     >
-                        {isSubmitting
-                            ? <Loader2 className="animate-spin" size={24} />
-                            : totalAEncaisser === 0
-                                ? 'Confirmer la remise'
-                                : `Encaisser ${totalAEncaisser.toLocaleString('fr-FR')} ${currency}`
+                        {isSubmitting ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                <Loader2 className="animate-spin" size={24} />
+                                <span>Paiement en cours…</span>
+                            </div>
+                        ) : totalAEncaisser === 0
+                            ? 'Confirmer la remise'
+                            : `Encaisser ${totalAEncaisser.toLocaleString('fr-FR')} ${currency}`
                         }
                     </button>
                     {optimisticPanier.length > 0 && (
@@ -1155,6 +1199,8 @@ export default function CaisseClient({
                 organizationId={organizationId}
                 currency={currency}
             />
+
+            {renderFeedback()}
 
             <style>{`
                 .caisse-layout-container {
@@ -1180,6 +1226,72 @@ export default function CaisseClient({
                 .caisse-cart-column {
                     width: 380px;
                 }
+
+                @media (min-width: 901px) {
+                    /* Laisser le navigateur calculer la hauteur de main via son flex: 1 inline */
+                    main:has(.caisse-layout-container) {
+                        overflow-y: hidden !important;
+                        padding: 16px !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        height: auto !important; /* Évite le conflit de hauteur */
+                    }
+
+                    /* Forcer les wrappers de SessionMaster à s'étendre verticalement sans dépasser */
+                    main:has(.caisse-layout-container) > div {
+                        flex: 1 !important;
+                        height: 100% !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        min-height: 0 !important;
+                    }
+
+                    main:has(.caisse-layout-container) > div > div {
+                        flex: 1 !important;
+                        height: 100% !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        min-height: 0 !important;
+                    }
+
+                    .caisse-layout-container {
+                        height: 100% !important;
+                        min-height: 0 !important;
+                        flex: 1 !important;
+                    }
+
+                    /* Bloc 2 : Faire défiler uniquement le bloc central */
+                    .caisse-main-column {
+                        height: 100% !important;
+                        overflow-y: auto !important;
+                        min-height: 0 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+
+                    /* Empêcher Flexbox de compresser verticalement les cartes de la colonne centrale */
+                    .caisse-main-column > * {
+                        flex-shrink: 0 !important;
+                    }
+
+                    /* Bloc 3 : Colonne panier figée */
+                    .caisse-cart-column {
+                        height: 100% !important;
+                        min-height: 0 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                    }
+
+                    /* Figer le header et le footer du panier, et ne laisser scroller que les articles */
+                    .caisse-cart-column > div:first-child,
+                    .caisse-cart-column > div:last-child {
+                        flex-shrink: 0 !important;
+                    }
+                    .caisse-cart-column > div:nth-child(2) {
+                        flex-shrink: 1 !important;
+                        min-height: 0 !important;
+                    }
+                }
                 
                 @media (max-width: 900px) {
                     .caisse-layout-container {
@@ -1193,7 +1305,7 @@ export default function CaisseClient({
                     .caisse-cart-column {
                         width: 100% !important;
                         border-left: none !important;
-                        border-top: 1.5px solid #FDE8DB !important;
+                        border-top: 1.5px solid var(--color-caisse-border) !important;
                         padding-bottom: 80px !important;
                     }
                 }

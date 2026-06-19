@@ -41,15 +41,15 @@ export default function NumPad({
         }
 
         setValue(newVal)
-    }, [value, maxLength])
+    }, [isPassword, isPhone, maxLength, value])
 
     const handleDelete = useCallback(() => {
         setValue(prev => prev.slice(0, -1))
     }, [])
 
-    const handleClear = useCallback(() => {
+    const handleClear = () => {
         setValue('')
-    }, [])
+    }
 
     // Support physical keyboard
     useEffect(() => {
@@ -63,7 +63,7 @@ export default function NumPad({
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [handleNumber, handleDelete, onConfirm, onCancel, value])
+    }, [handleNumber, handleDelete, onConfirm, onCancel, value, isPhone])
 
     const displayValue = isPassword
         ? '•'.repeat(value.length)
@@ -91,7 +91,7 @@ export default function NumPad({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '24px',
-                animation: 'scaleIn 0.3s cubic-bezier(.22, .68, 0, 1.2)'
+                animation: 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', margin: 0, fontFamily: 'var(--font-display)' }}>{title}</h3>

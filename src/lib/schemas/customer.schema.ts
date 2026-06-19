@@ -17,7 +17,7 @@ export const CustomerSchema = z.object({
     .transform(normalizeFrenchPhone)
     .refine((val) => val.length === 10, "Numéro de téléphone invalide"),
   email: z.string().email("Email invalide").optional().or(z.literal("")),
-  organization_id: z.string().uuid().optional(),
+  birth_date: z.string().optional().nullable().or(z.literal("")),
 });
 
 export type CustomerFormValues = z.infer<typeof CustomerSchema>;

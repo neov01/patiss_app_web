@@ -1,11 +1,27 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireOrganizationContext } from "@/lib/auth/organization-context";
+import type { Json } from "@/types/supabase";
 import { CustomerSchema, CustomerFormValues } from "../schemas/customer.schema";
 import { revalidatePath } from "next/cache";
 
+type CustomerSearchResult = {
+  id: string;
+  name: string;
+  phone: string | null;
+  loyalty_points: number | null;
+};
+
+function uniqueCustomers(results: CustomerSearchResult[]) {
+  const byId = new Map<string, CustomerSearchResult>();
+  for (const customer of results) {
+    byId.set(customer.id, customer);
+  }
+  return Array.from(byId.values());
+}
+
 export async function createOrUpdateCustomer(data: CustomerFormValues) {
-  const supabase = await createClient();
+  const { supabase, organizationId } = await requireOrganizationContext();
 
   // Validate the data against our Zod schema
   const parsed = CustomerSchema.safeParse(data);
@@ -13,18 +29,16 @@ export async function createOrUpdateCustomer(data: CustomerFormValues) {
     return { error: parsed.error.format() };
   }
 
-  const { name, phone, email, organization_id } = parsed.data;
+  const { name, phone, email, birth_date } = parsed.data;
 
-  // Insert or Upsert customer based on phone number (matching phone for same org)
-  // But wait, standard upsert might need an explicit constraint. 
-  // Let's do a simple lookup first.
   const { data: existingCustomer, error: searchError } = await supabase
     .from("customers")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("phone", phone)
-    .single();
+    .maybeSingle();
 
-  if (searchError && searchError.code !== 'PGRST116') {
+  if (searchError) {
     return { error: searchError.message };
   }
 
@@ -34,8 +48,9 @@ export async function createOrUpdateCustomer(data: CustomerFormValues) {
     // Update existing customer
     const { error: updateError } = await supabase
       .from("customers")
-      .update({ name, email })
-      .eq("id", customerId);
+      .update({ name, email, birth_date: birth_date || null })
+      .eq("id", customerId)
+      .eq("organization_id", organizationId);
 
     if (updateError) return { error: updateError.message };
   } else {
@@ -47,7 +62,8 @@ export async function createOrUpdateCustomer(data: CustomerFormValues) {
           name,
           phone,
           email: email || null,
-          organization_id: organization_id as string, // the POS should provide this, or we could fetch it from the server session
+          birth_date: birth_date || null,
+          organization_id: organizationId,
         },
       ])
       .select("id")
@@ -64,26 +80,43 @@ export async function createOrUpdateCustomer(data: CustomerFormValues) {
 }
 
 export async function searchCustomers(query: string) {
-  if (!query || query.length < 2) return { data: [] };
-  
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
+  const trimmedQuery = query.trim().slice(0, 80);
+  if (trimmedQuery.length < 2) return { data: [] };
+
+  const { supabase, organizationId } = await requireOrganizationContext();
+
+  const { data: nameMatches, error: nameError } = await supabase
     .from("customers")
     .select("id, name, phone, loyalty_points")
-    .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
-    .limit(10);
+    .eq("organization_id", organizationId)
+    .ilike("name", `%${trimmedQuery}%`)
+    .limit(5);
 
-  if (error) return { error: error.message };
-  
-  return { data };
+  if (nameError) return { error: nameError.message };
+
+  const phoneQuery = trimmedQuery.replace(/\D/g, "");
+  let phoneMatches: CustomerSearchResult[] = [];
+
+  if (phoneQuery.length >= 2) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, name, phone, loyalty_points")
+      .eq("organization_id", organizationId)
+      .ilike("phone", `%${phoneQuery}%`)
+      .limit(5);
+
+    if (error) return { error: error.message };
+    phoneMatches = data ?? [];
+  }
+
+  return { data: uniqueCustomers([...(nameMatches ?? []), ...phoneMatches]).slice(0, 10) };
 }
 
 export async function findCustomerByPhone(rawPhone: string) {
   const digits = rawPhone.replace(/\D/g, '')
   if (digits.length < 8) return { data: null }
 
-  const supabase = await createClient()
+  const { supabase, organizationId } = await requireOrganizationContext()
 
   // Essayer plusieurs normalisations pour couvrir les formats stockés en DB
   let stripped = digits
@@ -95,6 +128,7 @@ export async function findCustomerByPhone(rawPhone: string) {
   const { data, error } = await supabase
     .from('customers')
     .select('id, name, phone, loyalty_points')
+    .eq('organization_id', organizationId)
     .in('phone', candidates)
     .limit(1)
     .maybeSingle()
@@ -104,11 +138,12 @@ export async function findCustomerByPhone(rawPhone: string) {
 }
 
 export async function getCustomerOrders(customerId: string) {
-  const supabase = await createClient();
+  const { supabase, organizationId } = await requireOrganizationContext();
   const { data, error } = await supabase
     .from("orders")
     .select("id, order_number, total_amount, payment_status, status, created_at")
     .eq("customer_id", customerId)
+    .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -120,11 +155,12 @@ export async function updateCustomerProfile(
   customerId: string,
   data: { name: string; phone?: string; email?: string | null }
 ) {
-  const supabase = await createClient();
+  const { supabase, organizationId } = await requireOrganizationContext();
   const { error } = await supabase
     .from("customers")
     .update({ name: data.name.trim(), phone: data.phone?.trim() || null, email: data.email?.trim() || null })
-    .eq("id", customerId);
+    .eq("id", customerId)
+    .eq("organization_id", organizationId);
   if (error) return { error: error.message };
   revalidatePath("/dashboard/clients");
   return { success: true };
@@ -132,23 +168,25 @@ export async function updateCustomerProfile(
 
 export async function updateCustomerPreferences(
   customerId: string,
-  preferences: Record<string, any>
+  preferences: Json
 ) {
-  const supabase = await createClient();
+  const { supabase, organizationId } = await requireOrganizationContext();
   const { error } = await supabase
     .from("customers")
     .update({ preferences })
-    .eq("id", customerId);
+    .eq("id", customerId)
+    .eq("organization_id", organizationId);
   if (error) return { error: error.message };
   return { success: true };
 }
 
 export async function deleteCustomer(customerId: string) {
-  const supabase = await createClient();
+  const { supabase, organizationId } = await requireOrganizationContext();
   const { error } = await supabase
     .from("customers")
     .delete()
-    .eq("id", customerId);
+    .eq("id", customerId)
+    .eq("organization_id", organizationId);
   if (error) return { error: error.message };
   revalidatePath("/dashboard/clients");
   return { success: true };

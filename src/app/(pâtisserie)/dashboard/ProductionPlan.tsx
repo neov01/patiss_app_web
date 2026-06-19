@@ -1,6 +1,27 @@
 import { createClient } from '@/lib/supabase/server'
 import { CheckCircle2, Package } from 'lucide-react'
 
+type ProductionIngredient = {
+    id: string
+    name: string
+    unit: string
+    current_stock: number
+}
+
+type ProductionRecipeIngredient = {
+    quantity_required: number
+    ingredients: ProductionIngredient | null
+}
+
+type ProductionOrderItem = {
+    quantity: number
+    products: {
+        id: string
+        name: string
+        product_ingredients: ProductionRecipeIngredient[]
+    } | null
+}
+
 export default async function ProductionPlan({
     organizationId,
     startDate
@@ -40,7 +61,7 @@ export default async function ProductionPlan({
             )
         `)
         .eq('organization_id', organizationId)
-        .in('status', ['pending', 'production'])
+        .in('status', ['pending', 'production', 'confirmed', 'in_preparation'])
         .gte('pickup_date', startDate)
         .lt('pickup_date', endDate)
 
@@ -49,7 +70,7 @@ export default async function ProductionPlan({
             <div style={{ marginTop: '24px', padding: '24px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
                 <CheckCircle2 color="#10b981" size={48} style={{ margin: '0 auto 16px' }} />
                 <h3 style={{ fontSize: '1.2rem', color: '#374151' }}>Aucune production urgente</h3>
-                <p style={{ color: '#6b7280' }}>Il n'y a pas de commandes en attente pour cette période.</p>
+                <p style={{ color: '#6b7280' }}>Il n&apos;y a pas de commandes en attente pour cette période.</p>
             </div>
         )
     }
@@ -65,8 +86,10 @@ export default async function ProductionPlan({
         currentStock: number 
     }> = {}
 
-    orders.forEach(order => {
-        order.order_items.forEach((item: any) => {
+    const productionOrders = (orders ?? []) as unknown as Array<{ order_items: ProductionOrderItem[] }>
+
+    productionOrders.forEach(order => {
+        order.order_items.forEach((item: ProductionOrderItem) => {
             const product = item.products
             if (!product) return
 
@@ -77,7 +100,7 @@ export default async function ProductionPlan({
             productsToMake[product.id].quantity += item.quantity
 
             // Agréger les ingrédients
-            product.product_ingredients.forEach((ri: any) => {
+            product.product_ingredients.forEach((ri) => {
                 const ingredient = ri.ingredients
                 if (!ingredient) return
 
@@ -102,7 +125,7 @@ export default async function ProductionPlan({
     return (
         <div style={{ marginTop: '24px' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Package size={20} color="#C4836A" />
+                <Package size={20} color="var(--color-rose-dark)" />
                 Plan de Production ({new Date(startDate).toLocaleDateString('fr-FR')})
             </h2>
 

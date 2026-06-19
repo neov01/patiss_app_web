@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-12T00:00:00.000Z",
+  "title": "Design System: Pâtiss'App",
+  "extensions": {
+    "colorMeta": {
+      "atelier-terracotta": {
+        "role": "primary",
+        "displayName": "Atelier Terracotta",
+        "canonical": "#815431",
+        "tonalRamp": ["#2B1606", "#4A2A12", "#65401F", "#815431", "#A26E49", "#C08A63", "#DFC0A8", "#F7E8DC"]
+      },
+      "sage-register": {
+        "role": "secondary",
+        "displayName": "Sage Register",
+        "canonical": "#4B6450",
+        "tonalRamp": ["#0A1A0F", "#1D3022", "#344C39", "#4B6450", "#6F8874", "#9EB8A3", "#CDEAD0", "#EDF8EE"]
+      },
+      "teal-context": {
+        "role": "tertiary",
+        "displayName": "Teal Context",
+        "canonical": "#2F6671",
+        "tonalRamp": ["#001F25", "#00343C", "#114E58", "#2F6671", "#699EAA", "#99CFDC", "#B5EBF8", "#EAFBFF"]
+      },
+      "app-canvas": {
+        "role": "neutral",
+        "displayName": "App Canvas",
+        "canonical": "#EDE6DC",
+        "tonalRamp": ["#1A1C1A", "#51443C", "#83746B", "#D5C3B8", "#DDD5CB", "#E5DDD3", "#EDE6DC", "#F5EEE4"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1A1C1A",
+        "tonalRamp": ["#000000", "#101210", "#1A1C1A", "#343834", "#656C65", "#9AA29A", "#D6DCD6", "#FFFFFF"]
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Danger",
+        "canonical": "#BA1A1A",
+        "tonalRamp": ["#410002", "#690005", "#93000A", "#BA1A1A", "#DE3730", "#FF897D", "#FFDAD6", "#FFF5F3"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Major report headers and large operational summaries."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles, modal titles, and workflow introductions."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, grouped controls, and form sections."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default operational copy, forms, table text, and helper text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Compact status chips, metadata, and table labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "resting-lift",
+        "value": "0 2px 8px rgba(45,27,14,0.08), 0 1px 3px rgba(45,27,14,0.06)",
+        "purpose": "Default raised operational cards."
+      },
+      {
+        "name": "interactive-lift",
+        "value": "0 8px 24px rgba(45,27,14,0.12), 0 4px 8px rgba(45,27,14,0.08)",
+        "purpose": "Hover and touch feedback."
+      },
+      {
+        "name": "modal-lift",
+        "value": "0 16px 48px rgba(45,27,14,0.16), 0 8px 16px rgba(45,27,14,0.10)",
+        "purpose": "Dialogs, drawers, and blocking overlays."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-standard",
+        "value": "150ms-250ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default hover, focus, open, close, and touch feedback."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "No transform choreography; preserve instant state changes.",
+        "purpose": "Accessibility fallback for motion-sensitive users."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-nav",
+        "value": "767px"
+      },
+      {
+        "name": "desktop-sidebar",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action in a focused workflow.",
+      "html": "<button class=\"ds-btn-primary\">Nouvelle commande</button>",
+      "css": ".ds-btn-primary{height:48px;padding:0 28px;border:0;border-radius:9999px;background:var(--color-primary,#815431);color:#fff;font:600 14px/20px Inter,system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:background .2s cubic-bezier(.4,0,.2,1),transform .2s cubic-bezier(.4,0,.2,1),box-shadow .2s cubic-bezier(.4,0,.2,1)}.ds-btn-primary:hover{background:var(--color-primary-container,#C08A63);transform:translateY(-1px);box-shadow:0 8px 24px rgba(45,27,14,.12),0 4px 8px rgba(45,27,14,.08)}.ds-btn-primary:focus-visible{outline:2px solid #1A1C1A;outline-offset:2px}.ds-btn-primary:active{transform:scale(.98)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A safe secondary action with calm sage emphasis.",
+      "html": "<button class=\"ds-btn-secondary\">Filtrer</button>",
+      "css": ".ds-btn-secondary{height:48px;padding:0 24px;border:0;border-radius:9999px;background:var(--color-secondary-container,#CDEAD0);color:var(--color-secondary,#4B6450);font:600 14px/20px Inter,system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:opacity .2s,transform .2s}.ds-btn-secondary:hover{opacity:.9;transform:translateY(-1px)}.ds-btn-secondary:focus-visible{outline:2px solid #1A1C1A;outline-offset:2px}.ds-btn-secondary:active{transform:scale(.98)}"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A recessed operational field for forms and filters.",
+      "html": "<input class=\"ds-input\" placeholder=\"Filtrer par nom client\" />",
+      "css": ".ds-input{height:48px;width:100%;padding:0 16px;border:1.5px solid transparent;border-radius:12px;background:var(--color-well,#F5EEE4);color:var(--color-text,#1A1C1A);font:500 14px/20px Inter,system-ui,sans-serif;outline:0;transition:background .2s,border-color .2s,box-shadow .2s}.ds-input::placeholder{color:#51443C;opacity:.78}.ds-input:focus{background:#fff;border-color:#83746B;box-shadow:0 2px 8px rgba(45,27,14,.08)}.ds-input:focus-visible{outline:2px solid #1A1C1A;outline-offset:2px}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Compact status with text-first meaning.",
+      "html": "<span class=\"ds-badge ds-badge-ready\">Prêt</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:9999px;font:700 12px/16px Inter,system-ui,sans-serif}.ds-badge-ready{background:#D1FAE5;color:#065F46}.ds-badge-pending{background:#FEF3C7;color:#92400E}.ds-badge-alert{background:#FFDAD6;color:#93000A}"
+    },
+    {
+      "name": "Operational Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A raised surface for a metric, workflow group, or focused panel.",
+      "html": "<article class=\"ds-card\"><p class=\"ds-card-label\">CA aujourd'hui</p><strong class=\"ds-card-value\">125 000 FCFA</strong></article>",
+      "css": ".ds-card{background:#fff;color:#1A1C1A;border:0;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(45,27,14,.08),0 1px 3px rgba(45,27,14,.06)}.ds-card-label{margin:0 0 4px;color:#51443C;font:700 12px/16px Inter,system-ui,sans-serif}.ds-card-value{display:block;color:#1A1C1A;font:800 30px/36px Manrope,Inter,system-ui,sans-serif;letter-spacing:-.02em}"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "The selected destination in the role-aware app shell.",
+      "html": "<a class=\"ds-nav-active\" href=\"#\"><span>▣</span><span>Caisse</span></a>",
+      "css": ".ds-nav-active{display:flex;align-items:center;gap:12px;min-height:48px;padding:12px 20px;border-radius:9999px;background:rgba(75,100,80,.12);color:#4B6450;text-decoration:none;font:700 14px/20px Inter,system-ui,sans-serif}.ds-nav-active:focus-visible{outline:2px solid #1A1C1A;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Artisan Workbench",
+    "overview": "Pâtiss'App is a working interface for pastry teams, not a showroom. It should feel like a clean, reliable counter surface: warm enough to belong in a bakery, structured enough for a rush hour, and tactile enough for tablets and kiosks. The system favors restrained color, clear hierarchy, and familiar product patterns over ornamental pastry tropes.",
+    "keyCharacteristics": [
+      "Dense but breathable layouts for repeated operational use.",
+      "Warm terracotta and sage accents used sparingly for action and state.",
+      "Touch-first controls with stable 48px interaction targets.",
+      "Tonal surfaces over heavy borders; shadows respond to state rather than decorating every panel.",
+      "Clear, non-color-only status language for orders, stock, payments, network, and subscriptions."
+    ],
+    "rules": [
+      {
+        "name": "The Workbench Rule",
+        "body": "Most screens should be neutral surfaces with one clear action color. If more than two saturated accents compete in one viewport, the surface is losing its operational focus.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Must Speak Rule",
+        "body": "Color may reinforce status, but labels, icons, or numbers must carry the meaning. A red chip without text is not acceptable.",
+        "section": "colors"
+      },
+      {
+        "name": "The Counter Distance Rule",
+        "body": "Text must stay readable on a tablet at arm's length. Muted copy cannot drop below accessible contrast just because the surface is warm.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shadow Earns Its Place Rule",
+        "body": "Do not pair a visible border and a wide soft shadow on the same ordinary card. Pick tonal separation, a thin border, or a shadow based on the job.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do prioritize checkout, order creation, stock review, and payment completion over decorative layout.",
+      "Do keep primary actions in Atelier Terracotta and reserve that color for the action the user is most likely to take next.",
+      "Do maintain 48px minimum touch targets for primary buttons, inputs, payment controls, and kiosk actions."
+    ],
+    "donts": [
+      "Don't turn the app into a generic SaaS dashboard with decorative card grids and low-value metrics.",
+      "Don't make it feel like a cold supermarket POS with harsh black, hard edges, and no craft context.",
+      "Don't use low-contrast beige-on-beige text; warmth is not an excuse for poor readability."
+    ]
+  }
+}

@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pâtiss'App - Carrousel Rapport de caisse</title>
+  <style>
+    :root {
+      --primary: #815431;
+      --primary-soft: #C08A63;
+      --secondary: #4B6450;
+      --secondary-soft: #CDEAD0;
+      --bg: #EDE6DC;
+      --well: #F5EEE4;
+      --lift: #FFFFFF;
+      --text: #1A1C1A;
+      --muted: #51443C;
+      --border: rgba(131, 116, 107, 0.28);
+      --warning: #C08A63;
+      --error: #BA1A1A;
+      --shadow: 0 18px 54px rgba(45, 27, 14, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(192, 138, 99, 0.24), transparent 34%),
+        linear-gradient(135deg, #EDE6DC 0%, #F5EEE4 58%, #E0D8CE 100%);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 28px;
+      background: rgba(245, 238, 228, 0.86);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      min-height: 42px;
+      padding: 0 18px;
+      color: #fff;
+      background: var(--primary);
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(129, 84, 49, 0.22);
+    }
+
+    button.secondary {
+      color: var(--secondary);
+      background: var(--secondary-soft);
+      box-shadow: none;
+    }
+
+    button:hover { transform: translateY(-1px); }
+
+    .wrap {
+      padding: 28px;
+    }
+
+    .notes {
+      max-width: 1080px;
+      margin: 0 auto 24px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .note {
+      min-height: 94px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 8px 22px rgba(45, 27, 14, 0.08);
+    }
+
+    .note b {
+      display: block;
+      font-size: 13px;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .note span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .carousel {
+      display: flex;
+      gap: 22px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding: 6px 2px 28px;
+    }
+
+    .slide-card {
+      flex: 0 0 min(82vw, 540px);
+      scroll-snap-align: center;
+    }
+
+    .slide-shell {
+      overflow: hidden;
+      border-radius: 24px;
+      background: var(--lift);
+      box-shadow: var(--shadow);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+    }
+
+    .slide-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 0 4px;
+    }
+
+    .slide-actions span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 760px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .actions { justify-content: flex-start; }
+      .wrap { padding: 18px; }
+      .notes { grid-template-columns: 1fr; }
+      .slide-card { flex-basis: 88vw; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <strong>Pâtiss'App - carrousel “rapport automatique”</strong>
+      <span>Format carré 1080×1080, prêt pour Instagram. Le premier visuel est l'infographie principale.</span>
+    </div>
+    <div class="actions">
+      <button type="button" class="secondary" id="download-first">Télécharger l'infographie</button>
+      <button type="button" id="download-all">Télécharger tout le carrousel</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="notes" aria-label="Analyse du rapport">
+      <div class="note"><b>Structure</b><span>En-tête, total encaissé, modes de paiement, nature des ventes, reste à encaisser, commandes, équipe, stock.</span></div>
+      <div class="note"><b>Promesse</b><span>Le gérant reçoit une lecture claire de sa journée sans ouvrir Excel ni recompter la caisse.</span></div>
+      <div class="note"><b>Preuve</b><span>Le rapport détecte les soldes dus, les paiements par canal, les commandes non finalisées et les alertes de stock.</span></div>
+      <div class="note"><b>Angle vente</b><span>Moins d'oublis, plus de contrôle, décisions plus rapides chaque soir.</span></div>
+    </section>
+
+    <section class="carousel" id="carousel" aria-label="Carrousel Instagram exportable">
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-1" data-file="01-infographie-rapport-patissapp.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Infographie rapport de caisse automatique Pâtiss'App">
+            <defs>
+              <linearGradient id="g1" x1="70" y1="40" x2="990" y2="1040" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#F5EEE4"/>
+                <stop offset="1" stop-color="#E0D8CE"/>
+              </linearGradient>
+              <filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#2D1B0E" flood-opacity="0.14"/>
+              </filter>
+            </defs>
+            <rect width="1080" height="1080" fill="url(#g1)"/>
+            <circle cx="934" cy="140" r="92" fill="#CDEAD0"/>
+            <circle cx="126" cy="950" r="132" fill="#C08A63" opacity="0.16"/>
+            <rect x="72" y="64" width="936" height="952" rx="42" fill="#FFFFFF" filter="url(#shadow1)"/>
+            <text x="118" y="139" fill="#815431" font-size="28" font-weight="900">PÂTISS'APP</text>
+            <text x="118" y="216" fill="#1A1C1A" font-size="64" font-weight="900">Le rapport de caisse</text>
+            <text x="118" y="286" fill="#1A1C1A" font-size="64" font-weight="900">qui travaille après vous</text>
+            <text x="120" y="343" fill="#51443C" font-size="28" font-weight="600">Chaque soir, le gérant reçoit une synthèse claire :</text>
+            <text x="120" y="382" fill="#51443C" font-size="28" font-weight="600">encaissements, soldes dus, commandes, équipe et stock.</text>
+
+            <rect x="118" y="438" width="844" height="144" rx="28" fill="#F5EEE4"/>
+            <text x="154" y="493" fill="#51443C" font-size="23" font-weight="900">TOTAL ENCAISSÉ</text>
+            <text x="154" y="554" fill="#815431" font-size="58" font-weight="900">1 494 000 FCFA</text>
+            <rect x="712" y="472" width="204" height="74" rx="37" fill="#CDEAD0"/>
+            <text x="755" y="520" fill="#4B6450" font-size="24" font-weight="900">Juin 2026</text>
+
+            <g>
+              <rect x="118" y="626" width="254" height="164" rx="26" fill="#FFF8E1"/>
+              <text x="150" y="679" fill="#92400E" font-size="20" font-weight="900">ACOMPTES</text>
+              <text x="150" y="731" fill="#1A1C1A" font-size="38" font-weight="900">1,26M</text>
+              <text x="150" y="764" fill="#51443C" font-size="21" font-weight="700">suivis sans oubli</text>
+
+              <rect x="412" y="626" width="254" height="164" rx="26" fill="#D1FAE5"/>
+              <text x="444" y="679" fill="#065F46" font-size="20" font-weight="900">SOLDES</text>
+              <text x="444" y="731" fill="#1A1C1A" font-size="38" font-weight="900">2,71M</text>
+              <text x="444" y="764" fill="#51443C" font-size="21" font-weight="700">encaissés</text>
+
+              <rect x="706" y="626" width="256" height="164" rx="26" fill="#FDE8E0"/>
+              <text x="738" y="679" fill="#815431" font-size="20" font-weight="900">À RÉCUPÉRER</text>
+              <text x="738" y="731" fill="#1A1C1A" font-size="38" font-weight="900">82 500</text>
+              <text x="738" y="764" fill="#51443C" font-size="21" font-weight="700">signalé au gérant</text>
+            </g>
+
+            <rect x="118" y="844" width="844" height="92" rx="24" fill="#1A1C1A"/>
+            <text x="153" y="901" fill="#FFFFFF" font-size="28" font-weight="900">Transformez la clôture en pilotage quotidien.</text>
+            <text x="118" y="972" fill="#815431" font-size="24" font-weight="900">Rapport automatique • Pâtisserie • Caisse • Stock • Équipe</text>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>01 / Infographie principale</span><button type="button" data-download="slide-1">PNG</button></div>
+      </article>
+
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-2" data-file="02-probleme-cloture.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Problème de clôture de caisse">
+            <rect width="1080" height="1080" fill="#EDE6DC"/>
+            <rect x="82" y="80" width="916" height="920" rx="44" fill="#FFFFFF"/>
+            <text x="126" y="154" fill="#815431" font-size="28" font-weight="900">LE PROBLÈME</text>
+            <text x="126" y="246" fill="#1A1C1A" font-size="70" font-weight="900">À la fermeture,</text>
+            <text x="126" y="322" fill="#1A1C1A" font-size="70" font-weight="900">tout se mélange.</text>
+            <text x="130" y="390" fill="#51443C" font-size="29" font-weight="650">Espèces, mobile money, acomptes, commandes</text>
+            <text x="130" y="432" fill="#51443C" font-size="29" font-weight="650">à livrer, soldes à récupérer, stocks à surveiller.</text>
+            <rect x="126" y="504" width="828" height="116" rx="26" fill="#F5EEE4"/>
+            <text x="166" y="575" fill="#1A1C1A" font-size="34" font-weight="900">Sans rapport clair : erreurs, oublis, stress.</text>
+            <rect x="126" y="670" width="242" height="184" rx="30" fill="#FDE8E0"/>
+            <text x="162" y="733" fill="#815431" font-size="25" font-weight="900">Soldes</text>
+            <text x="162" y="784" fill="#1A1C1A" font-size="46" font-weight="900">oubliés</text>
+            <rect x="419" y="670" width="242" height="184" rx="30" fill="#FEF3C7"/>
+            <text x="455" y="733" fill="#92400E" font-size="25" font-weight="900">Caisse</text>
+            <text x="455" y="784" fill="#1A1C1A" font-size="46" font-weight="900">floue</text>
+            <rect x="712" y="670" width="242" height="184" rx="30" fill="#CDEAD0"/>
+            <text x="748" y="733" fill="#4B6450" font-size="25" font-weight="900">Stock</text>
+            <text x="748" y="784" fill="#1A1C1A" font-size="46" font-weight="900">tardif</text>
+            <text x="126" y="932" fill="#815431" font-size="26" font-weight="900">Pâtiss'App remet de l'ordre dans la journée.</text>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>02 / Douleur métier</span><button type="button" data-download="slide-2">PNG</button></div>
+      </article>
+
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-3" data-file="03-ce-que-le-rapport-resume.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ce que le rapport résume">
+            <rect width="1080" height="1080" fill="#F5EEE4"/>
+            <text x="92" y="132" fill="#815431" font-size="28" font-weight="900">RAPPORT AUTOMATIQUE</text>
+            <text x="92" y="224" fill="#1A1C1A" font-size="68" font-weight="900">Une seule page.</text>
+            <text x="92" y="302" fill="#1A1C1A" font-size="68" font-weight="900">Toute la journée.</text>
+            <g>
+              <rect x="92" y="380" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="132" y="438" fill="#815431" font-size="24" font-weight="900">01</text>
+              <text x="132" y="487" fill="#1A1C1A" font-size="35" font-weight="900">Total encaissé</text>
+              <text x="132" y="524" fill="#51443C" font-size="23" font-weight="650">La vérité de la caisse.</text>
+              <rect x="578" y="380" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="618" y="438" fill="#815431" font-size="24" font-weight="900">02</text>
+              <text x="618" y="487" fill="#1A1C1A" font-size="35" font-weight="900">Paiements</text>
+              <text x="618" y="524" fill="#51443C" font-size="23" font-weight="650">Espèces, Wave, Orange...</text>
+              <rect x="92" y="590" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="132" y="648" fill="#815431" font-size="24" font-weight="900">03</text>
+              <text x="132" y="697" fill="#1A1C1A" font-size="35" font-weight="900">Nature des ventes</text>
+              <text x="132" y="734" fill="#51443C" font-size="23" font-weight="650">Acomptes, soldes, direct.</text>
+              <rect x="578" y="590" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="618" y="648" fill="#815431" font-size="24" font-weight="900">04</text>
+              <text x="618" y="697" fill="#1A1C1A" font-size="35" font-weight="900">Reste à encaisser</text>
+              <text x="618" y="734" fill="#51443C" font-size="23" font-weight="650">Les soldes dus ressortent.</text>
+              <rect x="92" y="800" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="132" y="858" fill="#815431" font-size="24" font-weight="900">05</text>
+              <text x="132" y="907" fill="#1A1C1A" font-size="35" font-weight="900">Commandes</text>
+              <text x="132" y="944" fill="#51443C" font-size="23" font-weight="650">Livrées et en attente.</text>
+              <rect x="578" y="800" width="410" height="172" rx="28" fill="#FFFFFF"/>
+              <text x="618" y="858" fill="#815431" font-size="24" font-weight="900">06</text>
+              <text x="618" y="907" fill="#1A1C1A" font-size="35" font-weight="900">Équipe + stock</text>
+              <text x="618" y="944" fill="#51443C" font-size="23" font-weight="650">Activité et alertes.</text>
+            </g>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>03 / Structure du rapport</span><button type="button" data-download="slide-3">PNG</button></div>
+      </article>
+
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-4" data-file="04-exemple-reste-a-encaisser.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Exemple de reste à encaisser">
+            <rect width="1080" height="1080" fill="#EDE6DC"/>
+            <rect x="72" y="72" width="936" height="936" rx="44" fill="#1A1C1A"/>
+            <text x="124" y="156" fill="#CDEAD0" font-size="28" font-weight="900">EXEMPLE CONCRET</text>
+            <text x="124" y="254" fill="#FFFFFF" font-size="68" font-weight="900">82 500 FCFA</text>
+            <text x="124" y="326" fill="#FFFFFF" font-size="68" font-weight="900">à récupérer.</text>
+            <text x="126" y="392" fill="#F5EEE4" font-size="29" font-weight="650">Le rapport ne confond pas argent encaissé</text>
+            <text x="126" y="434" fill="#F5EEE4" font-size="29" font-weight="650">et argent encore dû par les clients.</text>
+            <rect x="124" y="512" width="832" height="100" rx="24" fill="#F5EEE4"/>
+            <text x="160" y="574" fill="#1A1C1A" font-size="34" font-weight="900">YVIDERO : 45 000 FCFA restants</text>
+            <rect x="124" y="636" width="398" height="92" rx="24" fill="#CDEAD0"/>
+            <text x="160" y="694" fill="#4B6450" font-size="30" font-weight="900">MOUNA : 20 000</text>
+            <rect x="558" y="636" width="398" height="92" rx="24" fill="#CDEAD0"/>
+            <text x="594" y="694" fill="#4B6450" font-size="30" font-weight="900">Andrea : 7 500</text>
+            <rect x="124" y="752" width="398" height="92" rx="24" fill="#FDE8E0"/>
+            <text x="160" y="810" fill="#815431" font-size="30" font-weight="900">SORO : 5 000</text>
+            <rect x="558" y="752" width="398" height="92" rx="24" fill="#FDE8E0"/>
+            <text x="594" y="810" fill="#815431" font-size="30" font-weight="900">AGRO : 5 000</text>
+            <text x="124" y="934" fill="#FFFFFF" font-size="30" font-weight="900">Résultat : le gérant sait qui relancer.</text>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>04 / Preuve par le solde dû</span><button type="button" data-download="slide-4">PNG</button></div>
+      </article>
+
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-5" data-file="05-benefices-gerant.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bénéfices pour le gérant">
+            <rect width="1080" height="1080" fill="#F5EEE4"/>
+            <rect x="86" y="76" width="908" height="928" rx="44" fill="#FFFFFF"/>
+            <text x="132" y="158" fill="#815431" font-size="28" font-weight="900">POUR LE GÉRANT</text>
+            <text x="132" y="250" fill="#1A1C1A" font-size="68" font-weight="900">Moins de doute.</text>
+            <text x="132" y="326" fill="#1A1C1A" font-size="68" font-weight="900">Plus de contrôle.</text>
+            <line x1="132" y1="398" x2="948" y2="398" stroke="#E0D8CE" stroke-width="4" stroke-linecap="round"/>
+            <g>
+              <circle cx="160" cy="482" r="18" fill="#4B6450"/>
+              <text x="206" y="494" fill="#1A1C1A" font-size="35" font-weight="900">Il vérifie la caisse en 2 minutes</text>
+              <text x="206" y="535" fill="#51443C" font-size="24" font-weight="650">Total encaissé et répartition par paiement.</text>
+              <circle cx="160" cy="630" r="18" fill="#4B6450"/>
+              <text x="206" y="642" fill="#1A1C1A" font-size="35" font-weight="900">Il voit les soldes à récupérer</text>
+              <text x="206" y="683" fill="#51443C" font-size="24" font-weight="650">Les commandes partielles deviennent visibles.</text>
+              <circle cx="160" cy="778" r="18" fill="#4B6450"/>
+              <text x="206" y="790" fill="#1A1C1A" font-size="35" font-weight="900">Il suit l'équipe et les stocks</text>
+              <text x="206" y="831" fill="#51443C" font-size="24" font-weight="650">Activité par profil et alertes matières.</text>
+            </g>
+            <rect x="132" y="898" width="816" height="62" rx="31" fill="#815431"/>
+            <text x="258" y="939" fill="#FFFFFF" font-size="27" font-weight="900">Une fonctionnalité qui vend de la sérénité.</text>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>05 / Bénéfices acheteur</span><button type="button" data-download="slide-5">PNG</button></div>
+      </article>
+
+      <article class="slide-card">
+        <div class="slide-shell">
+          <svg id="slide-6" data-file="06-call-to-action.png" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Appel à l'action Pâtiss'App">
+            <defs>
+              <linearGradient id="g6" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#815431"/>
+                <stop offset="1" stop-color="#4B6450"/>
+              </linearGradient>
+            </defs>
+            <rect width="1080" height="1080" fill="url(#g6)"/>
+            <rect x="86" y="80" width="908" height="920" rx="48" fill="#F5EEE4"/>
+            <text x="136" y="164" fill="#815431" font-size="30" font-weight="900">PÂTISS'APP</text>
+            <text x="136" y="276" fill="#1A1C1A" font-size="76" font-weight="900">Et si votre</text>
+            <text x="136" y="356" fill="#1A1C1A" font-size="76" font-weight="900">caisse parlait</text>
+            <text x="136" y="436" fill="#1A1C1A" font-size="76" font-weight="900">toute seule ?</text>
+            <rect x="136" y="514" width="808" height="150" rx="32" fill="#FFFFFF"/>
+            <text x="178" y="573" fill="#51443C" font-size="28" font-weight="700">Rapports automatiques pour pâtisseries :</text>
+            <text x="178" y="622" fill="#1A1C1A" font-size="35" font-weight="900">caisse, commandes, soldes, équipe, stock.</text>
+            <rect x="136" y="724" width="260" height="126" rx="30" fill="#CDEAD0"/>
+            <text x="170" y="800" fill="#4B6450" font-size="34" font-weight="900">Clair</text>
+            <rect x="410" y="724" width="260" height="126" rx="30" fill="#FFFFFF"/>
+            <text x="444" y="800" fill="#815431" font-size="34" font-weight="900">Auto</text>
+            <rect x="684" y="724" width="260" height="126" rx="30" fill="#FDE8E0"/>
+            <text x="718" y="800" fill="#815431" font-size="34" font-weight="900">Rentable</text>
+            <text x="136" y="930" fill="#1A1C1A" font-size="31" font-weight="900">Demandez une démo et voyez votre journée en chiffres.</text>
+          </svg>
+        </div>
+        <div class="slide-actions"><span>06 / Appel à l'action</span><button type="button" data-download="slide-6">PNG</button></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    function svgToPng(svg, fileName) {
+      const clone = svg.cloneNode(true);
+      clone.setAttribute("width", "1080");
+      clone.setAttribute("height", "1080");
+      const serializer = new XMLSerializer();
+      const source = serializer.serializeToString(clone);
+      const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const image = new Image();
+
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1080;
+        canvas.height = 1080;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#EDE6DC";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, 1080, 1080);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((pngBlob) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(pngBlob);
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1200);
+        }, "image/png", 1);
+      };
+
+      image.src = url;
+    }
+
+    function downloadSlide(id) {
+      const svg = document.getElementById(id);
+      svgToPng(svg, svg.dataset.file || `${id}.png`);
+    }
+
+    document.querySelectorAll("[data-download]").forEach((button) => {
+      button.addEventListener("click", () => downloadSlide(button.dataset.download));
+    });
+
+    document.getElementById("download-first").addEventListener("click", () => downloadSlide("slide-1"));
+
+    document.getElementById("download-all").addEventListener("click", () => {
+      const slides = [...document.querySelectorAll("svg[id^='slide-']")];
+      slides.forEach((svg, index) => {
+        setTimeout(() => svgToPng(svg, svg.dataset.file || `${svg.id}.png`), index * 450);
+      });
+    });
+  </script>
+</body>
+</html>

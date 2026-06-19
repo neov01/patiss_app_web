@@ -4,9 +4,29 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ProductModal from './ProductModal'
 
+type CatalogueHeaderProduct = {
+  id: string
+  name: string
+  category: string
+  type: string
+  selling_price: number
+  purchase_cost: number | null
+  track_stock: boolean | null
+  current_stock: number | null
+  image_url: string | null
+  is_active: boolean | null
+}
+
+type CatalogueIngredient = {
+  id: string
+  name: string
+  unit: string
+  cost_per_unit: number
+}
+
 interface CatalogueHeaderProps {
-  products: any[]
-  availableIngredients: any[]
+  products: CatalogueHeaderProduct[]
+  availableIngredients: CatalogueIngredient[]
 }
 
 export default function CatalogueHeader({ products, availableIngredients }: CatalogueHeaderProps) {

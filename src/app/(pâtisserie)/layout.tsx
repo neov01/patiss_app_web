@@ -13,17 +13,29 @@ import { CurrencyProvider } from '@/providers/CurrencyProvider'
 import NetworkStatusBar from '@/components/layout/NetworkWrapper'
 import OfflineProvider from '@/components/providers/OfflineProvider'
 
+type OrganizationRelation = { name: string; currency_symbol: string } | { name: string; currency_symbol: string }[] | null
+
+interface DashboardProfileContext {
+    id: string
+    role_slug: string
+    organization_id: string | null
+    auto_lock_seconds: number | null
+    theme_color: string | null
+    organizations: OrganizationRelation
+}
+
+function getOrganization(organization: OrganizationRelation) {
+    return Array.isArray(organization) ? organization[0] : organization
+}
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const cookieStore = await cookies()
     
-    let kioskUserId = cookieStore.get('kiosk_user_id')?.value
     const kioskToken = cookieStore.get('kiosk_token')?.value
-    if (kioskToken) {
-        const claims = kioskToken.includes('.') ? verifyKioskToken(kioskToken) : null
-        kioskUserId = claims?.userId ?? (kioskToken.includes('.') ? undefined : kioskToken)
-    }
+    const claims = kioskToken ? verifyKioskToken(kioskToken) : null
+    const kioskUserId = claims?.userId
 
     if (!user && !kioskUserId) redirect('/login')
 
@@ -67,18 +79,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const { isExpired } = await checkSubscriptionStatus()
 
     // Fetch active sales session
-    const openSession = await getOpenSession(displayProfile.organization_id!)
-    const currency = (displayProfile.organizations as any)?.currency_symbol || ''
+    const typedDisplayProfile = displayProfile as DashboardProfileContext
+    const organization = getOrganization(typedDisplayProfile.organizations)
+    const openSession = await getOpenSession()
+    const currency = organization?.currency_symbol || ''
 
     return (
         <CurrencyProvider currency={currency}>
         <OfflineProvider>
             <AutoLockProvider
-                autoLockSeconds={(displayProfile as any).auto_lock_seconds ?? 0}
-                themeColor={(displayProfile as any).theme_color}
-                userId={displayProfile.id}
-                role={displayProfile.role_slug}
-                organizationId={displayProfile.organization_id!}
+                autoLockSeconds={typedDisplayProfile.auto_lock_seconds ?? 0}
+                themeColor={typedDisplayProfile.theme_color}
+                userId={typedDisplayProfile.id}
+                role={typedDisplayProfile.role_slug}
+                organizationId={typedDisplayProfile.organization_id!}
                 isKiosk={!!kioskUserId}
             >
                 <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--color-bg)' }}>
@@ -103,7 +117,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     <DashboardSidebar
                         profile={displayProfile}
                         adminProfile={adminProfile}
-                        organization={displayProfile.organizations as { name: string; currency_symbol: string }}
+                        organization={organization ?? { name: '', currency_symbol: '' }}
                         isKiosk={!!kioskUserId}
                     />
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100dvh', overflow: 'hidden' }}>
@@ -118,8 +132,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
                         }}>
                             <SessionMaster 
                                 initialSession={openSession} 
-                                orgId={displayProfile.organization_id!} 
-                                userId={displayProfile.id}
                                 role={displayProfile.role_slug}
                             >
                                 {children}
@@ -132,4 +144,3 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </CurrencyProvider>
     )
 }
-

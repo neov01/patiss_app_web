@@ -33,7 +33,9 @@ export default function MonthPicker({
 
     // Sync viewDate when modal or value changes (optional but good for UX)
     useEffect(() => {
-        if (value) setViewDate(parseISO(value + '-01'))
+        if (!value) return
+        const timer = window.setTimeout(() => setViewDate(parseISO(value + '-01')), 0)
+        return () => window.clearTimeout(timer)
     }, [value])
 
     useEffect(() => {
@@ -108,7 +110,7 @@ export default function MonthPicker({
                         >
                             <ChevronLeft size={18} />
                         </button>
-                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#2D1B0E' }}>{currentYear}</span>
+                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--color-text)' }}>{currentYear}</span>
                         <button 
                             type="button" 
                             onClick={() => setViewDate(addYears(viewDate, 1))} 

@@ -62,7 +62,8 @@ export default function TouchInput({
     }, [value, baseFontSize])
 
     useLayoutEffect(() => {
-        adjustFontSize()
+        const frame = window.requestAnimationFrame(adjustFontSize)
+        return () => window.cancelAnimationFrame(frame)
     }, [adjustFontSize])
 
     return (
@@ -70,6 +71,17 @@ export default function TouchInput({
             <div
                 className={`${className} ${hasError ? 'has-error' : ''}`}
                 onClick={() => setIsOpen(true)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setIsOpen(true)
+                    }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-haspopup="dialog"
+                aria-expanded={isOpen}
+                aria-label={title || placeholder || "Saisie tactile"}
                 style={{
                     cursor: 'pointer',
                     display: 'flex',
@@ -77,7 +89,7 @@ export default function TouchInput({
                     justifyContent: 'space-between',
                     minHeight: '48px',
                     userSelect: 'none',
-                    background: hasError ? '#FFF5F5' : 'var(--color-well)',
+                    background: hasError ? '#FFF5F5' : (style?.background || style?.backgroundColor || 'var(--color-well)'),
                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     position: 'relative',
                     overflow: 'hidden',
@@ -91,11 +103,11 @@ export default function TouchInput({
                 }}
                 onMouseUp={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : 'var(--color-well)'
+                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : ((style?.background as string) || (style?.backgroundColor as string) || 'var(--color-well)')
                 }}
                 onMouseLeave={e => {
                     e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : 'var(--color-well)'
+                    e.currentTarget.style.backgroundColor = hasError ? '#FFF5F5' : ((style?.background as string) || (style?.backgroundColor as string) || 'var(--color-well)')
                 }}
             >
                 <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', padding: '0 6px' }}>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Search, Edit, Trash2, Loader2, Package, Archive, RotateCcw } from 'lucide-react'
 import { deleteProduct, toggleProductActive } from '@/lib/actions/products'
 import { toast } from 'sonner'
@@ -10,16 +11,18 @@ import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
 import { useQueryClient } from '@tanstack/react-query'
 
-interface Product {
+export interface CatalogueProduct {
   id: string
   name: string
   category: string
   sellingPrice: number
+  purchaseCost?: number
   type: string
   trackStock: boolean
   currentStock?: number
   image_url?: string | null
   is_active?: boolean
+  composition?: Array<{ ingredientId: string; quantity: number }>
 }
 
 interface Ingredient {
@@ -30,7 +33,7 @@ interface Ingredient {
 }
 
 interface CatalogueClientProps {
-  products: Product[]
+  products: CatalogueProduct[]
   currency: string
   availableIngredients: Ingredient[]
 }
@@ -41,7 +44,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [editingProduct, setEditingProduct] = useState<CatalogueProduct | null>(null)
   const [productToDelete, setProductToDelete] = useState<{id: string, name: string} | null>(null)
 
   const displayedProducts = useMemo(() => {
@@ -94,7 +97,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
           <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, paddingLeft: '16px', display: 'flex', alignItems: 'center', pointerEvents: 'none', height: '100%' }}>
-            <Search size={20} color="#9C8070" />
+            <Search size={20} color="var(--color-muted)" />
           </div>
           <input
             type="text"
@@ -135,8 +138,8 @@ export default function CatalogueClient({ products, currency, availableIngredien
               fontWeight: 700,
               cursor: 'pointer',
               border: 'none',
-              background: viewMode === 'active' ? 'var(--color-rose-dark, #C4836A)' : 'transparent',
-              color: viewMode === 'active' ? '#fff' : 'var(--color-muted, #9C8070)',
+              background: viewMode === 'active' ? 'var(--color-rose-dark, var(--color-rose-dark))' : 'transparent',
+              color: viewMode === 'active' ? '#fff' : 'var(--color-muted, var(--color-muted))',
               transition: 'all 0.2s',
               boxShadow: viewMode === 'active' ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
             }}
@@ -153,8 +156,8 @@ export default function CatalogueClient({ products, currency, availableIngredien
               fontWeight: 700,
               cursor: 'pointer',
               border: 'none',
-              background: viewMode === 'archived' ? 'var(--color-rose-dark, #C4836A)' : 'transparent',
-              color: viewMode === 'archived' ? '#fff' : 'var(--color-muted, #9C8070)',
+              background: viewMode === 'archived' ? 'var(--color-rose-dark, var(--color-rose-dark))' : 'transparent',
+              color: viewMode === 'archived' ? '#fff' : 'var(--color-muted, var(--color-muted))',
               transition: 'all 0.2s',
               boxShadow: viewMode === 'archived' ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
             }}
@@ -179,8 +182,8 @@ export default function CatalogueClient({ products, currency, availableIngredien
               transition: 'all 0.2s',
               cursor: 'pointer',
               border: activeCategory === cat ? 'none' : '1.5px solid var(--color-border, #E5E7EB)',
-              background: activeCategory === cat ? 'var(--color-rose-dark, #C4836A)' : '#fff',
-              color: activeCategory === cat ? '#fff' : 'var(--color-muted, #9C8070)',
+              background: activeCategory === cat ? 'var(--color-rose-dark, var(--color-rose-dark))' : '#fff',
+              color: activeCategory === cat ? '#fff' : 'var(--color-muted, var(--color-muted))',
               boxShadow: activeCategory === cat ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
             }}
           >
@@ -252,7 +255,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
                           await handleToggleActive(product.id, false)
                         }}
                         disabled={archivingId === product.id}
-                        style={{ background: '#FEF3EC', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark)' }}
+                        style={{ background: 'var(--color-well)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark)' }}
                         title="Archiver"
                       >
                         {archivingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
@@ -292,6 +295,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
 
                 {/* Icône ou Photo du produit */}
                 <div style={{
+                  position: 'relative',
                   width: '72px',
                   height: '72px',
                   borderRadius: '36px',
@@ -306,10 +310,13 @@ export default function CatalogueClient({ products, currency, availableIngredien
                   flexShrink: 0
                 }}>
                   {product.image_url ? (
-                    <img 
-                      src={product.image_url} 
+                    <Image
+                      src={product.image_url}
                       alt={product.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      fill
+                      unoptimized
+                      sizes="80px"
+                      style={{ objectFit: 'cover' }}
                     />
                   ) : (
                     product.type === 'maison' ? CATEGORY_ICONS[product.category] || '🥐' : '📦'
@@ -371,14 +378,14 @@ export default function CatalogueClient({ products, currency, availableIngredien
             <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#D94F38' }}>
               <Trash2 size={32} />
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2D1B0E', marginBottom: '12px' }}>Supprimer le produit ?</h3>
-            <p style={{ color: '#9C8070', marginBottom: '32px', lineHeight: 1.5 }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>Supprimer le produit ?</h3>
+            <p style={{ color: 'var(--color-muted)', marginBottom: '32px', lineHeight: 1.5 }}>
               Êtes-vous sûr de vouloir supprimer <strong>{productToDelete.name}</strong> ? Cette action est irréversible.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => setProductToDelete(null)}
-                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #FDE8DB', background: 'white', color: '#9C8070', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #FDE8DB', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer' }}
               >
                 Annuler
               </button>

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, AlertCircle, Image as ImageIcon, Flame } from 'lucide-react'
+import { X, Loader2, Upload, Download, Plus, Trash2, FileText, CheckCircle2, Image as ImageIcon, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import { importHistoricalOrder } from '@/lib/actions/orders'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
@@ -30,6 +30,38 @@ interface ItemInput {
   candles_ficelle?: number
   notes?: string
   imageFile?: File | null
+}
+
+type ExcelCellPrimitive = string | number | boolean | Date
+
+interface ParsedImportItem {
+  product_id: string | null
+  name: string
+  quantity: number
+  unit_price: number
+}
+
+interface ParsedImportOrder {
+  customer_name: string
+  customer_contact: string
+  created_at: string
+  pickup_date: string
+  items: ParsedImportItem[]
+  notes_list: string[]
+  ac1Montant: number
+  ac1Moyen: string
+  ac2Montant: number
+  ac2Moyen: string
+  soldeMontant: number
+  soldeMoyen: string
+  total_amount?: number
+  deposit_amount?: number
+  payments?: Array<{ amount: number; payment_method: string; label_type: 'ACOMPTE' | 'SOLDE' }>
+  payment_status_label?: string
+  payment_status?: string
+  status?: string
+  balance?: number
+  customization_notes?: string
 }
 
 interface HistoricalImportModalProps {
@@ -57,7 +89,7 @@ function formatDateToDDMMYYYY(date: Date): string {
   return `${day}-${month}-${year}`
 }
 
-function parseAndFormatDate(cellValue: any): string {
+function parseAndFormatDate(cellValue: unknown): string {
   if (cellValue === null || cellValue === undefined) return ''
 
   if (cellValue instanceof Date) {
@@ -103,13 +135,30 @@ function ddMmYyyyToIsoString(dateStr: string): string {
   return new Date(`${year}-${month}-${day}T12:00:00.000Z`).toISOString()
 }
 
+function normalizeExcelCellValue(value: ExcelJS.CellValue): ExcelCellPrimitive | '' {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  if (typeof value === 'object') {
+    if ('result' in value && value.result !== undefined) {
+      return normalizeExcelCellValue(value.result as ExcelJS.CellValue)
+    }
+    if ('text' in value && typeof value.text === 'string') return value.text
+    if ('richText' in value && Array.isArray(value.richText)) {
+      return value.richText.map(part => part.text).join('')
+    }
+    if ('hyperlink' in value && 'text' in value && typeof value.text === 'string') return value.text
+  }
+  return String(value)
+}
+
 export default function HistoricalImportModal({ open, onClose, products, currency, onSuccess }: HistoricalImportModalProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'manual' | 'csv'>('manual')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ── Saisie Manuelle State ──
-  const [orderNumber, setOrderNumber] = useState('')
+  const [orderNumber] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerContact, setCustomerContact] = useState('')
   const [createdAt, setCreatedAt] = useState<Date | null>(null)
@@ -137,7 +186,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
   // ── Excel Import State ──
   const [excelFile, setExcelFile] = useState<File | null>(null)
-  const [parsedOrders, setParsedOrders] = useState<any[]>([])
+  const [parsedOrders, setParsedOrders] = useState<ParsedImportOrder[]>([])
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
 
   useEffect(() => {
@@ -172,15 +221,16 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
     setItems(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleItemChange = (index: number, field: keyof ItemInput, value: any) => {
+  const handleItemChange = (index: number, field: keyof ItemInput, value: ItemInput[keyof ItemInput]) => {
     setItems(prev => prev.map((item, i) => {
       if (i !== index) return item
       
       if (field === 'product_id') {
-        const prod = products.find(p => p.id === value)
+        const productId = typeof value === 'string' ? value : undefined
+        const prod = products.find(p => p.id === productId)
         return {
           ...item,
-          product_id: value,
+          product_id: productId,
           name: prod ? prod.name : item.name,
           unit_price: prod ? prod.selling_price : item.unit_price
         }
@@ -355,8 +405,8 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
       } else {
         toast.error(res.error || 'Erreur lors de l\'insertion')
       }
-    } catch (err: any) {
-      toast.error('Erreur technique : ' + err.message)
+    } catch (err: unknown) {
+      toast.error('Erreur technique : ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
     } finally {
       setIsSubmitting(false)
     }
@@ -379,15 +429,20 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
     setExcelFile(file)
 
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const data = event.target?.result
       if (!data) return
 
       try {
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        const rows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' })
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(data as ArrayBuffer)
+        const worksheet = workbook.worksheets[0]
+        const rows: Array<Array<ExcelCellPrimitive | ''>> = []
+
+        worksheet?.eachRow({ includeEmpty: true }, row => {
+          const values = Array.isArray(row.values) ? row.values.slice(1) : []
+          rows.push(values.map(value => normalizeExcelCellValue(value as ExcelJS.CellValue)))
+        })
 
         if (rows.length <= 1) {
           toast.error('Le fichier Excel est vide ou ne contient pas de données')
@@ -431,7 +486,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           return
         }
 
-        const ordersMap: Record<string, any> = {}
+        const ordersMap: Record<string, ParsedImportOrder> = {}
         const errorsList: string[] = []
 
         for (let i = 1; i < rows.length; i++) {
@@ -472,14 +527,14 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           }
 
           const customerContact = colIndices.customerContact !== -1 ? String(row[colIndices.customerContact] || '').trim() : ''
-          const parts = colIndices.parts !== -1 ? parseInt(row[colIndices.parts]) || null : null
-          const floors = colIndices.floors !== -1 ? parseInt(row[colIndices.floors]) || null : null
-          const quantity = colIndices.quantity !== -1 ? parseInt(row[colIndices.quantity]) || 1 : 1
-          const price = colIndices.price !== -1 ? parseFloat(row[colIndices.price]) || 0 : 0
+          const parts = colIndices.parts !== -1 ? parseInt(String(row[colIndices.parts])) || null : null
+          const floors = colIndices.floors !== -1 ? parseInt(String(row[colIndices.floors])) || null : null
+          const quantity = colIndices.quantity !== -1 ? parseInt(String(row[colIndices.quantity])) || 1 : 1
+          const price = colIndices.price !== -1 ? parseFloat(String(row[colIndices.price])) || 0 : 0
           const notes = colIndices.notes !== -1 ? String(row[colIndices.notes] || '').trim() : ''
 
           // Extraction et validation des transactions de paiement
-          const ac1Val = parseFloat(row[colIndices.ac1Montant]) || 0
+          const ac1Val = parseFloat(String(row[colIndices.ac1Montant])) || 0
           const ac1MoyenVal = String(row[colIndices.ac1Moyen] || '').trim()
           if (ac1Val > 0) {
             if (!ac1MoyenVal) {
@@ -492,7 +547,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
             }
           }
 
-          const ac2Val = parseFloat(row[colIndices.ac2Montant]) || 0
+          const ac2Val = parseFloat(String(row[colIndices.ac2Montant])) || 0
           const ac2MoyenVal = String(row[colIndices.ac2Moyen] || '').trim()
           if (ac2Val > 0) {
             if (!ac2MoyenVal) {
@@ -505,7 +560,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
             }
           }
 
-          const soldeVal = parseFloat(row[colIndices.soldeMontant]) || 0
+          const soldeVal = parseFloat(String(row[colIndices.soldeMontant])) || 0
           const soldeMoyenVal = String(row[colIndices.soldeMoyen] || '').trim()
           if (soldeVal > 0) {
             if (!soldeMoyenVal) {
@@ -580,8 +635,8 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           return
         }
 
-        const parsedList = Object.values(ordersMap).map((ord: any) => {
-          const totalAmount = ord.items.reduce((sum: number, it: any) => sum + (it.quantity * it.unit_price), 0)
+        const parsedList = Object.values(ordersMap).map(ord => {
+          const totalAmount = ord.items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0)
           
           // Construction du tableau de paiements
           const payments: Array<{ amount: number; payment_method: string; label_type: 'ACOMPTE' | 'SOLDE' }> = []
@@ -619,8 +674,8 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
 
         setParsedOrders(parsedList)
         toast.success(`${parsedList.length} commande(s) détectée(s) dans le fichier Excel`)
-      } catch (err: any) {
-        toast.error('Erreur lors du traitement du fichier Excel : ' + err.message)
+      } catch (err: unknown) {
+        toast.error('Erreur lors du traitement du fichier Excel : ' + (err instanceof Error ? err.message : 'Erreur inconnue'))
       }
     }
     reader.readAsArrayBuffer(file)
@@ -645,11 +700,11 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
           customer_contact: ord.customer_contact || undefined,
           pickup_date: ddMmYyyyToIsoString(ord.pickup_date),
           created_at: ddMmYyyyToIsoString(ord.created_at),
-          total_amount: ord.total_amount,
-          deposit_amount: ord.deposit_amount,
-          payments: ord.payments, // Plusieurs paiements typés ACOMPTE / SOLDE
+          total_amount: ord.total_amount ?? 0,
+          deposit_amount: ord.deposit_amount ?? 0,
+          payments: ord.payments ?? [], // Plusieurs paiements typés ACOMPTE / SOLDE
           customization_notes: ord.customization_notes,
-          items: ord.items.map((it: any) => ({
+          items: ord.items.map(it => ({
             name: it.name,
             quantity: it.quantity,
             unit_price: it.unit_price,
@@ -705,7 +760,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         {/* Header */}
         <div style={{ padding: '18px 24px', borderBottom: '1.5px solid var(--color-border)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#2D1B0E' }}>Importation de l&apos;Historique</h2>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: 'var(--color-text)' }}>Importation de l&apos;Historique</h2>
             <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: 'var(--color-muted)' }}>Entrer des anciens bons de commande papier en base de données</p>
           </div>
           <button onClick={onClose} style={{ background: 'var(--color-cream)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1201,7 +1256,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                 {/* Section paiement multiple */}
                 {isMultiplePayment && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                    {payments.map((p, index) => (
+                    {payments.map((p) => (
                       <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           {/* Toggle Acompte / Solde pour cette ligne */}
@@ -1340,22 +1395,24 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                       </thead>
                       <tbody>
                         {parsedOrders.map((ord, i) => {
-                          const totalPaid = ord.payments.reduce((sum: number, p: any) => sum + p.amount, 0)
+                          const totalPaid = (ord.payments ?? []).reduce((sum, p) => sum + p.amount, 0)
+                          const totalAmount = ord.total_amount ?? 0
+                          const balance = ord.balance ?? 0
                           return (
                             <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
                               <td style={{ padding: '8px 12px', fontWeight: 700 }}>{ord.customer_name}</td>
                               <td style={{ padding: '8px 12px' }}>{ord.created_at}</td>
                               <td style={{ padding: '8px 12px' }}>{ord.pickup_date}</td>
                               <td style={{ padding: '8px 12px', color: 'var(--color-muted)' }}>
-                                {ord.items.map((it: any) => `${it.quantity}x ${it.name}`).join(', ')}
+                                {ord.items.map(it => `${it.quantity}x ${it.name}`).join(', ')}
                               </td>
-                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{ord.total_amount.toLocaleString('fr-FR')} {currency}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{totalAmount.toLocaleString('fr-FR')} {currency}</td>
                               <td style={{ padding: '8px 12px', textAlign: 'right', color: 'green', fontWeight: 700 }}>{totalPaid.toLocaleString('fr-FR')} {currency}</td>
-                              <td style={{ padding: '8px 12px', textAlign: 'right', color: ord.balance > 0 ? 'red' : 'inherit' }}>
-                                {ord.balance.toLocaleString('fr-FR')} {currency}
+                              <td style={{ padding: '8px 12px', textAlign: 'right', color: balance > 0 ? 'red' : 'inherit' }}>
+                                {balance.toLocaleString('fr-FR')} {currency}
                               </td>
                               <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: ord.status === 'completed' ? 'var(--color-secondary)' : 'var(--color-warning)' }}>
-                                {ord.payment_status_label}
+                                {ord.payment_status_label ?? 'ACOMPTE_PRÉLEVÉ'}
                               </td>
                             </tr>
                           )
@@ -1374,7 +1431,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
         {importProgress && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.85)', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
             <Loader2 size={36} className="animate-spin" color="var(--color-rose-dark)" />
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2D1B0E' }}>Importation en cours...</div>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--color-text)' }}>Importation en cours...</div>
             <div style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
               Commande {importProgress.current} sur {importProgress.total} ({Math.round((importProgress.current / importProgress.total) * 100)}%)
             </div>

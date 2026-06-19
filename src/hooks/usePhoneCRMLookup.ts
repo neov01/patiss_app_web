@@ -28,12 +28,14 @@ export function usePhoneCRMLookup(rawPhone: string): UsePhoneCRMLookupResult {
     const digits = rawPhone.replace(/\D/g, '')
 
     if (digits.length < MIN_DIGITS) {
-      setMatch(null)
-      setIsLooking(false)
-      return
+      const resetTimer = window.setTimeout(() => {
+        setMatch(null)
+        setIsLooking(false)
+      }, 0)
+      return () => window.clearTimeout(resetTimer)
     }
 
-    setIsLooking(true)
+    const lookingTimer = window.setTimeout(() => setIsLooking(true), 0)
     const requestId = ++activeRequestId.current
 
     const timer = setTimeout(async () => {
@@ -52,8 +54,9 @@ export function usePhoneCRMLookup(rawPhone: string): UsePhoneCRMLookupResult {
 
     return () => {
       clearTimeout(timer)
+      clearTimeout(lookingTimer)
       // Invalider la requête en cours pour éviter les mises à jour obsolètes
-      activeRequestId.current++
+      activeRequestId.current = requestId + 1
       setIsLooking(false)
     }
   }, [rawPhone])

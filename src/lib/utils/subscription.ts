@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 
+type OrganizationSubscription = {
+    subscription_end_date: string | null
+}
+
 /**
  * Vérifie si l'organisation de l'utilisateur actuel a un abonnement actif.
  * Retourne true si l'abonnement est actif, false s'il est expiré.
@@ -19,7 +23,9 @@ export async function checkSubscriptionStatus() {
 
     if (error || !profile) return { active: false, error: 'Profil ou organisation introuvable' }
 
-    const org = profile.organizations as any
+    const org = (Array.isArray(profile.organizations)
+        ? profile.organizations[0]
+        : profile.organizations) as OrganizationSubscription | null
     if (!org || !org.subscription_end_date) {
         // Si pas de date, on considère par défaut que c'est expiré ou non configuré
         return { active: false, isExpired: true }

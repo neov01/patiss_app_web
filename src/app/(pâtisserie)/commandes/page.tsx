@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import OrdersClient from '@/components/orders/OrdersClient'
+import type { OrderWithItems } from '@/components/orders/OrdersClient'
+import { getOpenSession } from '@/lib/actions/sessions'
 
 export default async function CommandesPage() {
     const supabase = await createClient()
@@ -13,15 +15,25 @@ export default async function CommandesPage() {
         .single()
 
     const currency = (Array.isArray(profile?.organizations) ? profile?.organizations[0]?.currency_symbol : profile?.organizations?.currency_symbol) || ''
-    const orgId = profile?.organization_id!
+    const orgId = profile?.organization_id
+    if (!orgId) return null
 
-    // Charger TOUTES les commandes non-annulées des 90 derniers jours + toutes les actives
-    // Cela permet un filtrage instantané côté client sans round-trip serveur
+    const openSession = await getOpenSession()
+    const isSessionOpen = !!openSession
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    // Ne charger que les commandes de la vue "À traiter" (actives, non livrées, ou livrées non soldées)
+    let activeFilter = 'status.in.(pending,production,ready,confirmed,in_preparation,awaiting_pickup,in_production,draft),and(status.in.(completed,delivered),payment_status.not.in.(paid,SOLDEE))'
+    if (isSessionOpen) {
+        activeFilter += `,and(status.in.(completed,delivered),pickup_date.gte.${todayStr}T00:00:00)`
+    }
+
     const [{ data: orders }, { data: products }] = await Promise.all([
         supabase
             .from('orders')
-            .select('*, order_items(*, products(name)), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
+            .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
             .eq('organization_id', orgId)
+            .or(activeFilter)
             .order('pickup_date', { ascending: true }),
         supabase
             .from('products')
@@ -33,12 +45,13 @@ export default async function CommandesPage() {
 
     return (
         <OrdersClient
-            orders={(orders as any[]) ?? []}
+            orders={(orders as OrderWithItems[] | null) ?? []}
             products={products ?? []}
             currency={currency}
             organizationId={orgId}
             roleSlug={profile?.role_slug || 'vendeur'}
             canImportHistory={profile?.can_import_history || false}
+            isSessionOpen={isSessionOpen}
         />
     )
 }

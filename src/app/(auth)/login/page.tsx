@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { Mail, Lock, CakeSlice, Loader2, Eye, EyeOff } from 'lucide-react'
 import { logoutKiosk } from '@/lib/actions/auth'
 
@@ -17,7 +16,6 @@ const svgPlan2 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' w
 const svgPlan3 = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360' viewBox='0 0 360 360'%3E%3Cdefs%3E%3Cg id='c'%3E%3Cpath d='M 5,20 C 5,10 15,5 30,10 C 35,12 40,17 40,22 C 38,27 30,28 20,26 C 10,24 5,22 5,20 Z' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M 12,14 C 15,10 20,10 22,13' fill='none'/%3E%3Cpath d='M 20,19 C 23,15 27,15 29,18' fill='none'/%3E%3Cpath d='M 27,23 C 29,19 32,19 34,22' fill='none'/%3E%3C/g%3E%3Cg id='b'%3E%3Crect x='5' y='12' width='32' height='14' rx='7' fill='none' transform='rotate(-25 20 20)'/%3E%3Cline x1='12' y1='18' x2='17' y2='13' stroke-linecap='round' transform='rotate(-25 20 20)'/%3E%3Cline x1='19' y1='18' x2='24' y2='13' stroke-linecap='round' transform='rotate(-25 20 20)'/%3E%3Cline x1='26' y1='18' x2='31' y2='13' stroke-linecap='round' transform='rotate(-25 20 20)'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23b' transform='translate(260, 90) scale(0.99)' stroke='%23815431' stroke-width='4.5' color='%23815431' opacity='0.075'/%3E%3Cuse href='%23c' transform='translate(210, 130) scale(1.1)' stroke='%23815431' stroke-width='4.5' color='%23815431' opacity='0.075'/%3E%3C/svg%3E`
 
 export default function LoginPage() {
-    const router = useRouter()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
@@ -140,7 +138,7 @@ export default function LoginPage() {
         fontSize: (isFocused || hasValue) ? '0.75rem' : '0.95rem',
         color: isFocused 
             ? 'var(--color-primary)' 
-            : (hasValue ? 'var(--color-muted)' : '#9C8070'),
+            : (hasValue ? 'var(--color-muted)' : 'var(--color-muted)'),
         backgroundColor: (isFocused || hasValue) ? 'var(--color-lift)' : 'transparent',
         padding: '0 6px',
         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -224,20 +222,20 @@ export default function LoginPage() {
                     width: '72px',
                     height: '72px',
                     borderRadius: '24px',
-                    background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
+                    background: 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)',
                     marginBottom: '16px',
                     boxShadow: isCardHovered 
                         ? '0 12px 40px rgba(196,131,106,0.5)' 
                         : '0 8px 32px rgba(196,131,106,0.35)',
                     transform: isCardHovered ? 'scale(1.08) rotate(5deg)' : 'scale(1)',
-                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}>
                     <CakeSlice size={36} color="white" strokeWidth={1.5} />
                 </div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2D1B0E', margin: 0 }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
                     Pâtiss&apos;App
                 </h1>
-                <p style={{ color: '#9C8070', marginTop: '4px', fontSize: '0.9rem' }}>
+                <p style={{ color: 'var(--color-muted)', marginTop: '4px', fontSize: '0.9rem' }}>
                     Espace Gérant
                 </p>
             </div>
@@ -268,7 +266,7 @@ export default function LoginPage() {
                         transition: 'box-shadow 0.3s ease, transform 0.3s ease'
                     }}
                 >
-                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '24px', color: '#2D1B0E' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '24px', color: 'var(--color-text)' }}>
                         Connexion
                     </h2>
 
@@ -302,7 +300,7 @@ export default function LoginPage() {
                                     left: '14px', 
                                     top: '50%', 
                                     transform: 'translateY(-50%)', 
-                                    color: emailFocused ? 'var(--color-primary)' : '#9C8070',
+                                    color: emailFocused ? 'var(--color-primary)' : 'var(--color-muted)',
                                     transition: 'color 0.2s',
                                     zIndex: 5
                                 }} />
@@ -354,7 +352,7 @@ export default function LoginPage() {
                                     left: '14px', 
                                     top: '50%', 
                                     transform: 'translateY(-50%)', 
-                                    color: passwordFocused ? 'var(--color-primary)' : '#9C8070',
+                                    color: passwordFocused ? 'var(--color-primary)' : 'var(--color-muted)',
                                     transition: 'color 0.2s',
                                     zIndex: 5
                                 }} />
@@ -390,7 +388,7 @@ export default function LoginPage() {
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
-                                        color: '#9C8070',
+                                        color: 'var(--color-muted)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -404,7 +402,7 @@ export default function LoginPage() {
                                         e.currentTarget.style.backgroundColor = 'rgba(131, 116, 107, 0.08)'
                                     }}
                                     onMouseLeave={e => {
-                                        e.currentTarget.style.color = '#9C8070'
+                                        e.currentTarget.style.color = 'var(--color-muted)'
                                         e.currentTarget.style.backgroundColor = 'transparent'
                                     }}
                                     aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}

@@ -1,19 +1,24 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form'
+import Image from 'next/image'
+import { useForm, useFieldArray, useWatch, Controller, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema, ProductFormValues } from '@/lib/schemas/product'
 import { createProduct } from '@/lib/actions/products'
 import { Trash2, Loader2, X, Search, Image as ImageIcon } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useActionFeedback } from '@/hooks/useActionFeedback'
 import TouchInput from '@/components/ui/TouchInput'
 import TouchSelect from '@/components/ui/TouchSelect'
 import { compressImage } from '@/lib/utils/image-compression'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import ImageCropper from '@/components/ui/ImageCropper'
+
+type ProductCategory = ProductFormValues['category']
+type ProductType = ProductFormValues['type']
 
 interface ProductModalProps {
   open: boolean
@@ -31,9 +36,9 @@ interface ProductModalProps {
     category: string
     type: string
     selling_price: number
-    purchase_cost?: number
-    track_stock: boolean
-    current_stock: number
+    purchase_cost?: number | null
+    track_stock: boolean | null
+    current_stock: number | null
   }>
   productToEdit?: {
     id?: string
@@ -53,7 +58,7 @@ interface ProductModalProps {
 export default function ProductModal({ open, onClose, availableIngredients, existingProducts = [], productToEdit, onSuccess }: ProductModalProps) {
   const queryClient = useQueryClient()
   const [isMounted, setIsMounted] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { execute, isPending: isSubmitting, renderFeedback } = useActionFeedback()
   const [searchQuery, setSearchQuery] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -63,9 +68,9 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
     setIsMounted(true)
   }, [])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const { register, control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema) as any,
+    resolver: zodResolver(productSchema) as Resolver<ProductFormValues>,
     defaultValues: { type: 'maison', trackStock: false, sellingPrice: 0, composition: [], updateMode: 'increment' }
   })
 
@@ -113,21 +118,9 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
   }
 
   const { fields, append, remove } = useFieldArray({ control, name: "composition" })
-  const [type, sellingPrice, purchaseCost, composition, trackStock, productId] = useWatch({
-    control, name: ['type', 'sellingPrice', 'purchaseCost', 'composition', 'trackStock', 'id']
+  const [type, trackStock, productId] = useWatch({
+    control, name: ['type', 'trackStock', 'id']
   })
-
-  const foodCost = useMemo(() => {
-    if (type !== 'maison' || !composition) return 0
-    return composition.reduce((sum: number, line: any) => {
-      const ing = availableIngredients.find(i => i.id === line.ingredientId)
-      return sum + (line.quantity && ing?.price_per_kg ? (line.quantity / 1000) * ing.price_per_kg : 0)
-    }, 0)
-  }, [type, composition, availableIngredients])
-
-  const cost = type === 'revente' ? (purchaseCost ?? 0) : foodCost
-  const marge = (sellingPrice ?? 0) - cost
-  const rentabilite = sellingPrice > 0 ? (marge / sellingPrice) * 100 : 0
 
   const filteredExisting = useMemo(() => {
     if (searchQuery.length < 2) return []
@@ -136,15 +129,15 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
     ).slice(0, 5)
   }, [searchQuery, existingProducts])
 
-  const selectExistingProduct = (p: any) => {
+  const selectExistingProduct = (p: NonNullable<ProductModalProps['existingProducts']>[number]) => {
     reset({
       id: p.id,
       name: p.name,
-      category: p.category as any,
-      type: p.type as any,
+      category: p.category as ProductCategory,
+      type: p.type as ProductType,
       sellingPrice: p.selling_price,
-      purchaseCost: p.purchase_cost,
-      trackStock: p.track_stock,
+      purchaseCost: p.purchase_cost ?? undefined,
+      trackStock: p.track_stock ?? false,
       currentStock: 0, // Reset for addition
       composition: [],
       updateMode: 'increment'
@@ -154,8 +147,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
   }
 
   const handleFormSubmit = async (data: ProductFormValues) => {
-    setIsSubmitting(true)
-    try {
+    await execute(async () => {
       let finalImageUrl: string | null | undefined
 
       if (imageFile) {
@@ -184,17 +176,19 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
       }
 
       const res = await createProduct(data, finalImageUrl)
-      if (res.success) { 
-        toast.success(res.message || "Opération réussie !"); 
-        queryClient.invalidateQueries({ queryKey: ['catalog'] })
-        onSuccess?.(); 
-        onClose(); 
-      } else {
-        toast.error(res.error)
+      if (!res.success) {
+        throw new Error(res.error || "Erreur lors de l'enregistrement du produit")
       }
-    } finally { 
-      setIsSubmitting(false) 
-    }
+      return res
+    }, {
+      type: 'toast',
+      successMessage: isStockOnly ? 'Stock mis à jour avec succès' : productToEdit ? 'Produit modifié avec succès' : 'Produit créé avec succès',
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['catalog'] })
+        onSuccess?.()
+        onClose()
+      }
+    })
   }
 
   if (!open || !isMounted) return null
@@ -273,8 +267,8 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                   {filteredExisting.map(p => (
                     <div key={p.id} onClick={() => selectExistingProduct(p)}
                       style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                      onMouseEnter={(e: any) => e.currentTarget.style.background = '#FDF8F3'}
-                      onMouseLeave={(e: any) => e.currentTarget.style.background = '#fff'}
+                      onMouseEnter={(e: MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = '#FDF8F3'}
+                      onMouseLeave={(e: MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = '#fff'}
                     >
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{p.name}</div>
@@ -343,7 +337,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                     { val: 'revente', emoji: '📦', label: 'Revente' },
                   ].map(({ val, emoji, label }) => (
                     <button key={val} type="button" disabled={locked}
-                      onClick={() => setValue('type', val as any)}
+                      onClick={() => setValue('type', val as ProductType)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
                         borderRadius: 'var(--radius-sm)', border: '1.5px solid',
@@ -401,7 +395,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
             {/* Coût d'achat (pour les produits de revente) */}
             {type === 'revente' && (
               <div>
-                <label className="label">Coût d'achat (FCFA)</label>
+                <label className="label">Coût d&apos;achat (FCFA)</label>
                 <Controller control={control} name="purchaseCost"
                   render={({ field }) => (
                     <TouchInput
@@ -450,7 +444,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
                   {imagePreview ? (
                     <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: '120px' }}>
-                      <img src={imagePreview} alt="Prévisualisation" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <Image src={imagePreview} alt="Prévisualisation" fill unoptimized sizes="320px" style={{ objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.55)', color: 'white', borderRadius: '8px', padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <ImageIcon size={12} /> Changer
                       </div>
@@ -528,6 +522,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
       {imageToCrop && (
         <ImageCropper image={imageToCrop} onCropComplete={handleCropComplete} onCancel={handleCropCancel} aspect={4/3} />
       )}
+      {renderFeedback()}
     </div>,
     document.body
   )

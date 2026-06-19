@@ -3,6 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { startOfDay, subDays } from 'date-fns'
 
+type DailyMetricsRpc = (
+    fn: 'get_daily_metrics',
+    args: { p_org_id: string; p_target_date: string }
+) => Promise<{ data: unknown; error: { message?: string } | null }>
+
 export async function getDailyStats(orgId: string) {
     const supabase = await createClient()
 
@@ -10,7 +15,7 @@ export async function getDailyStats(orgId: string) {
     const targetDate = startOfDay(new Date()).toISOString().split('T')[0]
 
     // Appel à la fonction RPC pour mutualiser le calcul côté Base de données
-    const { data, error } = await supabase.rpc('get_daily_metrics' as any, {
+    const { data, error } = await supabase.rpc('get_daily_metrics', {
         p_org_id: orgId,
         p_target_date: targetDate
     })

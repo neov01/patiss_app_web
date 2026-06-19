@@ -58,6 +58,29 @@ export type CachedProduct = {
   image_url?: string | null
 }
 
+export type CachedReadyOrder = {
+  id: string
+  customer_name: string
+  customer_contact?: string | null
+  customer_id?: string | null
+  order_number?: string | null
+  pickup_date?: string | null
+  deposit_amount?: number | null
+  paid_amount?: number | null
+  total_amount?: number | null
+  balance?: number | null
+  priority?: string | null
+  status?: string | null
+  discount_amount?: number | null
+  order_items?: Array<{
+    id?: string
+    product_id: string | null
+    quantity: number
+    unit_price: number
+    products?: { name: string | null } | null
+  }>
+}
+
 export async function cacheProducts(products: CachedProduct[]): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('products', 'readwrite')
@@ -87,7 +110,7 @@ export async function getCachedProducts(): Promise<CachedProduct[]> {
 
 // ==================== COMMANDES PRÊTES (CACHE) ====================
 
-export async function cacheReadyOrders(orders: any[]): Promise<void> {
+export async function cacheReadyOrders(orders: CachedReadyOrder[]): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('readyOrders', 'readwrite')
   const store = tx.objectStore('readyOrders')
@@ -103,7 +126,7 @@ export async function cacheReadyOrders(orders: any[]): Promise<void> {
   })
 }
 
-export async function getCachedReadyOrders(): Promise<any[]> {
+export async function getCachedReadyOrders(): Promise<CachedReadyOrder[]> {
   const db = await openDB()
   const tx = db.transaction('readyOrders', 'readonly')
   const store = tx.objectStore('readyOrders')
@@ -222,6 +245,14 @@ export type PendingOrder = {
   }>
   priority: string
   createdAt: string
+  deposit_amount?: number
+  discount_amount?: number
+  deposit_payment_method?: string
+  payments?: Array<{
+    amount: number
+    payment_method: string
+    label_type: 'ACOMPTE' | 'SOLDE'
+  }>
 }
 
 export async function queueOrder(order: Omit<PendingOrder, 'offlineId' | 'createdAt'>): Promise<number> {

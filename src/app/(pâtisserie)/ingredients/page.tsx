@@ -1,6 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import IngredientsClient from '@/components/inventory/IngredientsClient'
 
+type OrganizationCurrency = {
+    currency_symbol: string | null
+}
+
+function getCurrencySymbol(organizations: OrganizationCurrency | OrganizationCurrency[] | null | undefined): string {
+    const organization = Array.isArray(organizations) ? organizations[0] : organizations
+    return organization?.currency_symbol || ''
+}
+
 export default async function IngredientsPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -12,7 +21,8 @@ export default async function IngredientsPage() {
         .eq('id', user.id)
         .single()
 
-    const orgId = profile?.organization_id!
+    const orgId = profile?.organization_id
+    if (!orgId) return null
 
     const { data: ingredients } = await supabase
         .from('ingredients')
@@ -32,7 +42,7 @@ export default async function IngredientsPage() {
         }
     }
 
-    const currency = (profile?.organizations as any)?.currency_symbol || ''
+    const currency = getCurrencySymbol(profile?.organizations)
 
     return (
         <IngredientsClient

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, Loader2 } from 'lucide-react'
 import NewOrderModal from '@/components/orders/NewOrderModal'
 
@@ -17,22 +17,26 @@ export default function DashboardNewOrderButton({ organizationId, currency, isFl
     const [products, setProducts] = useState<Product[]>([])
     const [loadingProducts, setLoadingProducts] = useState(false)
 
-    // Fetch products when the modal opens for the first time
-    useEffect(() => {
-        if (!open || products.length > 0) return
+    const handleOpen = async () => {
+        setOpen(true)
+        if (products.length > 0) return
         setLoadingProducts(true)
-        fetch(`/api/products?orgId=${organizationId}`)
-            .then(r => r.json())
-            .then(data => { if (data.products) setProducts(data.products) })
-            .catch(() => {/* silent */ })
-            .finally(() => setLoadingProducts(false))
-    }, [open, organizationId, products.length])
+        try {
+            const res = await fetch(`/api/products?orgId=${organizationId}`)
+            const data = await res.json()
+            if (data.products) setProducts(data.products)
+        } catch {
+            // silent
+        } finally {
+            setLoadingProducts(false)
+        }
+    }
 
     return (
         <>
             {isFloating && (
                 <style>{`
-                    @media (max-width: 900px) {
+                    @media (max-width: 767px) {
                         .responsive-fab-button {
                             position: fixed !important;
                             bottom: 85px !important;
@@ -49,7 +53,7 @@ export default function DashboardNewOrderButton({ organizationId, currency, isFl
             )}
             
             <button
-                onClick={() => setOpen(true)}
+                onClick={handleOpen}
                 className={`btn-primary ${isFloating ? 'responsive-fab-button' : ''}`}
                 style={{
                     fontWeight: 800,

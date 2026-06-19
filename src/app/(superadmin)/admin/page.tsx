@@ -2,6 +2,23 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminClient from '@/components/admin/AdminClient'
 
+type AdminOrg = {
+  id: string
+  name: string
+  currency_symbol: string
+  subscription_end_date: string | null
+  kiosk_code: string | null
+  tier: string
+  max_users: number
+  contact_email: string | null
+  contact_phone: string | null
+}
+
+type RoleOption = {
+  slug: string
+  name: string
+}
+
 export default async function AdminPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,10 +33,11 @@ export default async function AdminPage() {
   if (!profile || profile.role_slug !== 'super_admin') redirect('/dashboard')
 
   // Fetch all orgs with member count
-  let { data: orgs, error: orgsError } = await supabase
+  const { data: fetchedOrgs, error: orgsError } = await supabase
     .from('organizations')
     .select('id, name, currency_symbol, subscription_end_date, kiosk_code, tier, max_users, contact_email, contact_phone')
     .order('name')
+  let orgs: AdminOrg[] | null = fetchedOrgs
 
   // Fallback if kiosk_code doesn't exist yet (migration not run)
   if (orgsError) {
@@ -37,7 +55,7 @@ export default async function AdminPage() {
       max_users: 5,
       contact_email: null,
       contact_phone: null
-    })) as any
+    }))
   }
 
   // Fetch all profiles with auth emails for the team tab
@@ -47,10 +65,10 @@ export default async function AdminPage() {
     .order('full_name')
 
   // Fetch roles for the dropdown
-  const { data: roles } = await (supabase
-    .from('roles' as any)
+  const { data: rolesData } = await (supabase
+    .from('roles' as never)
     .select('slug, name')
-    .order('name') as any)
+    .order('name') as unknown as PromiseLike<{ data: RoleOption[] | null }>)
 
   // Compute member counts per org
   const memberCounts: Record<string, number> = {}
@@ -70,7 +88,7 @@ export default async function AdminPage() {
       <AdminClient
         orgs={orgsWithCounts}
         allProfiles={allProfiles ?? []}
-        roles={roles ?? []}
+        roles={rolesData ?? []}
       />
     </div>
   )

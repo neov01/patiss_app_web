@@ -25,7 +25,7 @@ export default function QRCodeOverlay({ show, onClose, customer }: QRCodeOverlay
         <h3 className="text-xl font-black text-slate-800">{customer?.name}</h3>
         <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">Pass Fidélité</p>
       </div>
-      <p className="mt-8 text-white/50 text-sm font-bold">Touchez n'importe où pour fermer</p>
+      <p className="mt-8 text-white/50 text-sm font-bold">Touchez n&apos;importe où pour fermer</p>
     </div>
   );
 }

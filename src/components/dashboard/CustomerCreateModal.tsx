@@ -1,36 +1,42 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { UserPlus, X, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { createOrUpdateCustomer } from '@/lib/actions/customers'
+import { useActionFeedback } from '@/hooks/useActionFeedback'
 
 export default function CustomerCreateModal() {
     const [open, setOpen] = useState(false)
-    const [isPending, start] = useTransition()
-    const [form, setForm] = useState({ name: '', phone: '', email: '' })
+    const { execute, isPending, renderFeedback } = useActionFeedback()
+    const [form, setForm] = useState({ name: '', phone: '', email: '', birthDate: '' })
     const router = useRouter()
 
     function handleClose() {
         setOpen(false)
-        setForm({ name: '', phone: '', email: '' })
+        setForm({ name: '', phone: '', email: '', birthDate: '' })
     }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
-        start(async () => {
+        await execute(async () => {
             const result = await createOrUpdateCustomer({
                 name: form.name.trim(),
                 phone: form.phone.trim(),
                 email: form.email.trim() || undefined,
-            } as any)
+                birth_date: form.birthDate || undefined,
+            })
 
             if ('error' in result && result.error) {
-                toast.error('Erreur lors de la création du client')
-            } else {
-                toast.success(`Client "${form.name}" enregistré !`)
+                const errMsg = typeof result.error === 'string' ? result.error : 'Erreur lors de la validation du formulaire'
+                throw new Error(errMsg)
+            }
+            return result
+        }, {
+            type: 'toast',
+            successMessage: `Client "${form.name.trim()}" enregistré avec succès`,
+            onSuccess: () => {
                 handleClose()
                 router.refresh()
             }
@@ -82,7 +88,7 @@ export default function CustomerCreateModal() {
                                     required
                                 />
                                 <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
-                                    Le numéro sert d'identifiant unique — un client existant avec ce numéro sera mis à jour.
+                                    Le numéro sert d&apos;identifiant unique — un client existant avec ce numéro sera mis à jour.
                                 </p>
                             </div>
 
@@ -99,6 +105,18 @@ export default function CustomerCreateModal() {
                                 />
                             </div>
 
+                            <div>
+                                <label className="label">
+                                    Date de naissance <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.8rem' }}>(optionnel)</span>
+                                </label>
+                                <input
+                                    className="input"
+                                    type="date"
+                                    value={form.birthDate}
+                                    onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))}
+                                />
+                            </div>
+
                             <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                                 <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1 }}>
                                     Annuler
@@ -112,6 +130,7 @@ export default function CustomerCreateModal() {
                     </div>
                 </div>
             , document.body)}
+            {renderFeedback()}
         </>
     )
 }

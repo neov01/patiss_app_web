@@ -1,13 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
 import InventaireClient from '@/components/inventory/InventaireClient'
 
+type LowStockIngredient = {
+    name: string
+    current_stock: number
+    alert_threshold: number
+    unit: string
+}
+
+type InventoryLog = {
+    id: string
+    log_date: string | null
+    quantity_change: number
+    reason: string
+    note?: string | null
+    ingredients: { name: string; unit: string } | null
+    profiles: { full_name: string } | null
+}
+
 export default async function InventairePage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return null
 
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
-    const orgId = profile?.organization_id!
+    const orgId = profile?.organization_id
+    if (!orgId) return null
 
     const [logsRes, ingredientsRes] = await Promise.all([
         supabase.from('inventory_logs')
@@ -22,12 +40,12 @@ export default async function InventairePage() {
     ])
 
     const lowStockIngredients = (ingredientsRes.data ?? []).filter(
-        (i: any) => i.current_stock < i.alert_threshold
+        (i: LowStockIngredient) => i.current_stock < i.alert_threshold
     )
 
     return (
         <InventaireClient
-            logs={(logsRes.data ?? []) as any}
+            logs={(logsRes.data ?? []) as unknown as InventoryLog[]}
             lowStockIngredients={lowStockIngredients}
         />
     )

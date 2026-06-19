@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { X, ShoppingCart, Search as SearchIcon, ShoppingBag } from "lucide-react";
 import { Product, Customer } from "./types";
 import { toast } from "sonner";
@@ -88,12 +89,15 @@ export default function QuickProductSelectionOverlay({
                   disabled={isPending}
                   className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-[#DC5F4A] hover:shadow-md transition-all text-left flex flex-col group disabled:opacity-50"
                 >
-                  <div className="w-full aspect-square rounded-xl bg-slate-50 mb-3 flex items-center justify-center text-[#DC5F4A]/20 group-hover:text-[#DC5F4A]/40 transition-colors">
+                  <div className="relative w-full aspect-square rounded-xl bg-slate-50 mb-3 flex items-center justify-center text-[#DC5F4A]/20 group-hover:text-[#DC5F4A]/40 transition-colors overflow-hidden">
                     {product.image_url ? (
-                      <img
+                      <Image
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-full object-cover rounded-xl"
+                        fill
+                        unoptimized
+                        sizes="160px"
+                        className="object-cover"
                       />
                     ) : (
                       <ShoppingBag size={40} />

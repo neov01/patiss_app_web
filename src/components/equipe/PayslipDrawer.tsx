@@ -43,7 +43,11 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
   }, [employeeId])
 
   useEffect(() => {
-    if (open) loadPayslip(currentMonth)
+    if (!open) return
+    const timer = window.setTimeout(() => {
+      void loadPayslip(currentMonth)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [open, currentMonth, loadPayslip])
 
   const navigateMonth = (dir: 1 | -1) => {
@@ -95,7 +99,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
             <X size={18} />
           </button>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#2D1B0E' }}>Fiche de paie</div>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-text)' }}>Fiche de paie</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>{employeeName}</div>
           </div>
           <button
@@ -113,7 +117,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
           <button type="button" onClick={() => navigateMonth(-1)} style={{ background: '#fff', border: '1.5px solid var(--color-border)', borderRadius: '10px', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChevronLeft size={18} />
           </button>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#2D1B0E', textTransform: 'capitalize' }}>{monthLabel}</span>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text)', textTransform: 'capitalize' }}>{monthLabel}</span>
           <button type="button" onClick={() => navigateMonth(1)} style={{ background: '#fff', border: '1.5px solid var(--color-border)', borderRadius: '10px', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ChevronRight size={18} />
           </button>
@@ -133,8 +137,8 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
               <div style={{ background: 'var(--color-cream)', borderRadius: '16px', overflow: 'hidden', border: '1.5px solid var(--color-border)' }}>
                 {/* Salaire de base */}
                 <div style={{ padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
-                  <span style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem' }}>Salaire de base</span>
-                  <span style={{ fontWeight: 800, fontSize: '1rem', color: '#2D1B0E' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: '0.9rem' }}>Salaire de base</span>
+                  <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--color-text)' }}>
                     {Number(data.baseSalary).toLocaleString('fr-FR')} {currency}
                   </span>
                 </div>
@@ -180,7 +184,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                 )}
 
                 {/* Net à payer */}
-                <div style={{ padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#2D1B0E' }}>
+                <div style={{ padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-text)' }}>
                   <span style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net à payer</span>
                   <span style={{ fontWeight: 900, color: '#FDE8DB', fontSize: '1.25rem' }}>
                     {Number(data.net).toLocaleString('fr-FR')} {currency}

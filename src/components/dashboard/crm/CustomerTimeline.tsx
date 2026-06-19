@@ -3,13 +3,38 @@
 import React from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Clock, MessageSquare, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { Clock, MessageSquare, ShoppingBag, CheckCircle2, Wallet, AlertTriangle, type LucideIcon } from "lucide-react";
 import { Order } from "./types";
 
 interface CustomerTimelineProps {
   orders: Order[];
   formatCurrency: (amount: number) => string;
 }
+
+const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }> = {
+  confirmed: { label: "⏳ Confirmée", bg: "#FEF3C7", text: "#92400E" },
+  in_preparation: { label: "👨‍🍳 En préparation", bg: "#DBEAFE", text: "#1E40AF" },
+  ready: { label: "✅ Prête", bg: "#D1FAE5", text: "#065F46" },
+  awaiting_pickup: { label: "📦 Attente retrait", bg: "#FFE4E6", text: "#9F1239" },
+  delivered: { label: "✔ Livrée / Retirée", bg: "#F3F4F6", text: "#374151" },
+  cancelled: { label: "✖ Annulée", bg: "#FEE2E2", text: "#991B1B" },
+  // Rétrocompatibilité
+  pending: { label: "⏳ Confirmée", bg: "#FEF3C7", text: "#92400E" },
+  production: { label: "👨‍🍳 En préparation", bg: "#DBEAFE", text: "#1E40AF" },
+  completed: { label: "✔ Livrée / Retirée", bg: "#F3F4F6", text: "#374151" },
+};
+
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: LucideIcon }> = {
+  unpaid: { label: "Impayé", bg: "#FEE2E2", text: "#B91C1C", icon: Wallet },
+  deposit_paid: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "#815431", icon: Wallet },
+  partial: { label: "Partiel", bg: "rgba(217, 119, 6, 0.08)", text: "#D97706", icon: Wallet },
+  paid: { label: "Soldé", bg: "#D1FAE5", text: "#065F46", icon: CheckCircle2 },
+  overpaid: { label: "Trop-perçu", bg: "#FEF3C7", text: "#92400E", icon: AlertTriangle },
+  // Rétrocompatibilité
+  EN_ATTENTE: { label: "Impayé", bg: "#FEE2E2", text: "#B91C1C", icon: Wallet },
+  PARTIEL: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "#815431", icon: Wallet },
+  SOLDEE: { label: "Soldé", bg: "#D1FAE5", text: "#065F46", icon: CheckCircle2 },
+};
 
 export default function CustomerTimeline({ orders, formatCurrency }: CustomerTimelineProps) {
   return (
@@ -32,7 +57,7 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                 </span>
                 <span className="text-[10px] font-bold text-slate-400">Il y a 2 jours</span>
               </div>
-              <p className="text-sm font-bold text-slate-700">SMS "Offre de Pâques" envoyé</p>
+              <p className="text-sm font-bold text-slate-700">SMS &quot;Offre de Pâques&quot; envoyé</p>
             </div>
           </div>
 
@@ -44,7 +69,7 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                   <div className="flex items-center gap-2">
                     <ShoppingBag size={14} className="text-[#DC5F4A]" />
                     <span className="text-sm font-black text-slate-800">
-                      Commande #{order.id.substring(0, 8)}
+                      Commande #{order.order_number || order.id.substring(0, 8)}
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase">
@@ -52,16 +77,52 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
                   </span>
                 </div>
                 <div className="flex justify-between items-end">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 size={12} className="text-emerald-500" />
-                      <span className="text-xs font-bold text-slate-500">Confirmée</span>
-                    </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {/* Badge opérationnel */}
+                    {(() => {
+                      const opStatus = order.status || "confirmed";
+                      const opConf = STATUS_LABELS[opStatus] || STATUS_LABELS.confirmed;
+                      return (
+                        <span
+                          className="inline-flex items-center text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider leading-none"
+                          style={{ backgroundColor: opConf.bg, color: opConf.text }}
+                        >
+                          {opConf.label}
+                        </span>
+                      );
+                    })()}
+
+                    {/* Badge financier */}
+                    {(() => {
+                      const pStatus = order.payment_status || "unpaid";
+                      const pConf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid;
+                      const Icon = pConf.icon;
+
+                      // Calcul du montant restant s'il y en a un
+                      const balanceText = order.balance !== undefined && order.balance !== null && order.balance > 0
+                        ? ` (-${formatCurrency(order.balance)})`
+                        : "";
+
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider leading-none"
+                          style={{ backgroundColor: pConf.bg, color: pConf.text }}
+                        >
+                          <Icon size={10} />
+                          {pConf.label}{balanceText}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-black text-slate-800 leading-none">
                       {formatCurrency(order.total_amount)}
                     </p>
+                    {order.order_payments && order.order_payments.length > 0 && (
+                      <p className="mt-1 text-[10px] font-bold text-slate-400">
+                        {order.order_payments.length} paiement{order.order_payments.length > 1 ? "s" : ""} lie{order.order_payments.length > 1 ? "s" : ""}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

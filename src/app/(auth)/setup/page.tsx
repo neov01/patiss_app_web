@@ -24,7 +24,7 @@ export default function SetupPage() {
         const supabase = createClient()
 
         // Essayer de se connecter d'abord
-        let { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
         if (error) {
             // Si échec, essayer de créer le compte
@@ -105,10 +105,10 @@ export default function SetupPage() {
                 }}>
                     <ShieldCheck size={36} color="white" strokeWidth={1.5} />
                 </div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2D1B0E', margin: 0 }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
                     Configuration Initiale
                 </h1>
-                <p style={{ color: '#9C8070', marginTop: '4px', fontSize: '0.9rem' }}>
+                <p style={{ color: 'var(--color-muted)', marginTop: '4px', fontSize: '0.9rem' }}>
                     Créez votre compte Super Admin
                 </p>
             </div>
@@ -117,14 +117,14 @@ export default function SetupPage() {
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', alignItems: 'center' }}>
                 <div style={{
                     width: '32px', height: '32px', borderRadius: '50%',
-                    background: step === 'auth' ? 'linear-gradient(135deg, #C4836A, #C78A4A)' : '#4C9E6A',
+                    background: step === 'auth' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : '#4C9E6A',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'white', fontSize: '0.8rem', fontWeight: 700,
                 }}>{step !== 'auth' ? '✓' : '1'}</div>
                 <div style={{ width: '40px', height: '2px', background: step === 'auth' ? 'var(--color-border)' : '#4C9E6A' }} />
                 <div style={{
                     width: '32px', height: '32px', borderRadius: '50%',
-                    background: step === 'org' ? 'linear-gradient(135deg, #C4836A, #C78A4A)' : step === 'done' ? '#4C9E6A' : 'var(--color-border)',
+                    background: step === 'org' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : step === 'done' ? '#4C9E6A' : 'var(--color-border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: step === 'auth' ? 'var(--color-muted)' : 'white', fontSize: '0.8rem', fontWeight: 700,
                 }}>{step === 'done' ? '✓' : '2'}</div>
@@ -146,7 +146,7 @@ export default function SetupPage() {
             {/* Step 1 : Auth */}
             {step === 'auth' && (
                 <div className="card animate-slide-up" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', color: '#2D1B0E' }}>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', color: 'var(--color-text)' }}>
                         Étape 1 — Authentification
                     </h2>
                     <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '20px' }}>
@@ -156,7 +156,7 @@ export default function SetupPage() {
                         <div>
                             <label className="label" htmlFor="email">Email</label>
                             <div style={{ position: 'relative' }}>
-                                <Mail size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9C8070' }} />
+                                <Mail size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
                                 <input
                                     id="email"
                                     type="email"
@@ -173,7 +173,7 @@ export default function SetupPage() {
                         <div>
                             <label className="label" htmlFor="password">Mot de passe</label>
                             <div style={{ position: 'relative' }}>
-                                <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9C8070' }} />
+                                <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
                                 <input
                                     id="password"
                                     type="password"
@@ -205,7 +205,7 @@ export default function SetupPage() {
             {/* Step 2 : Organisation + Profil */}
             {step === 'org' && (
                 <div className="card animate-slide-up" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', color: '#2D1B0E' }}>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', color: 'var(--color-text)' }}>
                         Étape 2 — Votre profil
                     </h2>
                     <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginBottom: '20px' }}>
@@ -215,7 +215,7 @@ export default function SetupPage() {
                         <div>
                             <label className="label" htmlFor="fullName">Votre nom complet</label>
                             <div style={{ position: 'relative' }}>
-                                <ShieldCheck size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9C8070' }} />
+                                <ShieldCheck size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
                                 <input
                                     id="fullName"
                                     type="text"
@@ -231,7 +231,7 @@ export default function SetupPage() {
                         <div>
                             <label className="label" htmlFor="orgName">Nom de la pâtisserie</label>
                             <div style={{ position: 'relative' }}>
-                                <Building2 size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9C8070' }} />
+                                <Building2 size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted)' }} />
                                 <input
                                     id="orgName"
                                     type="text"

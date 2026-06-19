@@ -18,23 +18,34 @@ export default function ImpersonatePage() {
         const refreshToken = params.get('refresh_token')
 
         if (!accessToken || !refreshToken) {
-            setErrorMsg('Lien invalide ou expiré. Tokens manquants.')
-            setStatus('error')
-            return
+            const timer = window.setTimeout(() => {
+                setErrorMsg('Lien invalide ou expiré. Tokens manquants.')
+                setStatus('error')
+            }, 0)
+            return () => window.clearTimeout(timer)
         }
 
         const supabase = createClient()
+        const accessTokenValue = accessToken
+        const refreshTokenValue = refreshToken
+        let cancelled = false
 
-        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-            .then(({ error }) => {
-                if (error) {
-                    setErrorMsg(`Erreur de session : ${error.message}`)
-                    setStatus('error')
-                    return
-                }
-                // Session établie — rediriger vers le dashboard du client
-                router.replace('/dashboard')
-            })
+        async function establishSession() {
+            const { error } = await supabase.auth.setSession({ access_token: accessTokenValue, refresh_token: refreshTokenValue })
+            if (cancelled) return
+            if (error) {
+                setErrorMsg(`Erreur de session : ${error.message}`)
+                setStatus('error')
+                return
+            }
+            // Session établie — rediriger vers le dashboard du client
+            router.replace('/dashboard')
+        }
+
+        void establishSession()
+        return () => {
+            cancelled = true
+        }
     }, [router])
 
     if (status === 'error') {

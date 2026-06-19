@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function EquipeClient({ employees: initial, organizationId, currency }: Props) {
-  const [employees, setEmployees] = useState<EmployeeData[]>(initial)
+  const employees = initial
   const router = useRouter()
 
   // Modals state
@@ -46,7 +46,7 @@ export default function EquipeClient({ employees: initial, organizationId, curre
     setPayslipOpen(true)
   }
 
-  const handleDeactivated = (id: string) => {
+  const handleDeactivated = () => {
     // router.refresh() will update initial props
     router.refresh()
   }
@@ -61,7 +61,7 @@ export default function EquipeClient({ employees: initial, organizationId, curre
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Users size={24} color="var(--color-rose-dark)" />
             {showInactive ? 'Membres archivés' : 'Mon Équipe'}
           </h1>
@@ -100,7 +100,7 @@ export default function EquipeClient({ employees: initial, organizationId, curre
           border: '2px dashed var(--color-border)',
         }}>
           <Users size={48} style={{ opacity: 0.25, margin: '0 auto 16px' }} />
-          <p style={{ fontWeight: 700, fontSize: '1.05rem', color: '#2D1B0E', margin: '0 0 6px' }}>Aucun employé pour l&apos;instant</p>
+          <p style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-text)', margin: '0 0 6px' }}>Aucun employé pour l&apos;instant</p>
           <p style={{ color: 'var(--color-muted)', margin: 0, fontSize: '0.875rem' }}>
             Ajoutez vos vendeurs et pâtissiers pour le mode kiosque.
           </p>

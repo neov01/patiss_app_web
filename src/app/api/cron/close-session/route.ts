@@ -2,11 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { closeSingleSession } from '@/lib/actions/session-utils'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
     const cronSecret = process.env.CRON_SECRET;
     
@@ -22,6 +17,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!isCron) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // 2. Appel Automatique (CRON)
     const { data: openSessions, error } = await supabaseAdmin

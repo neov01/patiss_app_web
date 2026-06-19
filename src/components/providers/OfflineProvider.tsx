@@ -10,10 +10,11 @@ import {
   cacheReadyOrders,
   getCachedProducts,
   type CachedProduct,
+  type CachedReadyOrder,
   type PendingTransaction,
   type PendingOrder
 } from '@/lib/offline/db'
-import { syncPendingData, type SyncResult } from '@/lib/offline/sync'
+import { syncPendingData } from '@/lib/offline/sync'
 import { toast } from 'sonner'
 
 type OfflineContextType = {
@@ -29,7 +30,7 @@ type OfflineContextType = {
   /** Met à jour le cache produits (appeler quand on a les données fraîches) */
   refreshProductCache: (products: CachedProduct[]) => Promise<void>
   /** Met à jour le cache des commandes prêtes (pipeline) */
-  refreshReadyOrdersCache: (orders: any[]) => Promise<void>
+  refreshReadyOrdersCache: (orders: CachedReadyOrder[]) => Promise<void>
   /** Force une synchronisation manuelle */
   forceSync: () => Promise<void>
 }
@@ -62,31 +63,20 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     }
   }, [])
 
-  // Charger le cache produits au montage
-  useEffect(() => {
-    getCachedProducts().then(setCachedProducts).catch(() => {})
-    updatePendingCount()
-  }, [])
-
-  const updatePendingCount = async () => {
+  const updatePendingCount = useCallback(async () => {
     try {
       const counts = await getPendingCounts()
       setPendingCount(counts.transactions + counts.orders)
     } catch {
       // IndexedDB non dispo
     }
-  }
+  }, [])
 
-  // Auto-sync quand on revient en ligne
+  // Charger le cache produits au montage
   useEffect(() => {
-    const wasOffline = prevStatus.current === 'offline' || prevStatus.current === 'unstable'
-    const isNowOnline = networkStatus === 'online'
-    prevStatus.current = networkStatus
-
-    if (wasOffline && isNowOnline && pendingCount > 0) {
-      handleSync()
-    }
-  }, [networkStatus, pendingCount])
+    getCachedProducts().then(setCachedProducts).catch(() => {})
+    void updatePendingCount()
+  }, [updatePendingCount])
 
   const handleSync = useCallback(async () => {
     if (isSyncing.current) return
@@ -119,12 +109,23 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       }
 
       await updatePendingCount()
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors de la synchronisation', { id: toastId })
     } finally {
       isSyncing.current = false
     }
-  }, [pendingCount])
+  }, [pendingCount, updatePendingCount])
+
+  // Auto-sync quand on revient en ligne
+  useEffect(() => {
+    const wasOffline = prevStatus.current === 'offline' || prevStatus.current === 'unstable'
+    const isNowOnline = networkStatus === 'online'
+    prevStatus.current = networkStatus
+
+    if (wasOffline && isNowOnline && pendingCount > 0) {
+      void handleSync()
+    }
+  }, [networkStatus, pendingCount, handleSync])
 
   const saveTransactionOffline = useCallback(async (tx: Omit<PendingTransaction, 'offlineId' | 'createdAt'>) => {
     await queueTransaction(tx)
@@ -132,7 +133,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     toast.info('⏳ Transaction enregistrée hors-ligne — sera synchronisée au retour du réseau', {
       duration: 4000
     })
-  }, [])
+  }, [updatePendingCount])
 
   const saveOrderOffline = useCallback(async (order: Omit<PendingOrder, 'offlineId' | 'createdAt'>) => {
     await queueOrder(order)
@@ -140,14 +141,14 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     toast.info('⏳ Commande enregistrée hors-ligne — sera synchronisée au retour du réseau', {
       duration: 4000
     })
-  }, [])
+  }, [updatePendingCount])
 
   const refreshProductCache = useCallback(async (products: CachedProduct[]) => {
     await cacheProducts(products)
     setCachedProducts(products)
   }, [])
 
-  const refreshReadyOrdersCache = useCallback(async (orders: any[]) => {
+  const refreshReadyOrdersCache = useCallback(async (orders: CachedReadyOrder[]) => {
     await cacheReadyOrders(orders)
   }, [])
 

@@ -20,7 +20,7 @@ function KioskContent() {
         router.push('/login');
     }
 
-    const [kioskOrgId, setKioskOrgId] = useState<string | null>(null)
+    const [kioskOrgId, setKioskOrgId] = useState<string | null>(() => searchParams.get('orgId'))
     const [boutiqueCode, setBoutiqueCode] = useState('')
     const [verifyingCode, setVerifyingCode] = useState(false)
     
@@ -29,14 +29,6 @@ function KioskContent() {
     const [pin, setPin] = useState('')
     const [loading, setLoading] = useState(false)
     const [checking, setChecking] = useState(false)
-
-    // 1. Initialisation de l'organisation
-    useEffect(() => {
-        const orgId = searchParams.get('orgId')
-        if (orgId) {
-            setKioskOrgId(orgId)
-        }
-    }, [searchParams])
 
     // 2. Récupération des employés si organisation connue
     useEffect(() => {
@@ -115,13 +107,13 @@ function KioskContent() {
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '44px', height: '44px', borderRadius: '14px',
-                    background: 'linear-gradient(135deg, #C4836A, #C78A4A)',
+                    background: 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)',
                 }}>
                     <CakeSlice size={22} color="white" strokeWidth={1.5} />
                 </div>
                 <div>
-                    <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#2D1B0E' }}>Mode Kiosque</h1>
-                    <p style={{ fontSize: '0.8rem', color: '#9C8070', margin: 0 }}>
+                    <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Mode Kiosque</h1>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', margin: 0 }}>
                         {!kioskOrgId ? 'Configuration' : !selected ? 'Sélectionnez votre profil' : 'Identification'}
                     </p>
                 </div>
@@ -129,7 +121,7 @@ function KioskContent() {
                     onClick={handleGerantLogin}
                     style={{ 
                         marginLeft: 'auto', 
-                        color: '#9C8070', 
+                        color: 'var(--color-muted)', 
                         fontSize: '0.8rem', 
                         textDecoration: 'none',
                         background: 'none',
@@ -174,10 +166,10 @@ function KioskContent() {
                         zIndex: 2
                     }}
                 >
-                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-well)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
                         <Store size={32} color="#D97757" />
                     </div>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2D1B0E', margin: '0 0 12px' }}>Code Boutique</h2>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 12px' }}>Code Boutique</h2>
                     <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
                         Entrez le code d&apos;accès de votre pâtisserie fourni par l&apos;administrateur.
                     </p>
@@ -244,7 +236,7 @@ function KioskContent() {
                                             ))}
                                         </div>
                                     ) : profiles.length === 0 ? (
-                                        <div style={{ textAlign: 'center', color: '#9C8070', paddingTop: '40px' }}>
+                                        <div style={{ textAlign: 'center', color: 'var(--color-muted)', paddingTop: '40px' }}>
                                             <p>Aucun employé actif trouvé pour cette boutique.</p>
                                             <button onClick={() => setKioskOrgId(null)} className="btn-ghost" style={{ marginTop: '16px' }}>
                                                 Retour
@@ -252,7 +244,7 @@ function KioskContent() {
                                         </div>
                                     ) : (
                                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#2D1B0E', marginBottom: '24px', textAlign: 'center' }}>
+                                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '24px', textAlign: 'center' }}>
                                                 Sélectionnez votre profil
                                             </h2>
                                             <div style={{
@@ -290,10 +282,10 @@ function KioskContent() {
                                                         }}>
                                                             {!p.avatar_url && initials(p.full_name)}
                                                         </div>
-                                                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2D1B0E', textAlign: 'center' }}>
+                                                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', textAlign: 'center' }}>
                                                             {p.full_name}
                                                         </span>
-                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070', fontWeight: 600 }}>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600 }}>
                                                             {p.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
                                                         </span>
                                                     </motion.button>
@@ -343,8 +335,8 @@ function KioskContent() {
                                             {!selected.avatar_url && initials(selected.full_name)}
                                         </div>
                                         <div style={{ textAlign: 'left' }}>
-                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2D1B0E', margin: 0 }}>{selected.full_name}</h2>
-                                            <p style={{ color: '#9C8070', fontSize: '0.8rem', margin: '4px 0 0', fontWeight: 600 }}>
+                                            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>{selected.full_name}</h2>
+                                            <p style={{ color: 'var(--color-muted)', fontSize: '0.8rem', margin: '4px 0 0', fontWeight: 600 }}>
                                                 {selected.role_slug === 'vendeur' ? '🛒 Vendeur' : '👨‍🍳 Pâtissier'}
                                             </p>
                                         </div>
@@ -357,14 +349,14 @@ function KioskContent() {
                                         transition={{ delay: 0.15 }}
                                         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}
                                     >
-                                        <p style={{ color: '#9C8070', fontSize: '0.875rem', margin: 0, fontWeight: 600 }}>Entrez votre code PIN</p>
+                                        <p style={{ color: 'var(--color-muted)', fontSize: '0.875rem', margin: 0, fontWeight: 600 }}>Entrez votre code PIN</p>
                                         
                                         {/* Dots */}
                                         <div style={{ display: 'flex', gap: '16px' }}>
                                             {[0, 1, 2, 3].map(i => (
                                                 <div key={i} style={{
                                                     width: '16px', height: '16px', borderRadius: '50%',
-                                                    background: i < pin.length ? 'var(--color-primary, #C4836A)' : 'var(--color-border)',
+                                                    background: i < pin.length ? 'var(--color-primary, var(--color-rose-dark))' : 'var(--color-border)',
                                                     transition: 'background 0.2s',
                                                 }} />
                                             ))}
@@ -385,7 +377,7 @@ function KioskContent() {
                                                         background: d === '⌫' ? 'var(--color-well, #F5EEE4)' : 'white',
                                                         fontSize: d === '⌫' ? '1.1rem' : '1.5rem',
                                                         fontWeight: 700, cursor: d ? 'pointer' : 'default',
-                                                        color: d === '⌫' ? '#C4836A' : '#2D1B0E',
+                                                        color: d === '⌫' ? 'var(--color-rose-dark)' : 'var(--color-text)',
                                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                         boxShadow: d ? '0 4px 8px rgba(45,27,14,0.02)' : 'none',
                                                         visibility: d === '' ? 'hidden' : 'visible',
@@ -397,7 +389,7 @@ function KioskContent() {
                                             ))}
                                         </div>
 
-                                        {checking && <Loader2 size={24} className="animate-spin" style={{ color: '#C4836A' }} />}
+                                        {checking && <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-rose-dark)' }} />}
 
                                         <button onClick={() => { setSelected(null); setPin('') }} className="btn-ghost" style={{ marginTop: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
                                             ← Changer de profil
@@ -417,7 +409,7 @@ export default function KioskPage() {
     return (
         <Suspense fallback={
             <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FDF8F3' }}>
-                <Loader2 size={32} className="animate-spin" color="#C4836A" />
+                <Loader2 size={32} className="animate-spin" color="var(--color-rose-dark)" />
             </div>
         }>
             <KioskContent />

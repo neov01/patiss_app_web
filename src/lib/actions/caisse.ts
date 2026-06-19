@@ -1,7 +1,37 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { AuthContextError, requireOpenSalesSession, requireRoleContext } from '@/lib/auth/organization-context'
+import { addLoyaltyPoints, calculateLoyaltyPoints } from '@/lib/domain/loyalty'
+import { getFinalPaymentMethod, type PaymentDetails } from '@/lib/domain/payments'
+import { getPhoneSearchCandidates, normalizeCustomerPhone } from '@/lib/domain/phone'
 import { revalidatePath } from 'next/cache'
+
+type EncaisserAtomicArgs = {
+    p_transaction_id: string
+    p_organization_id: string
+    p_order_id: string | null
+    p_customer_id: string | null
+    p_client_name: string
+    p_amount: number
+    p_payment_method: string
+    p_payment_details: PaymentDetails
+    p_label_type: string
+    p_created_by: string
+    p_items: Array<{
+        item_id: string | null
+        product_id: string | null
+        name: string
+        quantity: number
+        unit_price: number
+    }>
+}
+
+type EncaisserRpcClient = {
+    rpc(
+        fn: 'encaisser_atomic',
+        args: EncaisserAtomicArgs
+    ): Promise<{ data: string | null; error: { message?: string } | null }>
+}
 
 type EncaisserPayload = {
     id?: string
@@ -11,7 +41,7 @@ type EncaisserPayload = {
     client_phone?: string
     amount: number
     payment_method: string
-    payment_details?: Record<string, number>
+    payment_details?: PaymentDetails
     items: Array<{
         id?: string
         product_id: string | null
@@ -23,38 +53,21 @@ type EncaisserPayload = {
 
 export async function encaisserTransaction(payload: EncaisserPayload) {
     try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) return { error: "Non autorisé" }
-
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('organization_id')
-            .eq('id', user.id)
-            .single()
-
-        if (!profile?.organization_id) return { error: "Organisation non trouvée" }
-
-        const orgId = profile.organization_id
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, userId, organizationId: orgId } = context
 
         const labelType = payload.order_id ? 'SOLDE' : 'VENTE_DIRECTE'
-        const isMixed = payload.payment_details && Object.keys(payload.payment_details).length > 1
-        const finalPaymentMethod = isMixed ? 'MIXTE' : payload.payment_method
+        const finalPaymentMethod = getFinalPaymentMethod(payload.payment_method, payload.payment_details)
         const transactionId = payload.id ?? crypto.randomUUID()
 
         // Auto-enregistrement client : si pas de customer_id mais qu'un téléphone est fourni,
         // on cherche ou crée le client silencieusement pour alimenter le CRM & la fidélité.
         let resolvedCustomerId = payload.customer_id || null
-        const clientPhone = payload.client_phone?.replace(/\D/g, '') || null
+        const clientPhone = normalizeCustomerPhone(payload.client_phone)
 
         if (!resolvedCustomerId && clientPhone && payload.client_name !== 'Vente vitrine') {
-            // Normaliser le numéro pour la recherche (format Ivoirien +225 → local)
-            let normalizedPhone = clientPhone
-            if (clientPhone.startsWith('225') && clientPhone.length >= 11) {
-                normalizedPhone = clientPhone.slice(3)
-            }
-            const phoneCandidates = Array.from(new Set([clientPhone, normalizedPhone]))
+            const phoneCandidates = getPhoneSearchCandidates(payload.client_phone)
 
             const { data: existingCustomer } = await supabase
                 .from('customers')
@@ -71,7 +84,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
                     .from('customers')
                     .insert({
                         name: payload.client_name,
-                        phone: normalizedPhone || clientPhone,
+                        phone: clientPhone,
                         organization_id: orgId,
                     })
                     .select('id')
@@ -81,7 +94,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         }
 
         // Encaissement atomique : transaction + items + stock en une seule opération PostgreSQL
-        const { data: transactionIdResult, error: atomicError } = await supabase.rpc('encaisser_atomic' as any, {
+        const { error: atomicError } = await (supabase as unknown as EncaisserRpcClient).rpc('encaisser_atomic', {
             p_transaction_id: transactionId,
             p_organization_id: orgId,
             p_order_id: payload.order_id,
@@ -91,7 +104,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
             p_payment_method: finalPaymentMethod,
             p_payment_details: payload.payment_details || {},
             p_label_type: labelType,
-            p_created_by: user.id,
+            p_created_by: userId,
             p_items: payload.items.map(item => ({
                 item_id: item.id ?? null,
                 product_id: item.product_id,
@@ -103,6 +116,12 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         if (atomicError) {
             console.error("Erreur encaissement atomique:", atomicError)
+            const isDuplicate = atomicError.message?.includes('duplicate key') || 
+                                (atomicError as { code?: string }).code === '23505'
+            if (isDuplicate) {
+                // Déjà traité en base, on considère cela comme un succès
+                return { success: true }
+            }
             const isStockError = atomicError.message?.includes('Stock insuffisant')
             return { error: isStockError ? atomicError.message : "Erreur lors de l'encaissement" }
         }
@@ -110,18 +129,21 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
         // 4. Créditer les points de fidélité (1 point par 1000 FCFA)
         // Exécuté après l'encaissement car non critique pour l'atomicité
         if (resolvedCustomerId && payload.amount > 0) {
-            const pointsToAdd = Math.floor(payload.amount / 1000)
+            const pointsToAdd = calculateLoyaltyPoints(payload.amount)
             if (pointsToAdd > 0) {
                 const { data: cust } = await supabase
                     .from('customers')
                     .select('loyalty_points, lifetime_points')
                     .eq('id', resolvedCustomerId)
+                    .eq('organization_id', orgId)
                     .single()
                 if (cust) {
                     await supabase.from('customers').update({
-                        loyalty_points: (cust.loyalty_points || 0) + pointsToAdd,
-                        lifetime_points: (cust.lifetime_points || 0) + pointsToAdd,
-                    }).eq('id', resolvedCustomerId)
+                        loyalty_points: addLoyaltyPoints(cust.loyalty_points, pointsToAdd),
+                        lifetime_points: addLoyaltyPoints(cust.lifetime_points, pointsToAdd),
+                    })
+                        .eq('id', resolvedCustomerId)
+                        .eq('organization_id', orgId)
                 }
             }
         }
@@ -132,6 +154,7 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
 
         return { success: true }
     } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
         const msg = e instanceof Error ? e.message : 'Erreur inattendue'
         console.error("Erreur inattendue :", msg)
         return { error: "Erreur inattendue" }
@@ -145,27 +168,16 @@ export async function rembourserTransaction(payload: {
     paymentMethod: string
 }) {
     try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return { error: "Non autorisé" }
-
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('organization_id, role_slug')
-            .eq('id', user.id)
-            .single()
-
-        if (!profile?.organization_id) return { error: "Organisation non trouvée" }
-        if (!['gerant', 'super_admin'].includes(profile.role_slug)) {
-            return { error: "Seul un gérant peut effectuer un remboursement" }
-        }
+        const context = await requireRoleContext(['gerant', 'super_admin'])
+        await requireOpenSalesSession(context)
+        const { supabase, userId, organizationId } = context
 
         // Vérifier que la transaction originale appartient à l'organisation
         const { data: originalTx } = await supabase
             .from('transactions')
             .select('id, amount, organization_id, client_name, customer_id')
             .eq('id', payload.originalTransactionId)
-            .eq('organization_id', profile.organization_id)
+            .eq('organization_id', organizationId)
             .single()
 
         if (!originalTx) return { error: "Transaction originale introuvable ou hors organisation" }
@@ -177,7 +189,7 @@ export async function rembourserTransaction(payload: {
         const { error: refundError } = await supabase
             .from('transactions')
             .insert({
-                organization_id: profile.organization_id,
+                organization_id: organizationId,
                 order_id: null,
                 customer_id: originalTx.customer_id,
                 client_name: originalTx.client_name,
@@ -185,7 +197,7 @@ export async function rembourserTransaction(payload: {
                 payment_method: payload.paymentMethod,
                 payment_details: { [payload.paymentMethod]: payload.amount },
                 label_type: 'REMBOURSEMENT',
-                created_by: user.id,
+                created_by: userId,
             })
 
         if (refundError) {
@@ -197,6 +209,7 @@ export async function rembourserTransaction(payload: {
         revalidatePath('/dashboard')
         return { success: true }
     } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
         const msg = e instanceof Error ? e.message : 'Erreur inattendue'
         console.error("Erreur remboursement:", msg)
         return { error: msg }
@@ -205,14 +218,15 @@ export async function rembourserTransaction(payload: {
 
 export async function finaliserCommandeDejaPayee(orderId: string) {
     try {
-        const supabase = await createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return { error: "Non autorisé" }
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
 
         const { error } = await supabase
             .from('orders')
             .update({ status: 'completed' })
             .eq('id', orderId)
+            .eq('organization_id', organizationId)
 
         if (error) {
             console.error("Erreur finalisation commande:", error)
@@ -223,6 +237,7 @@ export async function finaliserCommandeDejaPayee(orderId: string) {
         revalidatePath('/dashboard')
         return { success: true }
     } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
         const msg = e instanceof Error ? e.message : 'Erreur inattendue'
         console.error("Erreur inattendue :", msg)
         return { error: "Erreur inattendue" }
