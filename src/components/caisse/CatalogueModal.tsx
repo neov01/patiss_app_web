@@ -7,6 +7,7 @@ import { X, Search, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
+import { cacheProducts, getCachedProducts } from '@/lib/offline/db'
 
 type Product = {
     id: string
@@ -34,16 +35,43 @@ export default function CatalogueModal({
         queryKey: ['catalog', organizationId],
         queryFn: async () => {
             const supabase = createClient()
-            const { data, error } = await supabase.from('products')
-                .select('id, name, selling_price, current_stock, category')
-                .eq('organization_id', organizationId)
-                .eq('is_active', true)
-                .order('name')
-            if (error) throw error
-            return data || []
+            try {
+                const { data, error } = await supabase.from('products')
+                    .select('id, name, selling_price, current_stock, category')
+                    .eq('organization_id', organizationId)
+                    .eq('is_active', true)
+                    .order('name')
+                
+                if (error) throw error
+
+                // On met à jour le cache local IndexedDB complet
+                if (data && data.length > 0) {
+                    const productsToCache = data.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        selling_price: Number(p.selling_price),
+                        current_stock: p.current_stock,
+                        category: p.category || '',
+                    }))
+                    await cacheProducts(productsToCache, true)
+                }
+
+                return data || []
+            } catch (err) {
+                console.error("[Catalogue] Erreur en ligne, tentative via cache local:", err)
+                try {
+                    const localProducts = await getCachedProducts()
+                    if (localProducts && localProducts.length > 0) {
+                        return localProducts
+                    }
+                } catch (localErr) {
+                    console.error("[Catalogue] Échec de lecture du cache local:", localErr)
+                }
+                throw err
+            }
         },
         enabled: open && !!organizationId,
-        staleTime: Infinity,
+        staleTime: 1000 * 60 * 5, // 5 minutes fresh
     })
 
     useEffect(() => {

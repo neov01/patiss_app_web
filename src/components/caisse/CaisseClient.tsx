@@ -44,7 +44,7 @@ import { encaisserTransaction, finaliserCommandeDejaPayee } from '@/lib/actions/
 import TouchInput from '@/components/ui/TouchInput'
 import TouchSelect from '@/components/ui/TouchSelect'
 import { useOffline } from '@/components/providers/OfflineProvider'
-import { getCachedReadyOrders } from '@/lib/offline/db'
+import { getCachedReadyOrders, getCachedProducts } from '@/lib/offline/db'
 import { CRMSelector } from './CRMSelector'
 import SessionsHistoryClient from './SessionsHistoryClient'
 
@@ -61,6 +61,7 @@ type CaisseProps = {
     bestSellers: any[]
     sessions?: any[]
     roleSlug: string
+    initialProducts?: any[]
 }
 
 type PanierLine = {
@@ -91,7 +92,8 @@ export default function CaisseClient({
     recentHistory: initialHistory,
     bestSellers,
     sessions = [],
-    roleSlug
+    roleSlug,
+    initialProducts = []
 }: CaisseProps) {
     // ÉTAT LOCAL
     const [caisseTab, setCaisseTab] = useState<'vente' | 'historique'>('vente')
@@ -137,20 +139,27 @@ export default function CaisseClient({
     const [readyOrders, setReadyOrders] = useState(initialOrders)
 
     // Offline support
-    const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache } = useOffline()
+    const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache, cachedProducts } = useOffline()
 
-    // Cache les best-sellers pour le mode hors-ligne
+    // Cache les produits pour le mode hors-ligne
     useEffect(() => {
-        if (bestSellers && bestSellers.length > 0) {
-            refreshProductCache(bestSellers.map(bs => ({
-                id: bs.id,
-                name: bs.name,
-                selling_price: bs.selling_price,
-                current_stock: bs.stock_qty,
-                category: '',
-            })))
+        if (initialProducts && initialProducts.length > 0) {
+            refreshProductCache(initialProducts)
+        } else if (bestSellers && bestSellers.length > 0) {
+            getCachedProducts().then(cached => {
+                // Ne pas écraser si on a déjà un catalogue plus complet en cache
+                if (!cached || cached.length <= bestSellers.length) {
+                    refreshProductCache(bestSellers.map(bs => ({
+                        id: bs.id,
+                        name: bs.name,
+                        selling_price: bs.selling_price,
+                        current_stock: bs.stock_qty,
+                        category: '',
+                    })))
+                }
+            }).catch(console.error)
         }
-    }, [bestSellers, refreshProductCache])
+    }, [initialProducts, bestSellers, refreshProductCache])
     
     // Cache les commandes prêtes
     useEffect(() => {
@@ -686,34 +695,42 @@ export default function CaisseClient({
 
                 {caisseMode === 'vitrine' && <>{/* 4. VENTE VITRINE */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Store size={18} color="#C4836A" /> Vente Rapide — Best-Sellers
+                    <Store size={18} color="#C4836A" /> Vente Rapide — {(bestSellers && bestSellers.length > 0) ? 'Best-Sellers' : 'Catalogue'}
                 </h2>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-                    {bestSellers.map(bs => (
-                        <button key={bs.id} onClick={() => addToCart(bs)}
-                            style={{
-                                background: 'white', padding: '12px', borderRadius: '16px', border: '1px solid var(--color-caisse-border)',
-                                textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center'
-                            }}
-                            className="card-clickable"
-                        >
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-                                <Box size={20} color="var(--color-caisse-accent)" />
-                            </div>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2D1B0E', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {bs.name}
-                            </div>
-                            <div style={{ fontWeight: 800, color: '#C4836A', fontSize: '0.9rem', marginTop: 'auto' }}>
-                                {bs.selling_price.toLocaleString('fr-FR')} {currency}
-                            </div>
-                            {bs.stock_qty < 3 && (
-                                <div style={{ fontSize: '0.7rem', color: '#F59E0B', fontWeight: 600, marginTop: '4px' }}>
-                                    Plus que {bs.stock_qty}
+                    {((bestSellers && bestSellers.length > 0) ? bestSellers : cachedProducts.slice(0, 12)).map(bs => {
+                        const stockQty = bs.stock_qty !== undefined ? bs.stock_qty : (bs.current_stock ?? 0)
+                        return (
+                            <button key={bs.id} onClick={() => addToCart({
+                                id: bs.id,
+                                name: bs.name,
+                                selling_price: bs.selling_price,
+                                stock_qty: stockQty,
+                            })}
+                                style={{
+                                    background: 'white', padding: '12px', borderRadius: '16px', border: '1px solid var(--color-caisse-border)',
+                                    textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center'
+                                }}
+                                className="card-clickable"
+                            >
+                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                                    <Box size={20} color="var(--color-caisse-accent)" />
                                 </div>
-                            )}
-                        </button>
-                    ))}
+                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2D1B0E', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {bs.name}
+                                </div>
+                                <div style={{ fontWeight: 800, color: '#C4836A', fontSize: '0.9rem', marginTop: 'auto' }}>
+                                    {bs.selling_price.toLocaleString('fr-FR')} {currency}
+                                </div>
+                                {stockQty < 3 && (
+                                    <div style={{ fontSize: '0.7rem', color: '#F59E0B', fontWeight: 600, marginTop: '4px' }}>
+                                        Plus que {stockQty}
+                                    </div>
+                                )}
+                            </button>
+                        )
+                    })}
                 </div>
                 
                 <button onClick={() => setModalCatalogueOpen(true)} className="btn-secondary" style={{ width: '100%', marginBottom: '40px' }}>
@@ -758,7 +775,7 @@ export default function CaisseClient({
                                                         )}
                                                     </div>
                                                     <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '2px' }}>
-                                                        Commande · {t.nb_items} article{t.nb_items > 1 ? 's' : ''}
+                                                        Commande · {t.items_summary || `${t.nb_items} article${t.nb_items > 1 ? 's' : ''}`}
                                                     </div>
                                                 </div>
                                             </div>
@@ -825,17 +842,21 @@ export default function CaisseClient({
                                             <div>
                                                 <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                     <span>{t.client_name}</span>
-                                                    {t.order_number && (
+                                                    {t.order_number ? (
                                                         <span style={{ color: '#C4836A', fontSize: '0.75rem', fontWeight: 700, background: '#FEF3EC', padding: '1px 6px', borderRadius: '4px' }}>
                                                             #{t.order_number}
                                                         </span>
+                                                    ) : (
+                                                        <span style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 700, background: '#F3F4F6', padding: '1px 6px', borderRadius: '4px' }} title="Référence de transaction">
+                                                            #VIT-{t.id.slice(0, 8).toUpperCase()}
+                                                        </span>
                                                     )}
-                                                    {p && p.label_type === 'ACOMPTE' && (
+                                                    {p && p.label_type === 'ACOMPTE' && t.client_name !== 'Client Vitrine' && t.client_name !== 'Vente vitrine' && (
                                                         <span style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                             Acompte
                                                         </span>
                                                     )}
-                                                    {p && p.label_type === 'SOLDE' && (
+                                                    {(p && p.label_type === 'SOLDE' || t.client_name === 'Client Vitrine' || t.client_name === 'Vente vitrine') && (
                                                         <span style={{ background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-accent)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                             Solde
                                                         </span>
@@ -849,8 +870,11 @@ export default function CaisseClient({
                                                 <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
                                                     {(() => {
                                                         const date = new Date(t.created_at);
-                                                        return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
-                                                    })()} · {t.nb_items} article{t.nb_items > 1 ? 's' : ''} {p ? `· ${p.payment_method}` : ''}
+                                                        const timeStr = !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
+                                                        const itemText = t.items_summary || (t.nb_items > 1 ? `${t.nb_items} articles` : `${t.nb_items} article`);
+                                                        const methodText = p ? (p.payment_method || 'other') : 'other';
+                                                        return `${timeStr} · ${itemText} · ${methodText}`;
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>

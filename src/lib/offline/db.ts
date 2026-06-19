@@ -81,10 +81,14 @@ export type CachedReadyOrder = {
   }>
 }
 
-export async function cacheProducts(products: CachedProduct[]): Promise<void> {
+export async function cacheProducts(products: CachedProduct[], clearFirst = false): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('products', 'readwrite')
   const store = tx.objectStore('products')
+
+  if (clearFirst) {
+    store.clear()
+  }
 
   for (const p of products) {
     store.put(p)

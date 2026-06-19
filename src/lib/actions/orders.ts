@@ -547,7 +547,7 @@ export async function importHistoricalOrder(input: unknown) {
                 // et la date historique de retrait pour le solde.
                 const paymentDate = p.label_type === 'ACOMPTE' ? created_at : pickup_date
 
-                await supabaseAdmin.from('transactions').insert({
+                const { error: txError } = await supabaseAdmin.from('transactions').insert({
                     id: randomUUID(),
                     organization_id: orgId,
                     order_id: orderId,
@@ -560,6 +560,10 @@ export async function importHistoricalOrder(input: unknown) {
                     created_at: paymentDate,
                     is_historical: true
                 })
+                if (txError) {
+                    console.error("Erreur insertion transaction historique:", txError)
+                    throw new Error(`Erreur insertion transaction : ${txError.message}`)
+                }
                 totalPaidAtCreation += p.amount
             }
         }
@@ -590,7 +594,7 @@ export async function importHistoricalOrder(input: unknown) {
             const isFullyPaidByDeposit = deposit_amount >= total_amount
             const labelType = isFullyPaidByDeposit ? 'SOLDE' : 'ACOMPTE'
             
-            await supabaseAdmin.from('transactions').insert({
+            const { error: txError } = await supabaseAdmin.from('transactions').insert({
                 id: randomUUID(),
                 organization_id: orgId,
                 order_id: orderId,
@@ -603,12 +607,16 @@ export async function importHistoricalOrder(input: unknown) {
                 created_at, // Date de prise de commande (date de l'acompte)
                 is_historical: true
             })
+            if (txError) {
+                console.error("Erreur insertion transaction acompte:", txError)
+                throw new Error(`Erreur insertion transaction acompte : ${txError.message}`)
+            }
         }
 
         // Transaction Solde (si la commande est terminée et qu'il y a un solde à payer)
         const isCompleted = status === 'completed' || status === 'delivered'
         if (isCompleted && resolvedBalance > 0) {
-            await supabaseAdmin.from('transactions').insert({
+            const { error: txError } = await supabaseAdmin.from('transactions').insert({
                 id: randomUUID(),
                 organization_id: orgId,
                 order_id: orderId,
@@ -621,6 +629,10 @@ export async function importHistoricalOrder(input: unknown) {
                 created_at: pickup_date, // Date de retrait (date du paiement du solde)
                 is_historical: true
             })
+            if (txError) {
+                console.error("Erreur insertion transaction solde:", txError)
+                throw new Error(`Erreur insertion transaction solde : ${txError.message}`)
+            }
         }
 
         // Créditer les points de fidélité pour le client historique (1 point par 1000 FCFA payés)
@@ -866,3 +878,66 @@ export async function addOrderPayment(
         return { error: getErrorMessage(e) }
     }
 }
+
+export async function updateOrderPayment(
+    paymentId: string,
+    orderId: string,
+    payment: { amount: number; payment_method: string; payment_date?: string; note?: string }
+) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabaseAny = supabase as any
+
+        // 1. Récupérer la commande pour validations
+        const { data: order, error: fetchOrderErr } = await supabaseAny
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.status === 'cancelled') {
+            return { error: 'Impossible de modifier un paiement sur une commande annulée' }
+        }
+
+        if (payment.amount <= 0) {
+            return { error: 'Le montant du paiement doit être supérieur à 0' }
+        }
+
+        // 2. Mettre à jour le paiement
+        const { data: updatedPayment, error: updateErr } = await supabaseAny
+            .from('order_payments')
+            .update({
+                amount: payment.amount,
+                payment_method: payment.payment_method,
+                payment_date: payment.payment_date || new Date().toISOString(),
+                note: payment.note || null,
+            })
+            .eq('id', paymentId)
+            .eq('order_id', orderId)
+            .eq('organization_id', organizationId)
+            .select()
+            .single()
+
+        if (updateErr) {
+            console.error('Erreur lors de la modification du paiement:', updateErr)
+            return { error: updateErr.message }
+        }
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true, payment: updatedPayment }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+

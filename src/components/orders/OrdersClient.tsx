@@ -31,6 +31,8 @@ export interface OrderWithItems {
     customization_notes: string | null
     created_by: string | null
     created_at: string | null
+    inserted_at: string | null
+    is_historical?: boolean | null
     order_items: OrderItem[]
     paid_amount: number
     balance: number
