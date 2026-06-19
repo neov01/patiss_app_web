@@ -120,9 +120,9 @@ export default async function CaissePage() {
         // 2. Commandes actives (Pipeline + Prêtes), y compris celles avec date de retrait passée
         supabase
             .from('orders')
-            .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, balance, priority, status, order_items(*, products(name))')
+            .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, paid_amount, total_amount, balance, priority, status, order_items(*, products(name))')
             .eq('organization_id', orgId)
-            .in('status', ['pending', 'production', 'ready'])
+            .in('status', ['pending', 'production', 'ready', 'confirmed', 'in_preparation', 'awaiting_pickup'])
             .order('pickup_date', { ascending: true }),
 
         // 3. Métriques du jour (Ventes & Recettes)

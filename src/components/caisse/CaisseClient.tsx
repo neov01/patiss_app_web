@@ -200,7 +200,7 @@ export default function CaisseClient({
         setActiveOrder(order)
         setActiveClient(order.customer_name)
         setActiveCustomerId(order.customer_id || null)
-        setAcompte(Number(order.deposit_amount))
+        setAcompte(Number(order.paid_amount ?? order.deposit_amount ?? 0))
         
         const lines: PanierLine[] = order.order_items.map((item: any) => ({
             product_id: item.product_id,
@@ -270,7 +270,7 @@ export default function CaisseClient({
         setActiveClientPhone(null)
         setAcompte(0)
         setMontantRemisStr('')
-        setActivePayments({ especes: 0 })
+        setActivePayments({ 'Espèces': 0 })
     }
     
     const detachClient = () => {
@@ -587,7 +587,7 @@ export default function CaisseClient({
                     </div>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
                         <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-badge-success-accent)' }}>{readyOrders.filter(o => o.status === 'ready').length}</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-badge-success-accent)' }}>{readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length}</div>
                     </div>
                 </div>
 
@@ -595,14 +595,14 @@ export default function CaisseClient({
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingBag size={18} color="#C4836A" /> Prêtes à encaisser
                 </h2>
-                {readyOrders.filter(o => o.status === 'ready').length === 0 ? (
+                {readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length === 0 ? (
                     <div style={{ background: 'white', padding: '32px', borderRadius: '16px', textAlign: 'center', color: '#9C8070', border: '1px solid var(--color-caisse-border)', marginBottom: '32px' }}>
                         <Clock size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                         <p>Aucune commande prête en attente.</p>
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '32px' }}>
-                        {readyOrders.filter(o => o.status === 'ready').map(order => {
+                        {readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').map(order => {
                             const isUrgent = order.priority === 'urgent'
                             const date = new Date(order.pickup_date)
                             return (
@@ -644,13 +644,13 @@ export default function CaisseClient({
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px' }}>
                     <Clock size={18} color="var(--color-muted)" /> Pipeline du jour
                 </h2>
-                {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').length === 0 ? (
+                {readyOrders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).length === 0 ? (
                     <div style={{ background: 'white', padding: '16px', borderRadius: '16px', textAlign: 'center', color: 'var(--color-muted)', border: '1px solid #E5E7EB', marginBottom: '32px', fontSize: '0.9rem' }}>
                         Aucune commande en cours de production.
                     </div>
                 ) : (
                     <div className="pipeline-carousel" style={{ display: 'flex', gap: '12px', marginBottom: '32px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
-                        {readyOrders.filter(o => o.status === 'pending' || o.status === 'production').map(order => {
+                        {readyOrders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).map(order => {
                             const date = new Date(order.pickup_date)
                             return (
                                 <div key={order.id}
@@ -671,9 +671,9 @@ export default function CaisseClient({
                                         <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>
                                             {order.order_items.map((i: any) => i.products?.name).join(' · ')}
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: order.status === 'pending' ? 'var(--color-badge-warning-bg)' : 'var(--color-badge-production-bg)', color: order.status === 'pending' ? 'var(--color-badge-warning-text)' : 'var(--color-badge-production-text)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
-                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: order.status === 'pending' ? 'var(--color-badge-warning-accent)' : 'var(--color-badge-crm-text)' }} />
-                                            {order.status === 'pending' ? 'En attente' : 'En production'}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-bg)' : 'var(--color-badge-production-bg)', color: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-text)' : 'var(--color-badge-production-text)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: (order.status === 'pending' || order.status === 'confirmed') ? 'var(--color-badge-warning-accent)' : 'var(--color-badge-crm-text)' }} />
+                                            {(order.status === 'pending' || order.status === 'confirmed') ? 'En attente' : 'En préparation'}
                                         </div>
                                     </div>
                                 </div>

@@ -7,7 +7,7 @@ import { useActionFeedback } from '@/hooks/useActionFeedback'
 import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search, SlidersHorizontal, X, Eye } from 'lucide-react'
 import { updateOrderStatus, deleteOrder, getHistoricalOrders } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
-import OrderDrawer from './OrderDrawer'
+import OrderDrawer, { type OrderPayment } from './OrderDrawer'
 import HistoricalImportModal from './HistoricalImportModal'
 import DatePicker from '@/components/ui/DatePicker'
 import SessionPill from '@/components/layout/SessionPill'
@@ -24,7 +24,7 @@ export interface OrderWithItems {
     pickup_date: string
     status: string
     priority: string | null
-    payment_status: string | null
+    payment_status: string
     total_amount: number
     deposit_amount: number
     custom_image_url: string | null
@@ -32,6 +32,9 @@ export interface OrderWithItems {
     created_by: string | null
     created_at: string | null
     order_items: OrderItem[]
+    paid_amount: number
+    balance: number
+    order_payments?: OrderPayment[]
     creator_profile?: {
         full_name: string
         role_slug: string
@@ -39,14 +42,32 @@ export interface OrderWithItems {
 }
 
 const STATUS_LABELS: Record<string, { label: string; next: string; color: string; bg: string; text: string }> = {
-    pending: { label: '⏳ En attente', next: 'production', color: '#FEF3C7', bg: '#FEF3C7', text: '#92400E' },
-    production: { label: '👨‍🍳 En production', next: 'ready', color: '#DBEAFE', bg: '#DBEAFE', text: '#1E40AF' },
-    ready: { label: '✅ Prête', next: 'completed', color: '#D1FAE5', bg: '#D1FAE5', text: '#065F46' },
-    completed: { label: '✔ Livré / Retiré', next: 'completed', color: '#F3F4F6', bg: '#F3F4F6', text: '#374151' },
-    cancelled: { label: '✖ Annulée', next: 'cancelled', color: '#FEE2E2', bg: '#FEE2E2', text: '#991B1B' },
+    confirmed: { label: '⏳ Confirmée', next: 'in_preparation', color: '#FEF3C7', bg: '#FEF3C7', text: '#92400E' },
+    in_preparation: { label: '👨‍🍳 En préparation', next: 'ready', color: '#DBEAFE', bg: '#DBEAFE', text: '#1E40AF' },
+    ready: { label: '✅ Prête', next: 'delivered', color: '#D1FAE5', bg: '#D1FAE5', text: '#065F46' },
+    awaiting_pickup: { label: '📦 Attente retrait', next: 'delivered', color: '#D1FAE5', bg: '#D1FAE5', text: '#065F46' },
+    delivered: { label: '✔ Livrée / Retirée', next: '', color: '#F3F4F6', bg: '#F3F4F6', text: '#374151' },
+    cancelled: { label: '✖ Annulée', next: '', color: '#FEE2E2', bg: '#FEE2E2', text: '#991B1B' },
+    // Rétrocompatibilité
+    pending: { label: '⏳ Confirmée', next: 'in_preparation', color: '#FEF3C7', bg: '#FEF3C7', text: '#92400E' },
+    production: { label: '👨‍🍳 En préparation', next: 'ready', color: '#DBEAFE', bg: '#DBEAFE', text: '#1E40AF' },
+    completed: { label: '✔ Livrée / Retirée', next: '', color: '#F3F4F6', bg: '#F3F4F6', text: '#374151' },
 }
 
-const ACTIVE_STATUSES = ['pending', 'production', 'ready']
+const ACTIVE_STATUSES = ['confirmed', 'in_preparation', 'ready', 'awaiting_pickup', 'pending', 'production']
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: any }> = {
+    unpaid: { label: 'Impayé', bg: '#FEE2E2', text: '#B91C1C', icon: Wallet },
+    deposit_paid: { label: 'Acompte versé', bg: 'rgba(129, 84, 49, 0.08)', text: 'var(--color-primary)', icon: Wallet },
+    partial: { label: 'Partiel', bg: 'rgba(217, 119, 6, 0.08)', text: '#D97706', icon: Wallet },
+    paid: { label: 'Soldé', bg: '#D1FAE5', text: '#065F46', icon: CheckCircle2 },
+    overpaid: { label: 'Trop-perçu', bg: '#FEF3C7', text: '#92400E', icon: AlertTriangle },
+    // Rétrocompatibilité
+    EN_ATTENTE: { label: 'Impayé', bg: '#FEE2E2', text: '#B91C1C', icon: Wallet },
+    PARTIEL: { label: 'Acompte', bg: 'rgba(129, 84, 49, 0.08)', text: 'var(--color-primary)', icon: Wallet },
+    SOLDEE: { label: 'Soldé', bg: '#D1FAE5', text: '#065F46', icon: CheckCircle2 },
+}
 
 function formatPickupDate(date: Date): string {
     if (isNaN(date.getTime())) return 'Non définie'
@@ -209,9 +230,18 @@ export default function OrdersClient({
         let result = localOrders
 
         // Filtre paiement
-        if (paymentFilter === 'solde') result = result.filter(o => o.payment_status === 'SOLDEE')
-        else if (paymentFilter === 'acompte') result = result.filter(o => o.payment_status === 'PARTIEL')
-        else if (paymentFilter === 'crm') result = result.filter(o => !!o.customer_id)
+        if (paymentFilter === 'solde') {
+            result = result.filter(o => o.payment_status === 'paid' || o.payment_status === 'SOLDEE')
+        } else if (paymentFilter === 'acompte') {
+            result = result.filter(o => ['deposit_paid', 'partial', 'PARTIEL'].includes(o.payment_status || ''))
+        } else if (paymentFilter === 'paid_not_delivered') {
+            result = result.filter(o =>
+                (o.payment_status === 'paid' || o.payment_status === 'SOLDEE') &&
+                o.status !== 'delivered' && o.status !== 'completed'
+            )
+        } else if (paymentFilter === 'crm') {
+            result = result.filter(o => !!o.customer_id)
+        }
 
         // Filtre Retraits du Jour
         if (pickupToday) {
@@ -279,7 +309,7 @@ export default function OrdersClient({
             loading: 'Mise à jour du statut...',
             success: () => {
                 router.refresh()
-                if (nextStatus === 'completed' || nextStatus === 'cancelled') {
+                if (nextStatus === 'delivered' || nextStatus === 'completed' || nextStatus === 'cancelled') {
                     if (activeTab === 'history') {
                         loadHistory(1, true)
                     }
@@ -522,6 +552,7 @@ export default function OrdersClient({
                                     { id: 'all', label: 'Tous paiements' },
                                     { id: 'solde', label: '✓ Soldé' },
                                     { id: 'acompte', label: '💳 Acompte restant' },
+                                    { id: 'paid_not_delivered', label: '💰 Soldées non retirées' },
                                     { id: 'crm', label: '🎯 Clients CRM' },
                                 ].map(f => (
                                     <button key={f.id}
@@ -624,7 +655,7 @@ export default function OrdersClient({
                                     <div style={{ display: 'flex', gap: '4px', background: 'white', padding: '4px', borderRadius: '99px', border: '1.5px solid var(--color-border)' }}>
                                         {[
                                             { id: 'all', label: 'Tous statuts' },
-                                            { id: 'completed', label: 'Livré / Retiré' },
+                                            { id: 'delivered', label: 'Livré / Retiré' },
                                             { id: 'cancelled', label: 'Annulée' }
                                         ].map(s => (
                                             <button
@@ -796,7 +827,7 @@ export default function OrdersClient({
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     {[
                                         { id: 'all', label: 'Tous les statuts' },
-                                        { id: 'completed', label: 'Livré / Retiré' },
+                                        { id: 'delivered', label: 'Livré / Retiré' },
                                         { id: 'cancelled', label: 'Annulée' }
                                     ].map(s => (
                                         <button
@@ -849,10 +880,13 @@ export default function OrdersClient({
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     {[
                                         { id: '', label: 'Tous les modes' },
-                                        { id: 'Espèces', label: 'Espèces' },
-                                        { id: 'Carte', label: 'Carte' },
-                                        { id: 'Chèque', label: 'Chèque' },
-                                        { id: 'Virement', label: 'Virement' }
+                                        { id: 'cash', label: 'Espèces' },
+                                        { id: 'orange_money', label: 'Orange Money' },
+                                        { id: 'wave', label: 'Wave' },
+                                        { id: 'mobile_money', label: 'MTN MOMO' },
+                                        { id: 'moov_money', label: 'Moov Money' },
+                                        { id: 'bank_transfer', label: 'Virement' },
+                                        { id: 'other', label: 'Autre' }
                                     ].map(m => (
                                         <button
                                             key={m.id}
@@ -1046,6 +1080,7 @@ export default function OrdersClient({
                 isPending={isPending}
                 roleSlug={roleSlug}
                 onOrderUpdate={handleOrderUpdate}
+                currency={currency}
             />
 
             {/* --- MODAL IMPORT HISTORIQUE --- */}
@@ -1097,12 +1132,21 @@ export default function OrdersClient({
                             {s.label}
                         </span>
                         
-                        {order.payment_status === 'SOLDEE' && order.deposit_amount > 0
-                            ? <span className="badge" style={{ background: '#D1FAE5', color: '#065F46', display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={11} /> Soldé</span>
-                            : order.payment_status === 'PARTIEL'
-                                ? <span className="badge" style={{ background: 'var(--color-well)', color: '#D97757', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Wallet size={11} />Acompte : {Number(order.deposit_amount).toLocaleString('fr-FR')} {currency}</span>
-                                : <span className="badge" style={{ background: '#FEE2E2', color: '#B91C1C', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Wallet size={11} /> Impayé</span>
-                        }
+                        {(() => {
+                            const pStatus = order.payment_status || 'unpaid'
+                            const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
+                            const Icon = conf.icon
+                            let details = ''
+                            if (pStatus === 'partial' || pStatus === 'deposit_paid' || pStatus === 'PARTIEL') {
+                                details = ` : ${Number(order.deposit_amount || order.paid_amount || 0).toLocaleString('fr-FR')} ${currency}`
+                            }
+                            return (
+                                <span className="badge" style={{ background: conf.bg, color: conf.text, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <Icon size={11} />
+                                    {conf.label}{details}
+                                </span>
+                            )
+                        })()}
                         
                         {order.customer_id && <span className="badge" style={{ background: '#EFF6FF', color: '#3B82F6', display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> CRM</span>}
                         {isToday && <span className="badge" style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)' }}>📅 Aujourd&apos;hui</span>}
@@ -1141,14 +1185,14 @@ export default function OrdersClient({
                         <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)' }}>
                             {Number(order.total_amount).toLocaleString('fr-FR')} {currency}
                         </div>
-                        {order.deposit_amount > 0 && (
+                        {Number(order.balance || 0) > 0 && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
-                                Reste : {Number(order.total_amount - order.deposit_amount).toLocaleString('fr-FR')} {currency}
+                                Reste : {Number(order.balance).toLocaleString('fr-FR')} {currency}
                             </div>
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                        {order.status === 'ready' ? (
+                        {['ready', 'awaiting_pickup'].includes(order.status) ? (
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation()
@@ -1159,7 +1203,7 @@ export default function OrdersClient({
                                 Encaisser
                             </button>
                         ) : (
-                            order.status !== 'completed' && order.status !== 'cancelled' && (
+                            order.status !== 'delivered' && order.status !== 'completed' && order.status !== 'cancelled' && (
                                 <button 
                                     onClick={(e) => {
                                         e.stopPropagation()
@@ -1233,12 +1277,17 @@ export default function OrdersClient({
                         <span style={{ background: s.bg, color: s.text, fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
                             {s.label}
                         </span>
-                        {order.payment_status === 'SOLDEE'
-                            ? <span className="badge" style={{ background: '#D1FAE5', color: '#065F46', display: 'inline-flex', alignItems: 'center', gap: 3 }}><CheckCircle2 size={11} /> Soldé</span>
-                            : order.payment_status === 'PARTIEL'
-                                ? <span className="badge" style={{ background: 'var(--color-well)', color: '#D97757', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Wallet size={11} /> Acompte</span>
-                                : <span className="badge" style={{ background: '#FEE2E2', color: '#B91C1C', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Wallet size={11} /> Impayé</span>
-                        }
+                        {(() => {
+                            const pStatus = order.payment_status || 'unpaid'
+                            const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
+                            const Icon = conf.icon
+                            return (
+                                <span className="badge" style={{ background: conf.bg, color: conf.text, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <Icon size={11} />
+                                    {conf.label}
+                                </span>
+                            )
+                        })()}
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-muted)', fontSize: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px' }}>
@@ -1297,13 +1346,17 @@ export default function OrdersClient({
 
                     {/* État Paiement */}
                     <div style={{ flex: 1.5 }}>
-                        {order.payment_status === 'SOLDEE' ? (
-                            <span className="badge" style={{ background: '#D1FAE5', color: '#065F46', fontWeight: 700 }}><CheckCircle2 size={11} style={{ marginRight: '4px' }} /> Soldé</span>
-                        ) : order.payment_status === 'PARTIEL' ? (
-                            <span className="badge" style={{ background: 'var(--color-well)', color: '#D97757', fontWeight: 700 }}><Wallet size={11} style={{ marginRight: '4px' }} /> Acompte</span>
-                        ) : (
-                            <span className="badge" style={{ background: '#FEE2E2', color: '#B91C1C', fontWeight: 700 }}><Wallet size={11} style={{ marginRight: '4px' }} /> Impayé</span>
-                        )}
+                        {(() => {
+                            const pStatus = order.payment_status || 'unpaid'
+                            const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
+                            const Icon = conf.icon
+                            return (
+                                <span className="badge" style={{ background: conf.bg, color: conf.text, fontWeight: 700 }}>
+                                    <Icon size={11} style={{ marginRight: '4px' }} />
+                                    {conf.label}
+                                </span>
+                            )
+                        })()}
                     </div>
 
                     {/* Actions */}

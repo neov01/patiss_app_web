@@ -15,7 +15,7 @@ interface CartQuantityButtonProps {
 export default function CartQuantityButton({ qty, productName, onChange, onRemove }: CartQuantityButtonProps) {
     const [isOpen, setIsOpen] = useState(false)
     const [showNumPad, setShowNumPad] = useState(false)
-    const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
+    const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
     const triggerRef = useRef<HTMLButtonElement>(null)
 
     const handleTriggerClick = (e: React.MouseEvent) => {
@@ -23,7 +23,7 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
         e.stopPropagation()
         if (triggerRef.current) {
             const rect = triggerRef.current.getBoundingClientRect()
-            setCoords({ top: rect.top, left: rect.left, width: rect.width })
+            setCoords({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
         }
         setIsOpen(true)
     }
@@ -75,29 +75,36 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
             </button>
 
             {/* Popover */}
-            {isOpen && coords && createPortal(
-                <>
-                    <div 
-                        style={{ position: 'fixed', inset: 0, zIndex: 1999 }} 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsOpen(false) }} 
-                    />
-                    <div style={{
-                        position: 'fixed',
-                        bottom: `${window.innerHeight - coords.top + 8}px`,
-                        right: `${window.innerWidth - (coords.left + coords.width)}px`, // Align to right
-                        minWidth: '140px',
-                        background: 'white',
-                        border: '1px solid #E5DDD5',
-                        borderRadius: '16px',
-                        boxShadow: '0 10px 40px rgba(45, 27, 14, 0.12)',
-                        zIndex: 2000,
-                        padding: '6px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        animation: 'popoverFadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}>
-                        {[1, 2, 3, 4, 5, 6].map(num => (
+            {isOpen && coords && (() => {
+                const showDownward = coords.top < 380;
+                return createPortal(
+                    <>
+                        <div
+                            style={{ position: 'fixed', inset: 0, zIndex: 1999 }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsOpen(false) }}
+                        />
+                        <div style={{
+                            position: 'fixed',
+                            ...(showDownward
+                                ? { top: `${coords.top + coords.height + 8}px` }
+                                : { bottom: `${window.innerHeight - coords.top + 8}px` }
+                            ),
+                            right: `${window.innerWidth - (coords.left + coords.width)}px`, // Align to right
+                            minWidth: '140px',
+                            background: 'white',
+                            border: '1px solid #E5DDD5',
+                            borderRadius: '16px',
+                            boxShadow: '0 10px 40px rgba(45, 27, 14, 0.12)',
+                            zIndex: 2000,
+                            padding: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            animation: showDownward
+                                ? 'popoverFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                                : 'popoverFadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}>
+                            {[1, 2, 3, 4, 5, 6].map(num => (
                             <button
                                 key={num}
                                 onClick={(e) => handleSelect(e, num)}
@@ -164,16 +171,20 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                             <Trash2 size={16} /> Retirer
                         </button>
                     </div>
-
                     <style>{`
                         @keyframes popoverFadeInUp {
                             from { transform: scale(0.95) translateY(10px); opacity: 0; }
                             to { transform: scale(1) translateY(0); opacity: 1; }
                         }
+                        @keyframes popoverFadeInDown {
+                            from { transform: scale(0.95) translateY(-10px); opacity: 0; }
+                            to { transform: scale(1) translateY(0); opacity: 1; }
+                        }
                     `}</style>
                 </>,
                 document.body
-            )}
+               );
+            })()}
 
             {showNumPad && (
                 <NumPad

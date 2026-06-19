@@ -42,10 +42,11 @@ interface Props {
 }
 
 const STATUS_OPTIONS = [
-    { value: 'pending', label: 'En attente', color: 'badge-pending' },
-    { value: 'production', label: 'En production', color: 'badge-production' },
-    { value: 'ready', label: 'Prêt', color: 'badge-ready' },
-    { value: 'completed', label: 'Livré / Retiré', color: 'badge-completed' },
+    { value: 'confirmed', label: '⏳ Confirmée', color: 'badge-pending' },
+    { value: 'in_preparation', label: '👨‍🍳 En préparation', color: 'badge-production' },
+    { value: 'ready', label: '✅ Prête', color: 'badge-ready' },
+    { value: 'awaiting_pickup', label: '📦 Attente retrait', color: 'badge-ready' },
+    { value: 'delivered', label: '✔ Livrée / Retirée', color: 'badge-completed' },
 ]
 
 const PRIORITY_OPTIONS = [
@@ -55,11 +56,13 @@ const PRIORITY_OPTIONS = [
 ]
 
 const PAYMENT_METHODS = [
-    { value: 'Espèces', label: '💵 Espèces' },
-    { value: 'Orange Money', label: '🟠 Orange Money' },
-    { value: 'Wave', label: '🌊 Wave' },
-    { value: 'MTN MOMO', label: '🍌 MTN MOMO' },
-    { value: 'Moov Money', label: '🔵 Moov Money' },
+    { value: 'cash', label: '💵 Espèces' },
+    { value: 'orange_money', label: '🟠 Orange Money' },
+    { value: 'wave', label: '🌊 Wave' },
+    { value: 'mobile_money', label: '🍌 MTN MOMO' },
+    { value: 'moov_money', label: '🔵 Moov Money' },
+    { value: 'bank_transfer', label: '🏦 Virement' },
+    { value: 'other', label: '📝 Autre' }
 ]
 
 export default function NewOrderModal({ open, onClose, currency, organizationId }: Props) {
@@ -70,7 +73,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     const [orderNumber, setOrderNumber] = useState('')
     
     // Header States
-    const [status, setStatus] = useState('pending')
+    const [status, setStatus] = useState('confirmed')
     const [priority, setPriority] = useState('normale')
     
     // Customer Logistics States
@@ -97,13 +100,13 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     
     // Financials
     const [deposit, setDeposit] = useState(0)
-    const [depositPaymentMethod, setDepositPaymentMethod] = useState('Espèces')
+    const [depositPaymentMethod, setDepositPaymentMethod] = useState('cash')
     const [paymentType, setPaymentType] = useState<'ACOMPTE' | 'SOLDE'>('ACOMPTE')
 
     // Paiement Multiple
     const [isMultiplePayment, setIsMultiplePayment] = useState(false)
     const [payments, setPayments] = useState<Array<{ id: string, amount: number, payment_method: string, label_type: 'ACOMPTE' | 'SOLDE' }>>([
-        { id: '1', amount: 0, payment_method: 'Espèces', label_type: 'ACOMPTE' }
+        { id: '1', amount: 0, payment_method: 'cash', label_type: 'ACOMPTE' }
     ])
 
     // CRM Customer Link
@@ -274,7 +277,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     }
 
     function handleReset() {
-        setStatus('pending')
+        setStatus('confirmed')
         setPriority('normale')
         setClientName('')
         setClientPhone('')
@@ -295,7 +298,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             }
         ])
         setDeposit(0)
-        setDepositPaymentMethod('Espèces')
+        setDepositPaymentMethod('cash')
         setPaymentType('ACOMPTE')
         setCrmCustomerId(null)
         setCrmCustomerName(null)
@@ -739,14 +742,15 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                         <DatePicker
                                             value={pickupDate}
                                             onChange={setPickupDate}
-                                            placeholder="Sélectionner une date *"
+                                            placeholder="Date retrait *"
                                             minDate={new Date()}
                                             hasError={showErrors && !pickupDate}
                                         />
                                         <TimeDigiPad
                                             value={pickupTime}
                                             onChange={setPickupTime}
-                                            placeholder="Sélectionner l'heure"
+                                            placeholder="Heure retrait"
+                                            position="top"
                                         />
                                     </div>
 
@@ -897,13 +901,13 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                     const initialMethod = depositPaymentMethod;
                                                     setPayments([
                                                         { id: '1', amount: initialAmount, payment_method: initialMethod, label_type: initialType },
-                                                        { id: '2', amount: Math.max(0, total - initialAmount), payment_method: 'Espèces', label_type: initialType === 'ACOMPTE' ? 'SOLDE' : 'ACOMPTE' }
+                                                        { id: '2', amount: Math.max(0, total - initialAmount), payment_method: 'cash', label_type: initialType === 'ACOMPTE' ? 'SOLDE' : 'ACOMPTE' }
                                                     ]);
                                                 } else {
                                                     const remaining = Math.max(0, total - payments.reduce((sum, p) => sum + p.amount, 0));
                                                     setPayments(prev => [
                                                         ...prev,
-                                                        { id: Date.now().toString(), amount: remaining, payment_method: 'Espèces', label_type: 'SOLDE' }
+                                                        { id: Date.now().toString(), amount: remaining, payment_method: 'cash', label_type: 'SOLDE' }
                                                     ]);
                                                 }
                                                 setPaymentAccordionOpen(true);

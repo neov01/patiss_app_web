@@ -61,7 +61,7 @@ export default async function ProductionPlan({
             )
         `)
         .eq('organization_id', organizationId)
-        .in('status', ['pending', 'production'])
+        .in('status', ['pending', 'production', 'confirmed', 'in_preparation'])
         .gte('pickup_date', startDate)
         .lt('pickup_date', endDate)
 

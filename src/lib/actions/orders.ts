@@ -67,13 +67,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null
 }
 
+function normalizePaymentMethod(method: string | undefined): string {
+    if (!method) return 'cash'
+    const m = method.toLowerCase().trim()
+    if (m === 'espèces' || m === 'especes' || m === 'cash') return 'cash'
+    if (m === 'orange money' || m === 'orange_money') return 'orange_money'
+    if (m === 'wave') return 'wave'
+    if (m === 'mtn momo' || m === 'mobile money' || m === 'mobile_money') return 'mobile_money'
+    if (m === 'moov money' || m === 'moov_money') return 'moov_money'
+    if (m === 'virement' || m === 'virement bancaire' || m === 'bank_transfer') return 'bank_transfer'
+    return 'other'
+}
+
 function toPayments(value: unknown): PaymentInput[] {
     if (!Array.isArray(value)) return []
     return value
         .filter(isRecord)
         .map(payment => ({
             amount: Number(payment.amount ?? 0),
-            payment_method: typeof payment.payment_method === 'string' ? payment.payment_method : 'Espèces',
+            payment_method: normalizePaymentMethod(typeof payment.payment_method === 'string' ? payment.payment_method : undefined),
             label_type: payment.label_type === 'SOLDE' ? 'SOLDE' : 'ACOMPTE',
         }))
 }
@@ -105,6 +117,12 @@ export async function createOrder(input: unknown) {
             }
             : null
 
+        // Traduire le statut vers la nouvelle nomenclature
+        let resolvedStatus = formData.status || 'confirmed'
+        if (resolvedStatus === 'pending') resolvedStatus = 'confirmed'
+        else if (resolvedStatus === 'production') resolvedStatus = 'in_preparation'
+        else if (resolvedStatus === 'completed') resolvedStatus = 'delivered'
+
         const { data, error } = await (supabase as unknown as CreateOrderRpcClient).rpc('create_order_atomic', {
             p_order: {
                 id: formData.id ?? null,
@@ -123,8 +141,8 @@ export async function createOrder(input: unknown) {
                 subtotal: formData.subtotal,
                 discount_amount: formData.discount_amount || 0,
                 customization_notes: formData.customization_notes ?? null,
-                status: formData.status || 'pending',
-                deposit_payment_method: formData.deposit_payment_method || 'Espèces',
+                status: resolvedStatus,
+                deposit_payment_method: normalizePaymentMethod(formData.deposit_payment_method || undefined),
                 created_by: context.userId,
             },
             p_items: formData.items.map(item => ({
@@ -137,7 +155,7 @@ export async function createOrder(input: unknown) {
             })),
             p_payments: payments.map(payment => ({
                 amount: payment.amount,
-                payment_method: payment.payment_method || 'Espèces',
+                payment_method: payment.payment_method,
                 label_type: payment.label_type || 'ACOMPTE',
             })),
             p_metrics: metrics,
@@ -249,7 +267,7 @@ export async function deleteOrder(orderId: string) {
 
 export async function updateOrderDetails(
     orderId: string, 
-    details: { customer_name?: string; customer_contact?: string; pickup_date?: string }
+    details: { customer_name?: string; customer_contact?: string; pickup_date?: string; customization_notes?: string | null }
 ) {
     try {
         await ensureActiveSubscription()
@@ -313,7 +331,7 @@ export async function createVitrineSale(input: unknown) {
                 discount_amount: 0,
                 customization_notes: null,
                 status: 'completed',
-                deposit_payment_method: 'Espèces',
+                deposit_payment_method: 'cash',
                 created_by: context.userId,
             },
             p_items: formData.items.map(item => ({
@@ -326,7 +344,7 @@ export async function createVitrineSale(input: unknown) {
             })),
             p_payments: formData.total_amount > 0 ? [{
                 amount: formData.total_amount,
-                payment_method: 'Espèces',
+                payment_method: 'cash',
                 label_type: 'SOLDE',
             }] : [],
             p_metrics: null,
@@ -667,8 +685,8 @@ export async function getHistoricalOrders(filters: {
         const isSessionOpen = !!openSession
         const todayStr = new Date().toISOString().split('T')[0]
 
-        // 2. Construire le select de base
-        let selectStr = '*, order_items(*, products(name)), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)'
+        // 2. Construire le select de base (inclut désormais order_payments)
+        let selectStr = '*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)'
         if (filters.paymentMethod) {
             selectStr += ', transactions!inner(payment_method)'
         }
@@ -680,12 +698,12 @@ export async function getHistoricalOrders(filters: {
 
         // 3. Appliquer le filtrage par statut d'historique
         if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
-            // Dans le cas d'une recherche globale, on cherche dans tout l'historique (les complétées ou annulées)
-            query = query.in('status', ['completed', 'cancelled'])
+            // Dans le cas d'une recherche globale, on cherche dans tout l'historique (les livrées ou annulées)
+            query = query.in('status', ['delivered', 'completed', 'cancelled'])
         } else if (filters.status && filters.status !== 'all') {
-            if (filters.status === 'completed') {
+            if (filters.status === 'completed' || filters.status === 'delivered') {
                 // Pour les livrées dans l'historique : uniquement celles qui ne sont pas actives dans "À traiter"
-                query = query.eq('status', 'completed').eq('payment_status', 'SOLDEE')
+                query = query.in('status', ['delivered', 'completed']).in('payment_status', ['paid', 'SOLDEE'])
                 if (isSessionOpen) {
                     query = query.lt('pickup_date', `${todayStr}T00:00:00`)
                 }
@@ -694,11 +712,10 @@ export async function getHistoricalOrders(filters: {
             }
         } else {
             // Par défaut dans l'historique : les annulées OU les livrées qui ne sont pas dans "À traiter"
-            // (c'est-à-dire qui sont complétées et qui soit ne sont pas d'aujourd'hui, soit la session est fermée, ET dont le paiement est soldé)
             if (isSessionOpen) {
-                query = query.or(`status.eq.cancelled,and(status.eq.completed,payment_status.eq.SOLDEE,pickup_date.lt.${todayStr}T00:00:00)`)
+                query = query.or(`status.eq.cancelled,and(status.in.(delivered,completed),payment_status.in.(paid,SOLDEE),pickup_date.lt.${todayStr}T00:00:00)`)
             } else {
-                query = query.or(`status.eq.cancelled,and(status.eq.completed,payment_status.eq.SOLDEE)`)
+                query = query.or(`status.eq.cancelled,and(status.in.(delivered,completed),payment_status.in.(paid,SOLDEE))`)
             }
         }
 
@@ -723,11 +740,11 @@ export async function getHistoricalOrders(filters: {
 
         // 7. Filtre d'état de paiement
         if (filters.paymentStatus === 'solded') {
-            query = query.eq('payment_status', 'SOLDEE')
+            query = query.in('payment_status', ['paid', 'SOLDEE'])
         } else if (filters.paymentStatus === 'deposit') {
-            query = query.eq('payment_status', 'PARTIEL')
+            query = query.in('payment_status', ['deposit_paid', 'partial', 'PARTIEL'])
         } else if (filters.paymentStatus === 'unpaid') {
-            query = query.eq('payment_status', 'EN_ATTENTE')
+            query = query.in('payment_status', ['unpaid', 'EN_ATTENTE'])
         }
 
         // 8. Filtre de mode de paiement
@@ -786,5 +803,66 @@ export async function getHistoricalOrders(filters: {
     } catch (e: unknown) {
         if (e instanceof AuthContextError) return { error: e.message }
         return { error: 'Erreur lors de la récupération des données historiques' }
+    }
+}
+
+export async function addOrderPayment(
+    orderId: string,
+    payment: { amount: number; payment_method: string; payment_date?: string; note?: string }
+) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId, userId } = context
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabaseAny = supabase as any
+
+        // 1. Récupérer la commande pour validations
+        const { data: order, error: fetchErr } = await supabaseAny
+            .from('orders')
+            .select('status, balance, total_amount, paid_amount')
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (fetchErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.status === 'cancelled') {
+            return { error: 'Impossible d\'ajouter un paiement sur une commande annulée' }
+        }
+
+        if (payment.amount <= 0) {
+            return { error: 'Le montant du paiement doit être supérieur à 0' }
+        }
+
+        // 2. Insérer le paiement
+        const { data: insertedPayment, error: insertErr } = await supabaseAny
+            .from('order_payments')
+            .insert({
+                order_id: orderId,
+                organization_id: organizationId,
+                amount: payment.amount,
+                payment_method: payment.payment_method,
+                payment_date: payment.payment_date || new Date().toISOString(),
+                note: payment.note || null,
+                created_by: userId
+            })
+            .select()
+            .single()
+
+        if (insertErr) {
+            console.error('Erreur lors de l\'insertion du paiement:', insertErr)
+            return { error: insertErr.message }
+        }
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true, payment: insertedPayment }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
     }
 }

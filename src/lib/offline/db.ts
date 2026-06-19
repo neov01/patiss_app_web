@@ -66,6 +66,8 @@ export type CachedReadyOrder = {
   order_number?: string | null
   pickup_date?: string | null
   deposit_amount?: number | null
+  paid_amount?: number | null
+  total_amount?: number | null
   balance?: number | null
   priority?: string | null
   status?: string | null

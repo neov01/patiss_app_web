@@ -112,7 +112,7 @@ export async function syncPendingData(): Promise<SyncResult> {
       const res = await createOrder({
         id: order.id,    // UUID client-side → idempotence
         order_number: `CMD-${year}-${rand}`,
-        status: 'pending',
+        status: 'confirmed',
         priority: order.priority,
         customer_name: order.customer_name,
         customer_contact: order.customer_contact,

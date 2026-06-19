@@ -26,6 +26,8 @@ export interface Order {
   customer_id: string;
   total_amount: number;
   status: string;
+  payment_status?: string | null;
+  balance?: number | null;
   created_at: string;
 }
 

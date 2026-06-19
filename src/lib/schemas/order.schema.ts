@@ -17,7 +17,7 @@ export const orderSchema = z.object({
   customer_name: z.string().min(2, "Le nom du client est trop court"),
   customer_contact: z.string().min(8, "Le numéro de téléphone est trop court ou requis"),
   pickup_date: z.string().min(1, "La date de retrait est requise"),
-  status: z.string().default('pending'),
+  status: z.string().default('confirmed'),
   priority: z.string().default('normale'),
   reception_type: z.enum(['retrait', 'livraison']),
   delivery_address: z.string().optional(),

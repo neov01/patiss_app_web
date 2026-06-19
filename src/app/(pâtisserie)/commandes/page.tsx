@@ -22,16 +22,16 @@ export default async function CommandesPage() {
     const isSessionOpen = !!openSession
     const todayStr = new Date().toISOString().split('T')[0]
 
-    // Ne charger que les commandes de la vue "À traiter"
-    let activeFilter = 'status.in.(pending,production,ready),and(status.eq.completed,payment_status.neq.SOLDEE)'
+    // Ne charger que les commandes de la vue "À traiter" (actives, non livrées, ou livrées non soldées)
+    let activeFilter = 'status.in.(pending,production,ready,confirmed,in_preparation,awaiting_pickup,in_production,draft),and(status.in.(completed,delivered),payment_status.not.in.(paid,SOLDEE))'
     if (isSessionOpen) {
-        activeFilter += `,and(status.eq.completed,pickup_date.gte.${todayStr}T00:00:00)`
+        activeFilter += `,and(status.in.(completed,delivered),pickup_date.gte.${todayStr}T00:00:00)`
     }
 
     const [{ data: orders }, { data: products }] = await Promise.all([
         supabase
             .from('orders')
-            .select('*, order_items(*, products(name)), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
+            .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
             .eq('organization_id', orgId)
             .or(activeFilter)
             .order('pickup_date', { ascending: true }),

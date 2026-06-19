@@ -79,7 +79,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         .from('orders')
         .select('id, order_number, total_amount, status, pickup_date, customer_name, deposit_amount, payment_status, reception_type')
         .eq('organization_id', profile.organization_id!)
-        .or(`pickup_date.gte.${startDate},status.in.(pending,production,ready)`)
+        .or(`pickup_date.gte.${startDate},status.in.(pending,production,ready,confirmed,in_preparation,awaiting_pickup)`)
 
     const filteredOrdersQuery = clientFilter
         ? ordersQuery.ilike('customer_name', `%${clientFilter}%`)
@@ -104,11 +104,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         ? dailyStats.ca_encaisse 
         : orders.filter(o => o.status === 'completed').reduce((s, o) => s + o.total_amount, 0)
 
-    const pendingCount = orders.filter(o => o.status === 'pending' || o.status === 'production').length
-    const readyCount = orders.filter(o => o.status === 'ready').length
+    const pendingCount = orders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).length
+    const readyCount = orders.filter(o => ['ready', 'awaiting_pickup'].includes(o.status)).length
     
     const pendingDeposits = orders
-        .filter(o => ['pending', 'production', 'ready'].includes(o.status))
+        .filter(o => ['pending', 'production', 'ready', 'confirmed', 'in_preparation', 'awaiting_pickup'].includes(o.status))
         .reduce((sum, o) => sum + (o.deposit_amount || 0), 0)
 
     const alertCount = ingredients.filter(i => i.current_stock < i.alert_threshold).length
@@ -122,7 +122,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
     const overdueCount = orders.filter(o => {
         const pickupDateStr = o.pickup_date?.substring(0, 10)
-        return pickupDateStr && pickupDateStr < todayStr && ['pending', 'production', 'ready'].includes(o.status)
+        return pickupDateStr && pickupDateStr < todayStr && ['pending', 'production', 'ready', 'confirmed', 'in_preparation', 'awaiting_pickup'].includes(o.status)
     }).length
 
     // Répartition des modes de paiement
@@ -332,15 +332,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                                         let statusColor = '#92400E'
                                         let statusBg = '#FEF3C7'
                                         let statusText = 'En attente'
-                                        if (o.status === 'production') {
+                                        if (o.status === 'production' || o.status === 'in_preparation') {
                                             statusColor = '#1E40AF'
                                             statusBg = '#DBEAFE'
                                             statusText = 'En cours'
-                                        } else if (o.status === 'ready') {
+                                        } else if (o.status === 'ready' || o.status === 'awaiting_pickup') {
                                             statusColor = '#065F46'
                                             statusBg = '#D1FAE5'
                                             statusText = 'Prête'
-                                        } else if (o.status === 'completed') {
+                                        } else if (o.status === 'completed' || o.status === 'delivered') {
                                             statusColor = '#374151'
                                             statusBg = '#F3F4F6'
                                             statusText = 'Retirée'
@@ -348,6 +348,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                                             statusColor = '#991B1B'
                                             statusBg = '#FEE2E2'
                                             statusText = 'Annulée'
+                                        } else if (o.status === 'confirmed' || o.status === 'pending') {
+                                            statusColor = '#92400E'
+                                            statusBg = '#FEF3C7'
+                                            statusText = 'En attente'
                                         }
 
                                         // Formatter l'heure de retrait (pickup_date)
