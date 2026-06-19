@@ -886,9 +886,7 @@ export default function OrdersClient({
                                         { id: 'orange_money', label: 'Orange Money' },
                                         { id: 'wave', label: 'Wave' },
                                         { id: 'mobile_money', label: 'MTN MOMO' },
-                                        { id: 'moov_money', label: 'Moov Money' },
-                                        { id: 'bank_transfer', label: 'Virement' },
-                                        { id: 'other', label: 'Autre' }
+                                        { id: 'moov_money', label: 'Moov Money' }
                                     ].map(m => (
                                         <button
                                             key={m.id}

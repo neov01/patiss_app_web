@@ -75,8 +75,7 @@ function normalizePaymentMethod(method: string | undefined): string {
     if (m === 'wave') return 'wave'
     if (m === 'mtn momo' || m === 'mobile money' || m === 'mobile_money') return 'mobile_money'
     if (m === 'moov money' || m === 'moov_money') return 'moov_money'
-    if (m === 'virement' || m === 'virement bancaire' || m === 'bank_transfer') return 'bank_transfer'
-    return 'other'
+    return 'cash'
 }
 
 function toPayments(value: unknown): PaymentInput[] {

@@ -74,9 +74,7 @@ const PAYMENT_METHODS = [
     { value: 'orange_money', label: '🟠 Orange Money' },
     { value: 'wave', label: '🌊 Wave' },
     { value: 'mobile_money', label: '🍌 MTN MOMO' },
-    { value: 'moov_money', label: '🔵 Moov Money' },
-    { value: 'bank_transfer', label: '🏦 Virement' },
-    { value: 'other', label: '📝 Autre' }
+    { value: 'moov_money', label: '🔵 Moov Money' }
 ]
 
 interface Props {

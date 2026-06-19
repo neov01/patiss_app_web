@@ -30,6 +30,7 @@ export default function SessionPill() {
                 borderRadius: '99px',
                 padding: '5px 6px 5px 10px',
                 flexShrink: 0,
+                pointerEvents: 'auto',
             }}>
                 {/* Icône + label état */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
