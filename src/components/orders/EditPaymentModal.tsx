@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Calendar, Wallet, Check, AlertTriangle, Loader2 } from 'lucide-react'
+import { X, Calendar, Wallet, Check, AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateOrderPayment } from '@/lib/actions/orders'
+import { updateOrderPayment, deleteOrderPayment } from '@/lib/actions/orders'
 import TouchInput from '@/components/ui/TouchInput'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -43,6 +43,8 @@ export default function EditPaymentModal({
     const [paymentDate, setPaymentDate] = useState<Date>(new Date())
     const [note, setNote] = useState('')
     const [isSaving, setIsSaving] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [confirmDelete, setConfirmDelete] = useState(false)
     const [showErrors, setShowErrors] = useState(false)
 
     useEffect(() => {
@@ -52,6 +54,8 @@ export default function EditPaymentModal({
             setPaymentDate(new Date(payment.payment_date))
             setNote(payment.note || '')
             setShowErrors(false)
+            setConfirmDelete(false)
+            setIsDeleting(false)
         }
     }, [open, payment])
 
@@ -66,6 +70,25 @@ export default function EditPaymentModal({
     const balanceToCover = Math.max(0, totalAmount - paidAmountOther)
     
     const isOverpaid = amount > balanceToCover
+
+    const handleDelete = async () => {
+        setIsDeleting(true)
+        try {
+            const result = await deleteOrderPayment(payment.id, orderId)
+            if (result && typeof result === 'object' && 'error' in result && result.error) {
+                toast.error(result.error)
+            } else {
+                toast.success("Paiement supprimé avec succès.")
+                if (onSuccess) onSuccess()
+                onClose()
+            }
+        } catch (err) {
+            console.error(err)
+            toast.error("Une erreur est survenue lors de la suppression.")
+        } finally {
+            setIsDeleting(false)
+        }
+    }
 
     const handleSave = async () => {
         if (!amount || amount <= 0) {
@@ -238,35 +261,78 @@ export default function EditPaymentModal({
                 {/* Footer */}
                 <div style={{
                     padding: '12px 20px', borderTop: '1px solid var(--color-border)',
-                    display: 'flex', justifyContent: 'flex-end', gap: '8px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     background: 'var(--color-well)'
                 }}>
-                    <button 
-                        onClick={onClose} 
-                        disabled={isSaving} 
-                        className="btn-secondary" 
-                        style={{ minHeight: '40px', padding: '0 16px', fontSize: '0.85rem' }}
-                    >
-                        Annuler
-                    </button>
-                    <button 
-                        onClick={handleSave} 
-                        disabled={isSaving} 
-                        className="btn-primary" 
-                        style={{ minHeight: '40px', padding: '0 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                        {isSaving ? (
-                            <>
-                                <Loader2 size={16} className="animate-spin" />
-                                Enregistrement...
-                            </>
+                    <div>
+                        {confirmDelete ? (
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-error)' }}>Confirmer ?</span>
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={isSaving || isDeleting}
+                                    className="btn-primary"
+                                    style={{
+                                        minHeight: '36px', padding: '0 12px', fontSize: '0.75rem',
+                                        background: 'var(--color-error)', borderColor: 'var(--color-error)'
+                                    }}
+                                >
+                                    {isDeleting ? 'Suppression...' : 'Oui, Supprimer'}
+                                </button>
+                                <button
+                                    onClick={() => setConfirmDelete(false)}
+                                    disabled={isSaving || isDeleting}
+                                    className="btn-secondary"
+                                    style={{ minHeight: '36px', padding: '0 12px', fontSize: '0.75rem' }}
+                                >
+                                    Non
+                                </button>
+                            </div>
                         ) : (
-                            <>
-                                <Check size={16} />
-                                Enregistrer les modifications
-                            </>
+                            <button
+                                onClick={() => setConfirmDelete(true)}
+                                disabled={isSaving || isDeleting}
+                                className="btn-secondary hover:text-[var(--color-error)] hover:bg-[rgba(239,68,68,0.08)]"
+                                style={{
+                                    minHeight: '40px', padding: '0 12px', fontSize: '0.85rem',
+                                    color: 'var(--color-error)', border: '1px solid transparent',
+                                    display: 'flex', alignItems: 'center', gap: '6px'
+                                }}
+                            >
+                                <Trash2 size={16} />
+                                Supprimer
+                            </button>
                         )}
-                    </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                            onClick={onClose} 
+                            disabled={isSaving || isDeleting} 
+                            className="btn-secondary" 
+                            style={{ minHeight: '40px', padding: '0 16px', fontSize: '0.85rem' }}
+                        >
+                            Annuler
+                        </button>
+                        <button 
+                            onClick={handleSave} 
+                            disabled={isSaving || isDeleting} 
+                            className="btn-primary" 
+                            style={{ minHeight: '40px', padding: '0 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Enregistrement...
+                                </>
+                            ) : (
+                                <>
+                                    <Check size={16} />
+                                    Enregistrer les modifications
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
