@@ -847,6 +847,24 @@ export async function addOrderPayment(
             return { error: 'Le montant du paiement doit être supérieur à 0' }
         }
 
+        // Vérification de sécurité temporelle (anti-doublon de 2 minutes)
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+        const { data: recentPayments, error: recentErr } = await supabaseAny
+            .from('order_payments')
+            .select('id')
+            .eq('order_id', orderId)
+            .eq('organization_id', organizationId)
+            .eq('amount', payment.amount)
+            .eq('payment_method', payment.payment_method)
+            .gte('created_at', twoMinutesAgo)
+            .limit(1)
+
+        if (recentErr) {
+            console.error('Erreur lors de la vérification anti-doublon:', recentErr)
+        } else if (recentPayments && recentPayments.length > 0) {
+            return { error: `Un paiement identique de ${payment.amount.toLocaleString('fr-FR')} FCFA a déjà été enregistré pour cette commande il y a moins de 2 minutes.` }
+        }
+
         // 2. Insérer le paiement
         const { data: insertedPayment, error: insertErr } = await supabaseAny
             .from('order_payments')
@@ -939,4 +957,52 @@ export async function updateOrderPayment(
         return { error: getErrorMessage(e) }
     }
 }
+
+export async function deleteOrderPayment(paymentId: string, orderId: string) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabaseAny = supabase as any
+
+        // 1. Récupérer la commande pour validations
+        const { data: order, error: fetchOrderErr } = await supabaseAny
+            .from('orders')
+            .select('status')
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.status === 'cancelled') {
+            return { error: 'Impossible de supprimer un paiement sur une commande annulée' }
+        }
+
+        // 2. Supprimer le paiement
+        const { error: deleteErr } = await supabaseAny
+            .from('order_payments')
+            .delete()
+            .eq('id', paymentId)
+            .eq('order_id', orderId)
+            .eq('organization_id', organizationId)
+
+        if (deleteErr) {
+            console.error('Erreur lors de la suppression du paiement:', deleteErr)
+            return { error: deleteErr.message }
+        }
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
 
