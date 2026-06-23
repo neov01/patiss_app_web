@@ -25,11 +25,29 @@ type TodayTransaction = {
     orders: {
         order_number: string | null
         customer_id: string | null
+        total_amount: number
+        paid_amount: number
         order_items?: Array<{ name: string; quantity: number }>
+        order_payments?: Array<{
+            id: string
+            amount: number
+            payment_method: string | null
+            payment_date: string | null
+            created_at: string | null
+        }>
     } | {
         order_number: string | null
         customer_id: string | null
+        total_amount: number
+        paid_amount: number
         order_items?: Array<{ name: string; quantity: number }>
+        order_payments?: Array<{
+            id: string
+            amount: number
+            payment_method: string | null
+            payment_date: string | null
+            created_at: string | null
+        }>
     }[] | null
     transaction_items: Array<{ name: string; quantity: number }>
 }
@@ -181,7 +199,7 @@ export default async function CaissePage() {
         // 3. Métriques du jour (Ventes & Recettes)
         supabase
             .from('transactions')
-            .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, order_items(name, quantity)), transaction_items(name, quantity)')
+            .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, total_amount, paid_amount, order_items(name, quantity), order_payments(id, amount, payment_method, payment_date, created_at)), transaction_items(name, quantity)')
             .eq('organization_id', orgId)
             .gte('created_at', todayStart)
             .order('created_at', { ascending: false }),
@@ -232,16 +250,36 @@ export default async function CaissePage() {
         if (t.order_id) {
             if (!orderGroups.has(t.order_id)) {
                 // C'est le mouvement le plus récent pour cette commande aujourd'hui
-                const group = {
-                    id: t.id,
-                    client_name: t.client_name,
-                    is_order: true,
-                    order_number: getOrderNumber(t.orders),
-                    has_crm: !!(t.customer_id || getOrderCustomerId(t.orders)),
-                    nb_items: getOrderItemCount(t),
-                    items_summary: getItemsSummary(t),
-                    created_at: t.created_at,
-                    payments: [
+                const order = Array.isArray(t.orders) ? t.orders[0] : t.orders
+                const orderPayments = order?.order_payments || []
+                
+                let paymentsList: HistoryPayment[] = []
+                if (orderPayments.length > 0) {
+                    const sorted = [...orderPayments].sort((a, b) => {
+                        const dateA = new Date(a.payment_date || a.created_at || '').getTime()
+                        const dateB = new Date(b.payment_date || b.created_at || '').getTime()
+                        return dateA - dateB
+                    })
+                    
+                    paymentsList = sorted.map((p, idx) => {
+                        let label: string | null = null
+                        if (sorted.length === 1) {
+                            const total = order?.total_amount ? Number(order.total_amount) : 0
+                            label = Number(p.amount) >= total ? 'SOLDE' : 'ACOMPTE'
+                        } else {
+                            label = idx === sorted.length - 1 ? 'SOLDE' : 'ACOMPTE'
+                        }
+                        return {
+                            id: p.id,
+                            order_payment_id: p.id,
+                            amount: Number(p.amount),
+                            payment_method: p.payment_method,
+                            created_at: p.payment_date || p.created_at || t.created_at,
+                            label_type: label
+                        }
+                    })
+                } else {
+                    paymentsList = [
                         {
                             id: t.id,
                             order_payment_id: t.order_payment_id,
@@ -252,20 +290,20 @@ export default async function CaissePage() {
                         }
                     ]
                 }
+
+                const group = {
+                    id: t.id,
+                    client_name: t.client_name,
+                    is_order: true,
+                    order_number: getOrderNumber(t.orders),
+                    has_crm: !!(t.customer_id || getOrderCustomerId(t.orders)),
+                    nb_items: getOrderItemCount(t),
+                    items_summary: getItemsSummary(t),
+                    created_at: t.created_at,
+                    payments: paymentsList
+                }
                 orderGroups.set(t.order_id, group)
                 groupedTransactions.push(group)
-            } else {
-                // Il y a déjà un groupe pour cette commande, on ajoute ce paiement plus ancien
-                const group = orderGroups.get(t.order_id)
-                if (!group) continue
-                addPaymentOnce(group, {
-                    id: t.id,
-                    order_payment_id: t.order_payment_id,
-                    amount: Number(t.amount),
-                    payment_method: t.payment_method,
-                    created_at: t.created_at,
-                    label_type: t.label_type
-                })
             }
         } else {
             // Vente directe sans commande
