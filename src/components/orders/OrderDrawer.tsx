@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { X, Maximize2, Pencil, Check, Loader2, Wallet, AlertTriangle, ArrowRight, BadgeAlert, Coins, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateOrderDetails } from '@/lib/actions/orders'
+import { updateOrderDetails, updateOrderItemDetails, updateOrderTotal } from '@/lib/actions/orders'
+import TouchInput from '@/components/ui/TouchInput'
 import AddPaymentModal from './AddPaymentModal'
 import EditPaymentModal from './EditPaymentModal'
 
@@ -111,6 +112,147 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
     const [dateVal, setDateVal] = useState('')
     
     const [isSaving, setIsSaving] = useState<string | null>(null) // 'name' | 'phone' | 'date'
+
+    // États d'édition des articles
+    const [editingItemId, setEditingItemId] = useState<string | null>(null)
+    const [editItemNameVal, setEditItemNameVal] = useState('')
+    const [editItemQtyVal, setEditItemQtyVal] = useState(1)
+    const [editItemPriceVal, setEditItemPriceVal] = useState(0)
+    const [editItemNotesVal, setEditItemNotesVal] = useState('')
+    const [isSavingItem, setIsSavingItem] = useState(false)
+
+    // États d'édition du montant total
+    const [editTotal, setEditTotal] = useState(false)
+    const [totalVal, setTotalVal] = useState(0)
+    const [isSavingTotal, setIsSavingTotal] = useState(false)
+    const [totalComment, setTotalComment] = useState('')
+
+    const saveItemField = async (itemId: string) => {
+        if (!order) return
+        setIsSavingItem(true)
+        const res = await updateOrderItemDetails(order.id, itemId, {
+            name: editItemNameVal,
+            quantity: editItemQtyVal,
+            unit_price: editItemPriceVal,
+            notes: editItemNotesVal
+        })
+        if (res.success) {
+            toast.success("Article mis à jour !")
+            if (onOrderUpdate) {
+                const updatedItems = order.order_items.map(item => {
+                    if (item.id === itemId) {
+                        return {
+                            ...item,
+                            name: editItemNameVal,
+                            quantity: editItemQtyVal,
+                            unit_price: editItemPriceVal
+                        }
+                    }
+                    return item
+                })
+
+                let updatedNotes = order.customization_notes
+                const oldItem = order.order_items.find(item => item.id === itemId)
+                const oldName = oldItem?.products?.name ?? oldItem?.name ?? 'Produit'
+                if (updatedNotes) {
+                    try {
+                        if (updatedNotes.startsWith('[') || updatedNotes.startsWith('{')) {
+                            const parsed = JSON.parse(updatedNotes)
+                            if (Array.isArray(parsed)) {
+                                const idx = parsed.findIndex((c: any) => c.name?.toLowerCase() === oldName.toLowerCase())
+                                if (idx !== -1) {
+                                    parsed[idx].name = editItemNameVal
+                                    parsed[idx].notes = editItemNotesVal
+                                } else {
+                                    parsed.push({
+                                        name: editItemNameVal,
+                                        notes: editItemNotesVal,
+                                        image_url: ''
+                                    })
+                                }
+                                updatedNotes = JSON.stringify(parsed)
+                            }
+                        } else {
+                            updatedNotes = editItemNotesVal
+                        }
+                    } catch {
+                        updatedNotes = editItemNotesVal
+                    }
+                } else if (editItemNotesVal) {
+                    updatedNotes = JSON.stringify([{
+                        name: editItemNameVal,
+                        notes: editItemNotesVal,
+                        image_url: ''
+                    }])
+                }
+
+                const newTotal = updatedItems.reduce((acc, cur) => acc + (cur.quantity * cur.unit_price), 0)
+                const newBalance = Math.max(0, newTotal - (order.paid_amount || 0))
+                let newPaymentStatus = order.payment_status
+                if (order.paid_amount === 0) newPaymentStatus = 'unpaid'
+                else if (order.paid_amount >= newTotal) newPaymentStatus = 'paid'
+                else newPaymentStatus = 'partial'
+
+                onOrderUpdate({
+                    id: order.id,
+                    order_items: updatedItems,
+                    customization_notes: updatedNotes,
+                    total_amount: newTotal,
+                    balance: newBalance,
+                    payment_status: newPaymentStatus
+                })
+            }
+            setEditingItemId(null)
+        } else {
+            toast.error(res.error || "Erreur lors de la mise à jour")
+        }
+        setIsSavingItem(false)
+    }
+
+    const saveTotalField = async () => {
+        if (!order) return
+        if (!totalComment.trim()) {
+            toast.error("Le motif de la modification est obligatoire.")
+            return
+        }
+        setIsSavingTotal(true)
+        const res = await updateOrderTotal(order.id, totalVal, totalComment.trim())
+        if (res.success) {
+            toast.success("Total de la commande mis à jour !")
+            if (onOrderUpdate) {
+                // Si la commande a exactement 1 article, on met aussi à jour cet article localement
+                let updatedItems = order.order_items
+                if (order.order_items.length === 1) {
+                    updatedItems = order.order_items.map(item => ({
+                        ...item,
+                        unit_price: totalVal / (item.quantity || 1),
+                        subtotal: totalVal
+                    }))
+                }
+
+                const newBalance = Math.max(0, totalVal - (order.paid_amount || 0))
+                let newPaymentStatus = order.payment_status
+                if (order.paid_amount === 0) newPaymentStatus = 'unpaid'
+                else if (order.paid_amount >= totalVal) newPaymentStatus = 'paid'
+                else newPaymentStatus = 'partial'
+
+                onOrderUpdate({
+                    id: order.id,
+                    order_items: updatedItems,
+                    total_amount: totalVal,
+                    subtotal: totalVal,
+                    balance: newBalance,
+                    payment_status: newPaymentStatus,
+                    customization_notes: res.customization_notes
+                })
+            }
+            setEditTotal(false)
+            setTotalComment('')
+        } else {
+            toast.error(res.error || "Erreur lors de la mise à jour du total")
+        }
+        setIsSavingTotal(false)
+    }
 
     useEffect(() => {
         if (order) {
@@ -407,11 +549,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditName(true)}
-                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
                                                 className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
                                                 title="Modifier le nom"
                                             >
-                                                <Pencil size={14} />
+                                                <Pencil size={18} />
                                             </button>
                                         )}
                                     </div>
@@ -464,11 +606,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditPhone(true)}
-                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
                                                 className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
                                                 title="Modifier le téléphone"
                                             >
-                                                <Pencil size={14} />
+                                                <Pencil size={18} />
                                             </button>
                                         )}
                                     </div>
@@ -491,6 +633,86 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                 const customInfo = isJsonCustomization 
                                     ? parsedCustomizations.find(c => c.name.toLowerCase() === itemFullName.toLowerCase())
                                     : null
+                                const isEditing = editingItemId === item.id
+
+                                if (isEditing) {
+                                    return (
+                                        <div key={item.id} style={{
+                                            padding: '16px',
+                                            borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border)' : 'none',
+                                            background: 'var(--color-lift)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '12px'
+                                        }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Désignation</label>
+                                                <input
+                                                    type="text"
+                                                    value={editItemNameVal}
+                                                    onChange={e => setEditItemNameVal(e.target.value)}
+                                                    style={{ width: '100%', padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'var(--color-well)', color: 'var(--color-text)' }}
+                                                    disabled={isSavingItem}
+                                                    placeholder="Nom de l'article"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantité</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editItemQtyVal}
+                                                        onChange={e => setEditItemQtyVal(Math.max(1, parseInt(e.target.value) || 1))}
+                                                        style={{ width: '100%', padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'var(--color-well)', color: 'var(--color-text)' }}
+                                                        disabled={isSavingItem}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prix unitaire (FCFA)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={editItemPriceVal}
+                                                        onChange={e => setEditItemPriceVal(Math.max(0, parseInt(e.target.value) || 0))}
+                                                        style={{ width: '100%', padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'var(--color-well)', color: 'var(--color-text)' }}
+                                                        disabled={isSavingItem}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes de personnalisation</label>
+                                                <textarea
+                                                    value={editItemNotesVal}
+                                                    onChange={e => setEditItemNotesVal(e.target.value)}
+                                                    rows={2}
+                                                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', outline: 'none', fontSize: '0.85rem', fontWeight: 500, background: 'var(--color-well)', color: 'var(--color-text)', resize: 'vertical' }}
+                                                    disabled={isSavingItem}
+                                                    placeholder="Parfums, écritures, décoration..."
+                                                />
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                                                <button
+                                                    onClick={() => saveItemField(item.id)}
+                                                    disabled={isSavingItem}
+                                                    style={{ background: 'var(--color-secondary)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 16px', height: '36px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                                    className="hover:opacity-90"
+                                                >
+                                                    {isSavingItem ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                                    Enregistrer
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingItemId(null)}
+                                                    disabled={isSavingItem}
+                                                    style={{ background: 'var(--color-lift)', color: 'var(--color-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 16px', height: '36px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                    className="hover:bg-[var(--color-well)]"
+                                                >
+                                                    <X size={14} />
+                                                    Annuler
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                }
 
                                 return (
                                     <div key={item.id} style={{
@@ -516,6 +738,22 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                             <span style={{ fontWeight: 650, fontSize: '0.92rem', color: 'var(--color-text)', flex: 1 }}>
                                                 {itemFullName}
                                             </span>
+                                            {isAuthorized && (
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingItemId(item.id)
+                                                        setEditItemNameVal(itemFullName)
+                                                        setEditItemQtyVal(item.quantity)
+                                                        setEditItemPriceVal(Number(item.unit_price))
+                                                        setEditItemNotesVal(customInfo?.notes || '')
+                                                    }}
+                                                    style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                    className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
+                                                    title="Modifier l'article"
+                                                >
+                                                    <Pencil size={18} />
+                                                </button>
+                                            )}
                                         </div>
 
                                         {customInfo && (customInfo.notes || customInfo.image_url) && (
@@ -682,11 +920,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                         {isAuthorized && (
                                             <button
                                                 onClick={() => setEditDate(true)}
-                                                style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
+                                                style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)', transition: 'all 0.2s' }}
                                                 className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
                                                 title="Modifier la date"
                                             >
-                                                <Pencil size={14} />
+                                                <Pencil size={18} />
                                             </button>
                                         )}
                                     </div>
@@ -708,7 +946,19 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                             {/* Récapitulatif financier */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', textAlign: 'center' }}>
                                 <div>
-                                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Total</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', height: '36px' }}>
+                                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Total</div>
+                                        {isAuthorized && (
+                                            <button
+                                                onClick={() => { setEditTotal(true); setTotalVal(Number(order.total_amount)) }}
+                                                style={{ background: 'transparent', border: 'none', padding: '6px', cursor: 'pointer', color: 'var(--color-muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', transition: 'all 0.2s' }}
+                                                className="hover:bg-[var(--color-lift)] hover:text-[var(--color-text)]"
+                                                title="Modifier le total"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                    </div>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)' }}>{Number(order.total_amount).toLocaleString('fr-FR')} {currency}</div>
                                 </div>
                                 <div>
@@ -720,6 +970,113 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                     <div style={{ fontSize: '0.9rem', fontWeight: 800, color: Number(order.balance || 0) > 0 ? '#B91C1C' : '#065F46' }}>{Number(order.balance || 0).toLocaleString('fr-FR')} {currency}</div>
                                 </div>
                             </div>
+
+                            {editTotal && (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '12px',
+                                    padding: '16px',
+                                    background: 'var(--color-well)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1.5px solid var(--color-border)',
+                                    marginTop: '8px',
+                                    boxShadow: 'var(--shadow-sm)'
+                                }}>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                        Modifier le montant total
+                                    </div>
+
+                                    {/* TouchInput avec NumPad intégré */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>
+                                            Nouveau Montant ({currency})
+                                        </label>
+                                        <TouchInput
+                                            value={totalVal.toString()}
+                                            onChange={(val) => setTotalVal(Math.max(0, parseInt(val) || 0))}
+                                            title="Saisir le nouveau montant total"
+                                            placeholder="Saisir le montant total..."
+                                        />
+                                    </div>
+
+                                    {/* Commentaire obligatoire */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>
+                                            Motif du changement <span style={{ color: '#B91C1C' }}>*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={totalComment}
+                                            onChange={(e) => setTotalComment(e.target.value)}
+                                            placeholder="Ex: Changement de taille demandé par la cliente..."
+                                            disabled={isSavingTotal}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0 12px',
+                                                height: '44px',
+                                                borderRadius: 'var(--radius-md)',
+                                                border: '1px solid var(--color-border)',
+                                                outline: 'none',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                background: 'var(--color-lift)',
+                                                color: 'var(--color-text)'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Boutons tactiles friendly (min-height 48px pour tactile) */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                                        <button
+                                            onClick={saveTotalField}
+                                            disabled={isSavingTotal || !totalComment.trim()}
+                                            style={{
+                                                height: '48px',
+                                                background: !totalComment.trim() ? 'var(--color-border)' : 'var(--color-secondary)',
+                                                color: !totalComment.trim() ? 'var(--color-muted)' : 'white',
+                                                border: 'none',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 700,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                cursor: !totalComment.trim() ? 'not-allowed' : 'pointer',
+                                                transition: 'opacity 0.2s'
+                                            }}
+                                            className={totalComment.trim() ? "hover:opacity-90" : ""}
+                                        >
+                                            {isSavingTotal ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                            Valider
+                                        </button>
+                                        <button
+                                            onClick={() => { setEditTotal(false); setTotalComment(''); }}
+                                            disabled={isSavingTotal}
+                                            style={{
+                                                height: '48px',
+                                                background: 'var(--color-lift)',
+                                                color: 'var(--color-text)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 700,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            className="hover:bg-[var(--color-well)]"
+                                        >
+                                            <X size={16} />
+                                            Annuler
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Bouton tactile d'action d'enregistrement de paiement */}
                             {order.status !== 'cancelled' && (
@@ -795,7 +1152,8 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                                     background: 'transparent',
                                                                     border: 'none',
                                                                     cursor: 'pointer',
-                                                                    padding: '6px',
+                                                                    width: '44px',
+                                                                    height: '44px',
                                                                     borderRadius: '50%',
                                                                     display: 'flex',
                                                                     alignItems: 'center',
@@ -806,7 +1164,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                                 className="hover:bg-[rgba(0,0,0,0.05)] hover:text-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] active:scale-95"
                                                                 title="Modifier le paiement"
                                                             >
-                                                                <Pencil size={14} />
+                                                                <Pencil size={18} />
                                                             </button>
                                                         )}
                                                     </div>

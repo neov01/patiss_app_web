@@ -1005,4 +1005,270 @@ export async function deleteOrderPayment(paymentId: string, orderId: string) {
     }
 }
 
+export async function updateOrderItemDetails(
+    orderId: string,
+    itemId: string,
+    input: {
+        name: string
+        quantity?: number
+        unit_price?: number
+        notes?: string | null
+    }
+) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabaseAny = supabase as any
+
+        // 1. Récupérer l'article existant
+        const { data: item, error: fetchItemErr } = await supabaseAny
+            .from('order_items')
+            .select('name, quantity, unit_price')
+            .eq('id', itemId)
+            .eq('order_id', orderId)
+            .single()
+
+        if (fetchItemErr || !item) {
+            return { error: "Article introuvable dans cette commande" }
+        }
+
+        const oldName = item.name || ''
+        const updatedQty = input.quantity !== undefined ? input.quantity : Number(item.quantity)
+        const updatedPrice = input.unit_price !== undefined ? input.unit_price : Number(item.unit_price)
+        const newSubtotal = updatedQty * updatedPrice
+
+        // 2. Récupérer la commande
+        const { data: order, error: fetchOrderErr } = await supabaseAny
+            .from('orders')
+            .select('status, customization_notes')
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (fetchOrderErr || !order) {
+            return { error: "Commande introuvable" }
+        }
+
+        if (order.status === 'cancelled') {
+            return { error: "Impossible de modifier un article sur une commande annulée" }
+        }
+
+        // 3. Mettre à jour les customization_notes (JSON)
+        let updatedNotes = order.customization_notes
+        if (updatedNotes) {
+            try {
+                if (updatedNotes.startsWith('[') || updatedNotes.startsWith('{')) {
+                    const parsed = JSON.parse(updatedNotes)
+                    if (Array.isArray(parsed)) {
+                        const idx = parsed.findIndex((c: any) => c.name?.toLowerCase() === oldName.toLowerCase())
+                        if (idx !== -1) {
+                            parsed[idx].name = input.name
+                            parsed[idx].notes = input.notes || ''
+                        } else {
+                            parsed.push({
+                                name: input.name,
+                                notes: input.notes || '',
+                                image_url: ''
+                            })
+                        }
+                        updatedNotes = JSON.stringify(parsed)
+                    }
+                } else {
+                    updatedNotes = input.notes || ''
+                }
+            } catch (e) {
+                console.warn("Erreur parsing customization_notes, on écrase en texte brut", e)
+                updatedNotes = input.notes || ''
+            }
+        } else if (input.notes) {
+            updatedNotes = JSON.stringify([{
+                name: input.name,
+                notes: input.notes,
+                image_url: ''
+            }])
+        }
+
+        // 4. Mettre à jour l'article dans order_items
+        const { error: updateItemErr } = await supabaseAny
+            .from('order_items')
+            .update({
+                name: input.name,
+                quantity: updatedQty,
+                unit_price: updatedPrice,
+                subtotal: newSubtotal
+            })
+            .eq('id', itemId)
+            .eq('order_id', orderId)
+
+        if (updateItemErr) {
+            console.error('Erreur mise à jour order_item:', updateItemErr)
+            return { error: updateItemErr.message }
+        }
+
+        // 5. Mettre à jour la note de la commande
+        const { error: updateOrderNotesErr } = await supabaseAny
+            .from('orders')
+            .update({
+                customization_notes: updatedNotes
+            })
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+
+        if (updateOrderNotesErr) {
+            console.error('Erreur mise à jour orders customization_notes:', updateOrderNotesErr)
+            return { error: updateOrderNotesErr.message }
+        }
+
+        // 6. Recalculer le total global de la commande
+        const { data: allItems, error: sumErr } = await supabaseAny
+            .from('order_items')
+            .select('subtotal')
+            .eq('order_id', orderId)
+
+        if (sumErr) {
+            console.error('Erreur calcul totaux order_items:', sumErr)
+            return { error: sumErr.message }
+        }
+
+        const newOrderTotal = (allItems || []).reduce((acc: number, cur: any) => acc + Number(cur.subtotal || 0), 0)
+
+        // Mettre à jour le montant global de la commande
+        const { error: updateOrderTotalErr } = await supabaseAny
+            .from('orders')
+            .update({
+                total_amount: newOrderTotal,
+                subtotal: newOrderTotal
+            })
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+
+        if (updateOrderTotalErr) {
+            console.error('Erreur mise à jour orders total_amount:', updateOrderTotalErr)
+            return { error: updateOrderTotalErr.message }
+        }
+
+        // 7. Appeler le recalcul SQL du statut de paiement
+        const { error: rpcErr } = await supabaseAny.rpc('recalculate_order_payment_status', {
+            p_order_id: orderId
+        })
+
+        if (rpcErr) {
+            console.error('Erreur RPC recalculate_order_payment_status:', rpcErr)
+        }
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+export async function updateOrderTotal(orderId: string, newTotal: number, comment: string) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const supabaseAny = supabase as any
+
+        // 1. Récupérer la commande
+        const { data: order, error: fetchOrderErr } = await supabaseAny
+            .from('orders')
+            .select('status, subtotal, total_amount, customization_notes')
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+            .single()
+
+        if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+        if (order.status === 'cancelled') {
+            return { error: 'Impossible de modifier le total d\'une commande annulée' }
+        }
+
+        // 2. Récupérer les articles
+        const { data: items, error: fetchItemsErr } = await supabaseAny
+            .from('order_items')
+            .select('id, name, quantity, unit_price')
+            .eq('order_id', orderId)
+
+        if (fetchItemsErr) return { error: 'Erreur lors de la récupération des articles' }
+
+        // 3. Préparer les notes de personnalisation avec l'audit log
+        let updatedNotes = order.customization_notes
+        const logEntry = `[Modif Tarif - ${new Date().toLocaleDateString('fr-FR')}] : ${comment}`
+        if (updatedNotes) {
+            try {
+                if (updatedNotes.startsWith('[') || updatedNotes.startsWith('{')) {
+                    const parsed = JSON.parse(updatedNotes)
+                    if (Array.isArray(parsed)) {
+                        if (parsed.length > 0) {
+                            parsed[0].notes = (parsed[0].notes ? parsed[0].notes + '\n' : '') + logEntry
+                        } else {
+                            parsed.push({ name: 'Commande', notes: logEntry, image_url: '' })
+                        }
+                        updatedNotes = JSON.stringify(parsed)
+                    }
+                } else {
+                    updatedNotes = updatedNotes + '\n' + logEntry
+                }
+            } catch {
+                updatedNotes = updatedNotes + '\n' + logEntry
+            }
+        } else {
+            updatedNotes = JSON.stringify([{ name: 'Commande', notes: logEntry, image_url: '' }])
+        }
+
+        // 4. Mettre à jour la commande
+        const { error: updateErr } = await supabaseAny
+            .from('orders')
+            .update({
+                total_amount: newTotal,
+                subtotal: newTotal,
+                customization_notes: updatedNotes
+            })
+            .eq('id', orderId)
+            .eq('organization_id', organizationId)
+
+        if (updateErr) return { error: updateErr.message }
+
+        // 5. Si la commande a exactement 1 article, on ajuste son prix unitaire pour rester cohérent
+        if (items && items.length === 1) {
+            const item = items[0]
+            const qty = Number(item.quantity || 1)
+            const newUnitPrice = newTotal / qty
+            await supabaseAny
+                .from('order_items')
+                .update({
+                    unit_price: newUnitPrice,
+                    subtotal: newTotal
+                })
+                .eq('id', item.id)
+                .eq('order_id', orderId)
+        }
+
+        // 6. Recalculer le statut de paiement de la commande
+        const { error: rpcErr } = await supabaseAny.rpc('recalculate_order_payment_status', {
+            p_order_id: orderId
+        })
+        if (rpcErr) console.error('Erreur RPC recalculate_order_payment_status:', rpcErr)
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true, customization_notes: updatedNotes }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+
 
