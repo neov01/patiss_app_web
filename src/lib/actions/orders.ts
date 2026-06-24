@@ -1063,7 +1063,7 @@ export async function updateOrderItemDetails(
                 if (updatedNotes.startsWith('[') || updatedNotes.startsWith('{')) {
                     const parsed = JSON.parse(updatedNotes)
                     if (Array.isArray(parsed)) {
-                        const idx = parsed.findIndex((c: any) => c.name?.toLowerCase() === oldName.toLowerCase())
+                        const idx = parsed.findIndex((c: { name?: string }) => c.name?.toLowerCase() === oldName.toLowerCase())
                         if (idx !== -1) {
                             parsed[idx].name = input.name
                             parsed[idx].notes = input.notes || ''
@@ -1133,7 +1133,7 @@ export async function updateOrderItemDetails(
             return { error: sumErr.message }
         }
 
-        const newOrderTotal = (allItems || []).reduce((acc: number, cur: any) => acc + Number(cur.subtotal || 0), 0)
+        const newOrderTotal = (allItems || []).reduce((acc: number, cur: { subtotal?: number | null }) => acc + Number(cur.subtotal || 0), 0)
 
         // Mettre à jour le montant global de la commande
         const { error: updateOrderTotalErr } = await supabaseAny
@@ -1264,6 +1264,125 @@ export async function updateOrderTotal(orderId: string, newTotal: number, commen
         revalidatePath('/caisse')
 
         return { success: true, customization_notes: updatedNotes }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+export async function getVitrineSales(filters: {
+    page?: number
+    pageSize?: number
+    period?: 'today' | 'week' | 'month' | 'custom' | 'all'
+    startDate?: string
+    endDate?: string
+    amount?: number
+    paymentMethod?: string
+    searchQuery?: string
+}) {
+    try {
+        const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur', 'patissier'])
+        const { supabase, organizationId } = context
+
+        const page = filters.page || 1
+        const pageSize = filters.pageSize || 20
+        const from = (page - 1) * pageSize
+        const to = from + pageSize - 1
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let query = (supabase as any)
+            .from('transactions')
+            .select('*, transaction_items(*), creator_profile:profiles!transactions_created_by_fkey(full_name, role_slug)', { count: 'exact' })
+            .eq('organization_id', organizationId)
+            .is('order_id', null)
+            .eq('label_type', 'VENTE_DIRECTE')
+
+        if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
+            const q = `%${filters.searchQuery.trim()}%`
+            query = query.or(`client_name.ilike.${q},id::text.ilike.${q}`)
+        }
+
+        if (filters.amount) {
+            query = query.eq('amount', filters.amount)
+        }
+
+        if (filters.paymentMethod) {
+            query = query.eq('payment_method', filters.paymentMethod)
+        }
+
+        if (filters.period && filters.period !== 'all') {
+            const now = new Date()
+            if (filters.period === 'today') {
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+                const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+                query = query.gte('created_at', todayStart.toISOString()).lte('created_at', todayEnd.toISOString())
+            } else if (filters.period === 'week') {
+                const startOfWeek = new Date(now)
+                const day = startOfWeek.getDay()
+                const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1)
+                startOfWeek.setDate(diff)
+                startOfWeek.setHours(0, 0, 0, 0)
+                const endOfWeek = new Date(startOfWeek)
+                endOfWeek.setDate(startOfWeek.getDate() + 6)
+                endOfWeek.setHours(23, 59, 59, 999)
+                query = query.gte('created_at', startOfWeek.toISOString()).lte('created_at', endOfWeek.toISOString())
+            } else if (filters.period === 'month') {
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+                query = query.gte('created_at', startOfMonth.toISOString()).lte('created_at', endOfMonth.toISOString())
+            } else if (filters.period === 'custom' && filters.startDate) {
+                const startStr = `${filters.startDate}T00:00:00`
+                query = query.gte('created_at', startStr)
+                if (filters.endDate) {
+                    const endStr = `${filters.endDate}T23:59:59.999`
+                    query = query.lte('created_at', endStr)
+                }
+            }
+        }
+
+        const { data, error, count } = await query
+            .order('created_at', { ascending: false })
+            .range(from, to)
+
+        if (error) return { error: error.message }
+
+        return {
+            transactions: data || [],
+            count: count || 0,
+            hasMore: count ? (to < count - 1) : false
+        }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+type DeleteVitrineSaleRpcClient = {
+    rpc(
+        fn: 'delete_vente_rapide_atomic',
+        args: { p_transaction_id: string; p_organization_id: string }
+    ): Promise<{ data: null; error: { message?: string } | null }>
+}
+
+export async function deleteVitrineSale(transactionId: string) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['gerant', 'super_admin'])
+        await requireOpenSalesSession(context)
+        const { supabase, organizationId } = context
+
+        const { error } = await (supabase as unknown as DeleteVitrineSaleRpcClient).rpc('delete_vente_rapide_atomic', {
+            p_transaction_id: transactionId,
+            p_organization_id: organizationId
+        })
+
+        if (error) return { error: error.message }
+
+        revalidatePath('/commandes')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true }
     } catch (e: unknown) {
         if (e instanceof AuthContextError) return { error: e.message }
         return { error: getErrorMessage(e) }

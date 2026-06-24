@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState, useEffect, useRef, useOptimistic, useTransition } from 'react'
@@ -582,7 +583,7 @@ export default function CaisseClient({
                 {/* 2. METRIQUES */}
                 <div className="metrics-container" style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Ventes aujourd'hui</div>
+                        <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>{"Ventes aujourd'hui"}</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2D1B0E' }}>{initialCmdCount + initialVitrineCount}</div>
                         <div style={{ fontSize: '0.8rem', color: '#C4836A', marginTop: '4px' }}>
                             {initialCmdCount} commandes · {initialVitrineCount} vitrine
@@ -745,7 +746,7 @@ export default function CaisseClient({
                 </h2>
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--color-caisse-border)', overflow: 'hidden' }}>
                     {initialHistory.length === 0 ? (
-                        <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>Aucune transaction aujourd'hui</div>
+                        <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>{"Aucune transaction aujourd'hui"}</div>
                     ) : (
                         initialHistory.map((t, i) => {
                             const hasMultiPayments = t.payments && t.payments.length > 1;
