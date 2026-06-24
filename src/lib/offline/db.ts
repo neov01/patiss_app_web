@@ -257,6 +257,9 @@ export type PendingOrder = {
     payment_method: string
     label_type: 'ACOMPTE' | 'SOLDE'
   }>
+  retryCount?: number
+  lastError?: string
+  failedAt?: string
 }
 
 export async function queueOrder(order: Omit<PendingOrder, 'offlineId' | 'createdAt'>): Promise<number> {
@@ -298,31 +301,131 @@ export async function removePendingOrder(offlineId: number): Promise<void> {
   })
 }
 
+export async function updatePendingOrderRetry(
+  offlineId: number,
+  error: string
+): Promise<void> {
+  const db = await openDB()
+  const tx = db.transaction('pendingOrders', 'readwrite')
+  const store = tx.objectStore('pendingOrders')
+
+  return new Promise((resolve, reject) => {
+    const getReq = store.get(offlineId)
+    getReq.onsuccess = () => {
+      const record: PendingOrder = getReq.result
+      if (!record) { resolve(); return }
+      record.retryCount = (record.retryCount ?? 0) + 1
+      record.lastError = error
+      if (record.retryCount >= MAX_OFFLINE_RETRIES) {
+        record.failedAt = new Date().toISOString()
+      }
+      store.put(record)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    }
+    getReq.onerror = () => reject(getReq.error)
+  })
+}
+
 // ==================== COMPTEUR ====================
 
-export async function getPendingCounts(): Promise<{ transactions: number; orders: number }> {
+export async function getPendingCounts(): Promise<{
+  transactions: number
+  orders: number
+  deadTransactions: number
+  deadOrders: number
+}> {
   const db = await openDB()
   
-  const getTxCount = (): Promise<number> => {
+  const getTxCounts = (): Promise<{ total: number; dead: number }> => {
     const tx = db.transaction('pendingTransactions', 'readonly')
     const store = tx.objectStore('pendingTransactions')
     return new Promise((resolve, reject) => {
-      const request = store.count()
-      request.onsuccess = () => resolve(request.result)
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const list = request.result as PendingTransaction[]
+        const dead = list.filter(t => (t.retryCount ?? 0) >= MAX_OFFLINE_RETRIES).length
+        resolve({ total: list.length, dead })
+      }
       request.onerror = () => reject(request.error)
     })
   }
 
-  const getOrderCount = (): Promise<number> => {
+  const getOrderCounts = (): Promise<{ total: number; dead: number }> => {
     const tx = db.transaction('pendingOrders', 'readonly')
     const store = tx.objectStore('pendingOrders')
     return new Promise((resolve, reject) => {
-      const request = store.count()
-      request.onsuccess = () => resolve(request.result)
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const list = request.result as PendingOrder[]
+        const dead = list.filter(o => (o.retryCount ?? 0) >= MAX_OFFLINE_RETRIES).length
+        resolve({ total: list.length, dead })
+      }
       request.onerror = () => reject(request.error)
     })
   }
 
-  const [transactions, orders] = await Promise.all([getTxCount(), getOrderCount()])
-  return { transactions, orders }
+  const [txRes, orderRes] = await Promise.all([getTxCounts(), getOrderCounts()])
+  return {
+    transactions: txRes.total,
+    orders: orderRes.total,
+    deadTransactions: txRes.dead,
+    deadOrders: orderRes.dead
+  }
+}
+
+export async function resetPendingRetries(): Promise<void> {
+  const db = await openDB()
+  
+  const resetTx = () => {
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('pendingTransactions', 'readwrite')
+      const store = tx.objectStore('pendingTransactions')
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const list = request.result as PendingTransaction[]
+        const promises = list
+          .filter(t => (t.retryCount ?? 0) >= MAX_OFFLINE_RETRIES)
+          .map(t => {
+            t.retryCount = 0
+            delete t.failedAt
+            delete t.lastError
+            return new Promise((res, rej) => {
+              const putReq = store.put(t)
+              putReq.onsuccess = () => res(null)
+              putReq.onerror = () => rej(putReq.error)
+            })
+          })
+        Promise.all(promises).then(() => resolve()).catch(reject)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  const resetOrders = () => {
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('pendingOrders', 'readwrite')
+      const store = tx.objectStore('pendingOrders')
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const list = request.result as PendingOrder[]
+        const promises = list
+          .filter(o => (o.retryCount ?? 0) >= MAX_OFFLINE_RETRIES)
+          .map(o => {
+            o.retryCount = 0
+            delete o.failedAt
+            delete o.lastError
+            return new Promise((res, rej) => {
+              const putReq = store.put(o)
+              putReq.onsuccess = () => res(null)
+              putReq.onerror = () => rej(putReq.error)
+            })
+          })
+        Promise.all(promises).then(() => resolve()).catch(reject)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  await Promise.all([resetTx(), resetOrders()])
 }

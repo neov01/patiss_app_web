@@ -11,6 +11,7 @@ import {
   updatePendingTransactionRetry,
   getPendingOrders,
   removePendingOrder,
+  updatePendingOrderRetry,
   MAX_OFFLINE_RETRIES
 } from './db'
 import { encaisserTransaction } from '@/lib/actions/caisse'
@@ -24,6 +25,7 @@ export type SyncResult = {
   deadTransactions: number  // transactions > MAX_RETRIES, nécessitent attention manuelle
   syncedOrders: number
   failedOrders: number
+  deadOrders: number  // commandes > MAX_RETRIES, nécessitent attention manuelle
 }
 
 /**
@@ -36,7 +38,8 @@ export async function syncPendingData(): Promise<SyncResult> {
     failedTransactions: 0,
     deadTransactions: 0,
     syncedOrders: 0,
-    failedOrders: 0
+    failedOrders: 0,
+    deadOrders: 0
   }
 
   // 0. Only refresh session when network is available — calling refreshSession()
@@ -96,6 +99,12 @@ export async function syncPendingData(): Promise<SyncResult> {
   const pendingOrders = await getPendingOrders()
 
   await Promise.allSettled(pendingOrders.map(async (order) => {
+    // Commandes en dead-letter (trop d'échecs) : compter mais ne pas retry
+    if ((order.retryCount ?? 0) >= MAX_OFFLINE_RETRIES) {
+      result.deadOrders++
+      return
+    }
+
     try {
       const year = new Date().getFullYear()
       const rand = Math.floor(1000 + Math.random() * 9000)
@@ -142,10 +151,13 @@ export async function syncPendingData(): Promise<SyncResult> {
         result.syncedOrders++
       } else {
         console.warn('[Sync] Commande rejetée par le serveur:', res.error)
+        await updatePendingOrderRetry(order.offlineId!, res.error)
         result.failedOrders++
       }
     } catch (err) {
-      console.error('[Sync] Erreur réseau sur commande:', err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('[Sync] Erreur réseau sur commande:', errMsg)
+      await updatePendingOrderRetry(order.offlineId!, errMsg)
       result.failedOrders++
     }
   }))
