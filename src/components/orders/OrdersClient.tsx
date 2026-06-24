@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
 import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search, SlidersHorizontal, X, Eye } from 'lucide-react'
-import { updateOrderStatus, deleteOrder, getHistoricalOrders } from '@/lib/actions/orders'
+import { updateOrderStatus, deleteOrder, getHistoricalOrders, getVitrineSales, deleteVitrineSale } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer, { type OrderPayment } from './OrderDrawer'
 import HistoricalImportModal from './HistoricalImportModal'
@@ -37,6 +37,35 @@ export interface OrderWithItems {
     paid_amount: number
     balance: number
     order_payments?: OrderPayment[]
+    creator_profile?: {
+        full_name: string
+        role_slug: string
+    } | null
+}
+
+export interface TransactionItem {
+    id: string
+    transaction_id: string | null
+    product_id: string | null
+    name: string | null
+    quantity: number | null
+    unit_price: number | null
+    subtotal: number | null
+}
+
+export interface VitrineSaleTransaction {
+    id: string
+    organization_id: string
+    order_id: string | null
+    customer_id: string | null
+    amount: number | null
+    created_at: string | null
+    created_by: string | null
+    payment_method: string | null
+    payment_details: unknown
+    client_name: string | null
+    label_type: string | null
+    transaction_items?: TransactionItem[]
     creator_profile?: {
         full_name: string
         role_slug: string
@@ -88,7 +117,10 @@ export default function OrdersClient({
     organizationId,
     roleSlug,
     canImportHistory = false,
-    isSessionOpen = false
+    isSessionOpen = false,
+    initialVitrineSales = [],
+    initialVitrineCount = 0,
+    initialVitrineHasMore = false
 }: {
     orders: OrderWithItems[];
     products: Product[];
@@ -97,16 +129,35 @@ export default function OrdersClient({
     roleSlug: string;
     canImportHistory?: boolean;
     isSessionOpen?: boolean;
+    initialVitrineSales?: VitrineSaleTransaction[];
+    initialVitrineCount?: number;
+    initialVitrineHasMore?: boolean;
 }) {
     const router = useRouter()
 
     // --- États Communs ---
-    const [activeTab, setActiveTab] = useState<'todo' | 'history'>('todo')
+    const [activeTab, setActiveTab] = useState<'todo' | 'history' | 'vitrine'>('todo')
     const [showModal, setShowModal] = useState(false)
     const [showImportModal, setShowImportModal] = useState(false)
     const { isPending, renderFeedback } = useActionFeedback()
     const [orderToDelete, setOrderToDelete] = useState<{id: string, name: string} | null>(null)
+    const [vitrineToDelete, setVitrineToDelete] = useState<{id: string, amount: number, clientName: string | null} | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    
+    // --- États Ventes Rapides ---
+    const [vitrineSales, setVitrineSales] = useState<VitrineSaleTransaction[]>(initialVitrineSales)
+    const [vitrineCount, setVitrineCount] = useState(initialVitrineCount)
+    const [vitrineLoading, setVitrineLoading] = useState(false)
+    const [vitrineHasMore, setVitrineHasMore] = useState(initialVitrineHasMore)
+    const [vitrinePage, setVitrinePage] = useState(1)
+
+    useEffect(() => {
+        setVitrineSales(initialVitrineSales)
+        setVitrineCount(initialVitrineCount)
+        setVitrineHasMore(initialVitrineHasMore)
+        setVitrinePage(1)
+    }, [initialVitrineSales, initialVitrineCount, initialVitrineHasMore])
+
     const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
     const [search, setSearch] = useState('')
 
@@ -227,6 +278,57 @@ export default function OrdersClient({
         }
     }, [activeTab, histPeriod, histStartDate, histEndDate, histStatus, histPaymentStatus, histPaymentMethod, histAmount, isSearching])
 
+    // --- Chargement des Ventes Vitrine ---
+    const loadVitrineSales = async (page: number, replace = false) => {
+        setVitrineLoading(true)
+        try {
+            const amountNum = histAmount.trim() !== '' ? Number(histAmount) : undefined
+            const result = await getVitrineSales({
+                page,
+                pageSize: 20,
+                period: histPeriod,
+                startDate: histStartDate || undefined,
+                endDate: histEndDate || undefined,
+                amount: amountNum,
+                paymentMethod: histPaymentMethod || undefined,
+                searchQuery: search
+            })
+
+            if (result && 'error' in result && result.error) {
+                toast.error(result.error)
+                return
+            }
+
+            if (result && 'transactions' in result && result.transactions) {
+                const fetchedTx = result.transactions
+                if (replace) {
+                    setVitrineSales(fetchedTx as VitrineSaleTransaction[])
+                } else {
+                    setVitrineSales(prev => {
+                        const existingIds = new Set(prev.map(v => v.id))
+                        const uniqueNew = (fetchedTx as VitrineSaleTransaction[]).filter(v => !existingIds.has(v.id))
+                        return [...prev, ...uniqueNew]
+                    })
+                }
+                setVitrineCount(result.count || 0)
+                setVitrineHasMore(!!result.hasMore)
+                setVitrinePage(page)
+            }
+        } catch (err) {
+            toast.error("Impossible de charger les ventes vitrine")
+            console.error(err)
+        } finally {
+            setVitrineLoading(false)
+        }
+    }
+
+    // Déclencheur de rechargement des ventes vitrine quand les filtres changent
+    useEffect(() => {
+        if (activeTab === 'vitrine') {
+            loadVitrineSales(1, true)
+        }
+    }, [activeTab, histPeriod, histStartDate, histEndDate, histPaymentMethod, histAmount, search])
+
     // --- Filtrage Local "À traiter" ---
     const filteredTodo = useMemo(() => {
         let result = localOrders
@@ -281,9 +383,10 @@ export default function OrdersClient({
     const counts = useMemo(() => {
         return {
             todo: localOrders.length,
-            history: historyCount
+            history: historyCount,
+            vitrine: vitrineCount
         }
-    }, [localOrders, historyCount])
+    }, [localOrders, historyCount, vitrineCount])
 
     // --- Actions ───
     async function handleStatusChange(orderId: string, nextStatus: string) {
@@ -352,6 +455,38 @@ export default function OrdersClient({
                 router.refresh()
                 setDeletingId(null)
                 return 'Commande supprimée'
+            },
+            error: (err) => {
+                setDeletingId(null)
+                router.refresh()
+                return err instanceof Error ? err.message : 'Une erreur est survenue.'
+            }
+        })
+    }
+
+    const handleDeleteVitrine = async () => {
+        if (!vitrineToDelete) return
+        
+        const { id } = vitrineToDelete
+        setDeletingId(id)
+        setVitrineToDelete(null)
+        
+        const deletePromise = async () => {
+            const result = await deleteVitrineSale(id)
+            if (result && typeof result === 'object' && 'error' in result && result.error) {
+                throw new Error(String(result.error))
+            }
+            return result
+        }
+
+        toast.promise(deletePromise(), {
+            loading: 'Suppression de la vente...',
+            success: () => {
+                setVitrineSales(prev => prev.filter(v => v.id !== id))
+                setVitrineCount(prev => Math.max(0, prev - 1))
+                router.refresh()
+                setDeletingId(null)
+                return 'Vente vitrine supprimée et stocks restaurés !'
             },
             error: (err) => {
                 setDeletingId(null)
@@ -542,6 +677,28 @@ export default function OrdersClient({
                                 {counts.history}
                             </span>
                         </button>
+                        <button
+                            onClick={() => setActiveTab('vitrine')}
+                            style={{
+                                padding: '12px 16px',
+                                fontSize: '1rem',
+                                fontWeight: 700,
+                                border: 'none',
+                                background: 'transparent',
+                                borderBottom: activeTab === 'vitrine' ? '3px solid var(--color-primary)' : '3px solid transparent',
+                                color: activeTab === 'vitrine' ? 'var(--color-primary)' : 'var(--color-muted)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            ⚡ Ventes Rapides
+                            <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '99px', background: activeTab === 'vitrine' ? 'var(--color-primary)' : 'var(--color-surface-variant)', color: activeTab === 'vitrine' ? 'white' : 'var(--color-text)', fontWeight: 800 }}>
+                                {counts.vitrine}
+                            </span>
+                        </button>
                     </div>
 
                     {/* --- CONTENU DE L'ONGLET SÉLECTIONNÉ --- */}
@@ -611,7 +768,7 @@ export default function OrdersClient({
                                 </div>
                             )}
                         </div>
-                    ) : (
+                    ) : activeTab === 'history' ? (
                         /* --- VUE HISTORIQUE --- */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             
@@ -725,6 +882,106 @@ export default function OrdersClient({
                                                     </>
                                                 ) : (
                                                     'Charger plus de commandes'
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        /* --- VUE VENTRE RAPIDE --- */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            
+                            {/* Barre de filtres rapides + Bouton d'ouverture du Drawer Tactile */}
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-well)', padding: '12px 16px', borderRadius: '16px', border: '1.5px solid var(--color-border)' }}>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    {/* Raccourcis de période rapides */}
+                                    <div style={{ display: 'flex', gap: '4px', background: 'white', padding: '4px', borderRadius: '99px', border: '1.5px solid var(--color-border)' }}>
+                                        {[
+                                            { id: 'today', label: 'Aujourd\'hui' },
+                                            { id: 'week', label: 'Semaine' },
+                                            { id: 'month', label: 'Mois' },
+                                            { id: 'all', label: 'Tout' }
+                                        ].map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => setHistPeriod(p.id as 'today' | 'week' | 'month' | 'all')}
+                                                style={{
+                                                    padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '99px',
+                                                    border: 'none', background: histPeriod === p.id ? 'var(--color-secondary)' : 'transparent',
+                                                    color: histPeriod === p.id ? 'white' : 'var(--color-muted)', cursor: 'pointer', transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                {p.label}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => {
+                                                setHistPeriod('custom')
+                                                setShowFiltersDrawer(true)
+                                            }}
+                                            style={{
+                                                padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '99px',
+                                                border: 'none', background: histPeriod === 'custom' ? 'var(--color-secondary)' : 'transparent',
+                                                color: histPeriod === 'custom' ? 'white' : 'var(--color-muted)', cursor: 'pointer', transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            Période... {histStartDate && `(${histStartDate})`}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Bouton tactile Filtres Avancés */}
+                                <button
+                                    onClick={() => setShowFiltersDrawer(true)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '99px',
+                                        border: '1.5px solid var(--color-border)', background: 'white',
+                                        color: 'var(--color-text)',
+                                        fontSize: '0.85rem', fontWeight: 750, cursor: 'pointer', transition: 'all 0.15s',
+                                        boxShadow: 'var(--shadow-sm)', height: '40px'
+                                    }}
+                                >
+                                    <SlidersHorizontal size={15} color="var(--color-secondary)" />
+                                    Filtres avancés
+                                    {(histPaymentMethod !== '' || histAmount !== '' || histPeriod === 'custom') && (
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }} />
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Liste des ventes vitrine */}
+                            {vitrineLoading && vitrineSales.length === 0 ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
+                                    <Loader2 size={40} className="animate-spin" color="var(--color-secondary)" />
+                                </div>
+                            ) : vitrineSales.length === 0 ? (
+                                <div className="card" style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-muted)' }}>
+                                    <ShoppingBag size={40} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
+                                    <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Aucune vente vitrine trouvée</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {renderVitrineHeader()}
+                                    {vitrineSales.map(tx => renderVitrineRow(tx))}
+
+                                    {/* Charger Plus */}
+                                    {vitrineHasMore && (
+                                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                                            <button
+                                                onClick={() => loadVitrineSales(vitrinePage + 1)}
+                                                disabled={vitrineLoading}
+                                                className="btn-secondary"
+                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', padding: '0 32px' }}
+                                            >
+                                                {vitrineLoading ? (
+                                                    <>
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                        Chargement...
+                                                    </>
+                                                ) : (
+                                                    'Charger plus de ventes'
                                                 )}
                                             </button>
                                         </div>
@@ -1063,6 +1320,43 @@ export default function OrdersClient({
                 </div>
             )}
 
+            {/* --- MODAL CONFIRMATION SUPPRESSION VENTE VITRINE --- */}
+            {vitrineToDelete && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div 
+                        style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(45,27,14,0.6)', backdropFilter: 'blur(4px)' }} 
+                        onClick={() => setVitrineToDelete(null)}
+                    />
+                    <div className="animate-scale-in" style={{
+                        position: 'relative', width: '100%', maxWidth: '400px', background: 'white', 
+                        borderRadius: '24px', padding: '32px', textAlign: 'center',
+                        boxShadow: 'var(--shadow-lg)'
+                    }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: 'var(--color-error-container, #FEE2E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-error)' }}>
+                            <Trash2 size={32} />
+                        </div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>Supprimer la vente rapide ?</h3>
+                        <p style={{ color: 'var(--color-muted)', marginBottom: '32px', lineHeight: 1.5 }}>
+                            Êtes-vous sûr de vouloir supprimer la vente rapide de <strong>{vitrineToDelete.clientName || 'Client Vitrine'}</strong> d&apos;un montant de <strong>{vitrineToDelete.amount.toLocaleString('fr-FR')} {currency}</strong> ? Cette action annulera le paiement et restaurera les stocks des produits associés.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button 
+                                onClick={() => setVitrineToDelete(null)}
+                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid var(--color-border)', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                Annuler
+                            </button>
+                            <button 
+                                onClick={handleDeleteVitrine}
+                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--color-error)', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                Supprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* --- MODAL CRÉATION COMMANDE --- */}
             <NewOrderModal
                 open={showModal}
@@ -1375,6 +1669,174 @@ export default function OrdersClient({
 
         return (
             <div key={order.id}>
+                {mobileView}
+                {desktopView}
+            </div>
+        )
+    }
+
+    // 4. Rendu de l'en-tête de tableau pour les ventes vitrine
+    function renderVitrineHeader() {
+        return (
+            <div className="hidden md:flex" style={{
+                display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 20px',
+                background: 'var(--color-well)', borderRadius: '12px', border: '1.5px solid var(--color-border)',
+                fontWeight: 700, fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '4px'
+            }}>
+                <div style={{ flex: 1.5 }}>Réf / ID</div>
+                <div style={{ flex: 2 }}>Client</div>
+                <div style={{ flex: 1.5 }}>Montant</div>
+                <div style={{ flex: 1.5 }}>Mode Paiement</div>
+                <div style={{ flex: 2 }}>Date / Heure</div>
+                <div style={{ flex: 2 }}>Articles</div>
+                <div style={{ flex: 1.5 }}>Enregistré par</div>
+                <div style={{ width: '60px', textAlign: 'center' }}>Action</div>
+            </div>
+        )
+    }
+
+    // 5. Rendu d'une ligne de vente vitrine (Responsive card/table row)
+    function renderVitrineRow(tx: VitrineSaleTransaction) {
+        const formattedDate = tx.created_at ? new Date(tx.created_at).toLocaleString('fr-FR', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : '—'
+        const shortId = tx.id.substring(0, 8).toUpperCase()
+        const isDeleting = deletingId === tx.id
+
+        // Rendu Mobile
+        const mobileView = (
+            <div className="block md:hidden">
+                <div className="card"
+                    style={{
+                        padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
+                        border: '1.5px solid var(--color-border)', borderRadius: '16px',
+                        boxShadow: 'var(--shadow-sm)', background: 'white', marginBottom: '8px',
+                        opacity: isDeleting ? 0.5 : 1
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--color-text)' }}>
+                            {tx.client_name || 'Client Vitrine'}
+                        </span>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                            {Number(tx.amount).toLocaleString('fr-FR')} {currency}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)', fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
+                            Ref: {shortId}
+                        </span>
+                        <span className="badge" style={{ background: '#F3F4F6', color: '#374151', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            💳 {tx.payment_method?.toUpperCase()}
+                        </span>
+                    </div>
+
+                    {tx.transaction_items && tx.transaction_items.length > 0 && (
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            {tx.transaction_items.map((item: TransactionItem) => (
+                                <span key={item.id} style={{ background: 'var(--color-well)', borderRadius: '99px', padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                                    {item.quantity}× {item.name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-muted)', fontSize: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px' }}>
+                        <div>
+                            <div>📅 {formattedDate}</div>
+                            {tx.creator_profile && <div style={{ marginTop: '2px' }}>👤 {tx.creator_profile.full_name} ({tx.creator_profile.role_slug})</div>}
+                        </div>
+                        {(roleSlug === 'gerant' || roleSlug === 'super_admin') && (
+                            <button 
+                                onClick={() => setVitrineToDelete({ id: tx.id, amount: Number(tx.amount), clientName: tx.client_name })}
+                                className="btn-secondary" 
+                                disabled={isDeleting}
+                                style={{ color: 'var(--color-error)', minHeight: '32px', height: '32px', padding: '0 12px', fontSize: '0.75rem', border: '1px solid #fee2e2', background: '#fef2f2' }}
+                            >
+                                Supprimer
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+
+        // Rendu Desktop
+        const desktopView = (
+            <div className="hidden md:block">
+                <div
+                    style={{
+                        display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '14px 20px',
+                        background: 'white', borderRadius: '12px', border: '1.5px solid var(--color-border)',
+                        transition: 'all 0.15s', marginBottom: '4px', opacity: isDeleting ? 0.5 : 1
+                    }}
+                >
+                    {/* Réf */}
+                    <div style={{ flex: 1.5, fontWeight: 700, color: 'var(--color-muted)', fontSize: '0.85rem' }}>
+                        {shortId}
+                    </div>
+
+                    {/* Client */}
+                    <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>{tx.client_name || 'Client Vitrine'}</span>
+                    </div>
+
+                    {/* Montant */}
+                    <div style={{ flex: 1.5, fontWeight: 800, color: 'var(--color-primary)' }}>
+                        {Number(tx.amount).toLocaleString('fr-FR')} {currency}
+                    </div>
+
+                    {/* Mode Paiement */}
+                    <div style={{ flex: 1.5 }}>
+                        <span className="badge" style={{ background: '#F3F4F6', color: '#374151', fontWeight: 700 }}>
+                            💳 {tx.payment_method?.toUpperCase()}
+                        </span>
+                    </div>
+
+                    {/* Date / Heure */}
+                    <div style={{ flex: 2, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                        {formattedDate}
+                    </div>
+
+                    {/* Articles */}
+                    <div style={{ flex: 2, display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {tx.transaction_items?.map((item: TransactionItem) => (
+                            <span key={item.id} style={{ background: 'var(--color-well)', borderRadius: '99px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                                {item.quantity}× {item.name}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Vendeur */}
+                    <div style={{ flex: 1.5, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                        {tx.creator_profile?.full_name || '—'}
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ width: '60px', display: 'flex', justifyContent: 'center' }}>
+                        {(roleSlug === 'gerant' || roleSlug === 'super_admin') ? (
+                            <button 
+                                onClick={() => setVitrineToDelete({ id: tx.id, amount: Number(tx.amount), clientName: tx.client_name })}
+                                className="btn-secondary" 
+                                disabled={isDeleting}
+                                style={{ color: 'var(--color-error)', minHeight: '36px', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', padding: 0 }}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        ) : (
+                            <span style={{ color: 'var(--color-muted)' }}>—</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
+
+        return (
+            <div key={tx.id}>
                 {mobileView}
                 {desktopView}
             </div>

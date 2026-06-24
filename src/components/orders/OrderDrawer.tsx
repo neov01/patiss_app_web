@@ -159,7 +159,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         if (updatedNotes.startsWith('[') || updatedNotes.startsWith('{')) {
                             const parsed = JSON.parse(updatedNotes)
                             if (Array.isArray(parsed)) {
-                                const idx = parsed.findIndex((c: any) => c.name?.toLowerCase() === oldName.toLowerCase())
+                                const idx = parsed.findIndex((c: { name?: string }) => c.name?.toLowerCase() === oldName.toLowerCase())
                                 if (idx !== -1) {
                                     parsed[idx].name = editItemNameVal
                                     parsed[idx].notes = editItemNotesVal

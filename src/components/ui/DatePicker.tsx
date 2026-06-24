@@ -39,7 +39,13 @@ export default function DatePicker({
 }: DatePickerProps) {
     const [open, setOpen] = useState(false)
     const [currentMonth, setCurrentMonth] = useState(value || new Date())
-    const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
+    const [coords, setCoords] = useState<{
+        top: number
+        left: number
+        width: number
+        height: number
+        placement: 'up' | 'down'
+    } | null>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -47,11 +53,41 @@ export default function DatePicker({
     const updatePosition = () => {
         if (buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect()
+            const popoverWidth = 300
+            const popoverHeight = 360 // Estimated height of calendar popover
+            const margin = 16
+
+            // 1. Determine direction (up or down)
+            let finalDirection = direction || 'down'
+            if (finalDirection === 'down') {
+                const spaceBelow = window.innerHeight - (rect.top + rect.height)
+                const spaceAbove = rect.top
+                // If not enough space below, and more space above, open upwards
+                if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
+                    finalDirection = 'up'
+                }
+            }
+
+            // 2. Calculate top
+            const top = finalDirection === 'up'
+                ? rect.top - 6
+                : rect.top + rect.height + 6
+
+            // 3. Calculate left, ensuring it stays within viewport boundaries
+            let left = rect.left
+            if (left + popoverWidth > window.innerWidth - margin) {
+                left = window.innerWidth - popoverWidth - margin
+            }
+            if (left < margin) {
+                left = margin
+            }
+
             setCoords({
-                top: rect.top,
-                left: rect.left,
+                top,
+                left,
                 width: rect.width,
-                height: rect.height
+                height: rect.height,
+                placement: finalDirection
             })
         }
     }
@@ -106,9 +142,7 @@ export default function DatePicker({
             id="datepicker-portal-content"
             style={{
                 position: 'fixed',
-                top: coords 
-                    ? (direction === 'up' ? coords.top - 6 : coords.top + coords.height + 6) 
-                    : 0,
+                top: coords ? coords.top : 0,
                 left: coords ? coords.left : 0,
                 width: '300px',
                 zIndex: 9999,
@@ -117,7 +151,7 @@ export default function DatePicker({
                 border: '1px solid var(--color-border)',
                 boxShadow: '0 12px 40px rgba(45, 27, 14, 0.12), 0 4px 12px rgba(45, 27, 14, 0.06)',
                 padding: '16px',
-                transform: direction === 'up' ? 'translateY(-100%)' : 'none',
+                transform: coords?.placement === 'up' ? 'translateY(-100%)' : 'none',
                 opacity: coords ? 1 : 0,
                 transition: 'opacity 0.1s ease-out',
                 pointerEvents: 'auto',

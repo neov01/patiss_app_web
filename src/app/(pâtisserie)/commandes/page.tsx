@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import OrdersClient from '@/components/orders/OrdersClient'
-import type { OrderWithItems } from '@/components/orders/OrdersClient'
+import type { OrderWithItems, VitrineSaleTransaction } from '@/components/orders/OrdersClient'
 import { getOpenSession } from '@/lib/actions/sessions'
+import { getVitrineSales } from '@/lib/actions/orders'
 
 export default async function CommandesPage() {
     const supabase = await createClient()
@@ -28,7 +29,7 @@ export default async function CommandesPage() {
         activeFilter += `,and(status.in.(completed,delivered),pickup_date.gte.${todayStr}T00:00:00)`
     }
 
-    const [{ data: orders }, { data: products }] = await Promise.all([
+    const [{ data: orders }, { data: products }, vitrineRes] = await Promise.all([
         supabase
             .from('orders')
             .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
@@ -40,8 +41,13 @@ export default async function CommandesPage() {
             .select('id, name, selling_price, current_stock')
             .eq('organization_id', orgId)
             .eq('is_active', true)
-            .order('name')
+            .order('name'),
+        getVitrineSales({ page: 1, pageSize: 20 })
     ]);
+
+    const initialVitrineSales = vitrineRes && 'transactions' in vitrineRes ? vitrineRes.transactions : []
+    const initialVitrineCount = vitrineRes && 'count' in vitrineRes ? vitrineRes.count : 0
+    const initialVitrineHasMore = vitrineRes && 'hasMore' in vitrineRes ? vitrineRes.hasMore : false
 
     return (
         <OrdersClient
@@ -52,6 +58,9 @@ export default async function CommandesPage() {
             roleSlug={profile?.role_slug || 'vendeur'}
             canImportHistory={profile?.can_import_history || false}
             isSessionOpen={isSessionOpen}
+            initialVitrineSales={initialVitrineSales as VitrineSaleTransaction[]}
+            initialVitrineCount={initialVitrineCount}
+            initialVitrineHasMore={initialVitrineHasMore}
         />
     )
 }
