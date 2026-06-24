@@ -429,3 +429,28 @@ export async function resetPendingRetries(): Promise<void> {
 
   await Promise.all([resetTx(), resetOrders()])
 }
+
+export async function updatePendingTransaction(tx: PendingTransaction): Promise<void> {
+  const db = await openDB()
+  const dbTx = db.transaction('pendingTransactions', 'readwrite')
+  const store = dbTx.objectStore('pendingTransactions')
+
+  return new Promise((resolve, reject) => {
+    const request = store.put(tx)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
+export async function updatePendingOrder(order: PendingOrder): Promise<void> {
+  const db = await openDB()
+  const dbTx = db.transaction('pendingOrders', 'readwrite')
+  const store = dbTx.objectStore('pendingOrders')
+
+  return new Promise((resolve, reject) => {
+    const request = store.put(order)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+

@@ -4,6 +4,8 @@
 import { useState, useEffect, useRef, useOptimistic, useTransition } from 'react'
 import SessionPill from '@/components/layout/SessionPill'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useSession } from '@/components/layout/SessionMaster'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
@@ -97,6 +99,7 @@ export default function CaisseClient({
     initialProducts = []
 }: CaisseProps) {
     // ÉTAT LOCAL
+    const { isConsultationMode } = useSession()
     const [caisseTab, setCaisseTab] = useState<'vente' | 'historique'>('vente')
     const [panier, setPanier] = useState<PanierLine[]>([])
     const [activeOrder, setActiveOrder] = useState<any | null>(null)
@@ -207,6 +210,10 @@ export default function CaisseClient({
 
     // -- LOGIQUE PANIER --
     const chargerCommande = (order: any) => {
+        if (isConsultationMode) {
+            toast.error('Impossible de charger une commande en mode consultation.')
+            return
+        }
         setActiveOrder(order)
         setActiveClient(order.customer_name)
         setActiveCustomerId(order.customer_id || null)
@@ -225,6 +232,10 @@ export default function CaisseClient({
     }
     
     const addToCart = (product: any) => {
+        if (isConsultationMode) {
+            toast.error('Création de vente désactivée en mode consultation.')
+            return
+        }
         // MAJ UI Immédiate Optimiste
         startTransition(() => {
             setOptimisticPanier({ type: 'add', payload: product })
@@ -250,6 +261,7 @@ export default function CaisseClient({
     
     const lastUpdateRef = useRef(0)
     const updateQty = (index: number, delta: number) => {
+        if (isConsultationMode) return
         const now = Date.now()
         if (now - lastUpdateRef.current < 150) return
         lastUpdateRef.current = now
@@ -263,6 +275,7 @@ export default function CaisseClient({
     }
     
     const removeItem = (index: number) => {
+        if (isConsultationMode) return
         startTransition(() => {
             setOptimisticPanier({ type: 'remove', payload: { index } })
         })
@@ -270,6 +283,7 @@ export default function CaisseClient({
     }
     
     const viderPanier = () => {
+        if (isConsultationMode) return
         startTransition(() => {
             setOptimisticPanier({ type: 'clear' })
         })
@@ -320,10 +334,14 @@ export default function CaisseClient({
     const montantRemis = Number(montantRemisStr) || 0
     const monnaieARendre = montantRemis > 0 ? Math.max(0, montantRemis - (activePayments['Espèces'] || 0)) : extraEspeces
 
-    const canSubmit = optimisticPanier.length > 0 && resteAPercevoir === 0 && (sommePayee > 0 || totalAEncaisser === 0)
+    const canSubmit = optimisticPanier.length > 0 && resteAPercevoir === 0 && (sommePayee > 0 || totalAEncaisser === 0) && !isConsultationMode
     
     // -- ACTIONS --
     const handleEncaisser = async () => {
+        if (isConsultationMode) {
+            toast.error('Action non autorisée en mode consultation.')
+            return
+        }
         if (!canSubmit) return
 
         // Cas commande déjà intégralement payée : juste marquer completed, pas de nouvelle transaction

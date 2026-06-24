@@ -8,6 +8,7 @@ import { updateOrderDetails, updateOrderItemDetails, updateOrderTotal } from '@/
 import TouchInput from '@/components/ui/TouchInput'
 import AddPaymentModal from './AddPaymentModal'
 import EditPaymentModal from './EditPaymentModal'
+import { useSession } from '@/components/layout/SessionMaster'
 
 
 export interface OrderPayment {
@@ -89,6 +90,7 @@ interface Props {
 }
 
 export default function OrderDrawer({ order, onClose, onStatusChange, isPending, roleSlug, onOrderUpdate, currency = 'FCFA' }: Props) {
+    const { isConsultationMode } = useSession()
     const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null)
     const [isVisible, setIsVisible] = useState(false)
 
@@ -303,6 +305,10 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
             }
         }
         
+        if (isConsultationMode) {
+            toast.error("Modification désactivée en mode consultation.")
+            return
+        }
         const res = await updateOrderDetails(order.id, details)
         if (res.success) {
             toast.success("Commande mise à jour !")
@@ -365,6 +371,10 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     onOrderUpdate({ ...order, customization_notes: updatedNotes })
                 }
                 setShowDebtAlert(false)
+                if (isConsultationMode) {
+                    toast.error("Action impossible en mode consultation.")
+                    return
+                }
                 onStatusChange(order.id, 'delivered')
             }
         } catch (err) {
@@ -1078,10 +1088,15 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                 </div>
                             )}
 
-                            {/* Bouton tactile d'action d'enregistrement de paiement */}
                             {order.status !== 'cancelled' && (
                                 <button
-                                    onClick={() => setIsPaymentModalOpen(true)}
+                                    onClick={() => {
+                                        if (isConsultationMode) {
+                                            toast.error("Enregistrement de paiement désactivé en mode consultation.")
+                                            return
+                                        }
+                                        setIsPaymentModalOpen(true)
+                                    }}
                                     style={{
                                         width: '100%',
                                         height: '48px',
@@ -1145,6 +1160,10 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                                         {order.status !== 'cancelled' && (
                                                             <button
                                                                 onClick={() => {
+                                                                    if (isConsultationMode) {
+                                                                        toast.error("Modification de paiement désactivée en mode consultation.")
+                                                                        return
+                                                                    }
                                                                     setSelectedPaymentToEdit(payment)
                                                                     setIsEditPaymentModalOpen(true)
                                                                 }}
@@ -1258,7 +1277,13 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     }}>
                         {status.prev && (
                             <button
-                                onClick={() => onStatusChange(order.id, status.prev!)}
+                                onClick={() => {
+                                    if (isConsultationMode) {
+                                        toast.error("Modification de statut désactivée en mode consultation.")
+                                        return
+                                    }
+                                    onStatusChange(order.id, status.prev!)
+                                }}
                                 disabled={isPending}
                                 className="btn-secondary"
                                 style={{
@@ -1276,6 +1301,10 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         {status.next && order.status !== 'completed' && order.status !== 'cancelled' && (
                             <button
                                 onClick={() => {
+                                    if (isConsultationMode) {
+                                        toast.error("Modification de statut désactivée en mode consultation.")
+                                        return
+                                    }
                                     if (status.next === 'delivered' && Number(order.balance || 0) > 0) {
                                         setShowDebtAlert(true)
                                     } else {

@@ -17,6 +17,8 @@ import {
 } from '@/lib/offline/db'
 import { syncPendingData } from '@/lib/offline/sync'
 import { toast } from 'sonner'
+import SyncErrorResolutionModal from '@/components/offline/SyncErrorResolutionModal'
+
 
 type OfflineContextType = {
   isOffline: boolean
@@ -52,7 +54,9 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
   const [pendingCount, setPendingCount] = useState(0)
   const [deadCount, setDeadCount] = useState(0)
   const [cachedProducts, setCachedProducts] = useState<CachedProduct[]>([])
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
   const isSyncing = useRef(false)
+
   const prevStatus = useRef(networkStatus)
 
   const isOffline = networkStatus === 'offline'
@@ -193,7 +197,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       if (!isOffline) {
         void handleSync()
       }
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors de la réinitialisation des essais')
     }
   }, [updatePendingCount, isOffline, handleSync])
@@ -220,11 +224,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
         <div 
           onClick={
             deadCount > 0 
-              ? () => {
-                  if (confirm(`Certaines opérations (${deadCount}) ont échoué définitivement après plusieurs tentatives. Voulez-vous réinitialiser les essais et retenter de les envoyer ?`)) {
-                    void resetFailedOperations()
-                  }
-                }
+              ? () => setIsSyncModalOpen(true)
               : (isOffline ? undefined : forceSync)
           }
           style={{
@@ -264,6 +264,12 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
           `}</style>
         </div>
       )}
+
+      <SyncErrorResolutionModal 
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onResolved={updatePendingCount}
+      />
     </OfflineContext.Provider>
   )
 }
