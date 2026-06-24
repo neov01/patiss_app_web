@@ -1,11 +1,10 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
 import { toast } from 'sonner'
 import { usePathname, useRouter } from 'next/navigation'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
-import { Lock, Loader2 } from 'lucide-react'
 
 type SessionContextType = {
     isOpen: boolean;
@@ -16,6 +15,9 @@ type SessionContextType = {
     canCloseSession: boolean;
     showConfirm: boolean;
     setShowConfirm: (v: boolean) => void;
+    isConsultationMode: boolean;
+    setConsultationMode: (v: boolean) => void;
+    role: string;
 }
 
 type InitialSession = {
@@ -31,6 +33,9 @@ const SessionContext = createContext<SessionContextType>({
     canCloseSession: false,
     showConfirm: false,
     setShowConfirm: () => {},
+    isConsultationMode: false,
+    setConsultationMode: () => {},
+    role: '',
 })
 
 export function useSession() {
@@ -48,12 +53,41 @@ export default function SessionMaster({
 }) {
     const [loading, setLoading] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
+    const [isConsultationModeState, setConsultationModeState] = useState(false)
     const { execute, renderFeedback } = useActionFeedback()
     const pathname = usePathname()
     const router = useRouter()
     const isOpen = !!initialSession
     const sessionId = initialSession?.id || null
     const canCloseSession = role === 'gerant' || role === 'super_admin' || role === 'vendeur'
+
+    // Charger le mode consultation depuis localStorage après hydratation
+    useEffect(() => {
+        const stored = localStorage.getItem('isConsultationMode')
+        if (stored === 'true') {
+            setTimeout(() => {
+                setConsultationModeState(true)
+            }, 0)
+        }
+    }, [])
+
+    const isConsultationMode = !isOpen && isConsultationModeState
+
+    const setConsultationMode = (val: boolean) => {
+        setConsultationModeState(val)
+        if (val) {
+            localStorage.setItem('isConsultationMode', 'true')
+        } else {
+            localStorage.removeItem('isConsultationMode')
+        }
+    }
+
+    // Si la session s'ouvre, réinitialiser le localStorage
+    useEffect(() => {
+        if (isOpen) {
+            localStorage.removeItem('isConsultationMode')
+        }
+    }, [isOpen])
 
     const handleToggle = () => {
         if (isOpen) {
@@ -82,7 +116,10 @@ export default function SessionMaster({
                 modalTitle: 'Journée clôturée avec succès',
                 modalDescription: 'Les ventes du jour ont été enregistrées.',
                 onSuccess: () => {
+                    localStorage.removeItem('isConsultationMode')
+                    setConsultationMode(false)
                     router.refresh()
+                    router.push('/caisse/statut')
                     setLoading(false)
                 },
                 onError: () => {
@@ -100,7 +137,10 @@ export default function SessionMaster({
                 type: 'toast',
                 successMessage: 'Caisse ouverte, bonne journée !',
                 onSuccess: () => {
+                    localStorage.removeItem('isConsultationMode')
+                    setConsultationMode(false)
                     router.refresh()
+                    router.push('/caisse')
                     setLoading(false)
                 },
                 onError: () => {
@@ -110,20 +150,91 @@ export default function SessionMaster({
         }
     }
 
-    // Liste des zones sensibles qui doivent être verrouillées si la caisse est fermée
+    // Zones restreintes lorsque la caisse est fermée (hors statut)
     const isRestrictedPage = 
-        pathname.startsWith('/dashboard') || 
+        (pathname.startsWith('/dashboard') || 
         pathname.startsWith('/caisse') || 
         pathname.startsWith('/commandes') ||
-        pathname.startsWith('/inventaire')
+        pathname.startsWith('/inventaire')) &&
+        pathname !== '/caisse/statut'
     
-    // Le verrouillage s'applique si la boutique est fermée ET que nous sommes sur une page restreinte
-    const shouldLock = !isOpen && isRestrictedPage
+    // Si la caisse est fermée, qu'on est sur une page restreinte, et qu'on n'est pas en mode consultation -> redirection
+    const shouldRedirect = !isOpen && isRestrictedPage && !isConsultationMode
+
+    useEffect(() => {
+        if (shouldRedirect) {
+            router.replace('/caisse/statut')
+        }
+    }, [shouldRedirect, router])
 
     return (
-        <SessionContext.Provider value={{ isOpen, sessionId, handleToggle, doToggle, loading, canCloseSession, showConfirm, setShowConfirm }}>
+        <SessionContext.Provider value={{ 
+            isOpen, 
+            sessionId, 
+            handleToggle, 
+            doToggle, 
+            loading, 
+            canCloseSession, 
+            showConfirm, 
+            setShowConfirm,
+            isConsultationMode,
+            setConsultationMode,
+            role
+        }}>
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
 
+                {/* Bandeau persistant orange en Mode Consultation */}
+                {!isOpen && isConsultationMode && (
+                    <div style={{
+                        background: '#FFFBEB',
+                        borderBottom: '1px solid #FDE68A',
+                        padding: '12px 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'between',
+                        gap: '16px',
+                        color: '#92400E',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        animation: 'fadeIn 0.3s ease'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                            <span style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: '#F59E0B',
+                                boxShadow: '0 0 8px #F59E0B'
+                            }} />
+                            <span>
+                                <strong>Caisse clôturée</strong> — Mode consultation uniquement. Les fonctions d&apos;encaissement sont désactivées.
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setConsultationMode(false)
+                                localStorage.removeItem('isConsultationMode')
+                                router.push('/caisse/statut')
+                            }}
+                            style={{
+                                background: '#FEF3C7',
+                                border: 'none',
+                                color: '#78350F',
+                                padding: '6px 12px',
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#FDE68A'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#FEF3C7'}
+                        >
+                            Quitter le mode consultation
+                        </button>
+                    </div>
+                )}
                 
                 {/* Confirmation dialog — clôture only */}
                 {showConfirm && (
@@ -182,129 +293,13 @@ export default function SessionMaster({
                 {/* Action Feedback Modal (e.g. Day Closure summary) */}
                 {renderFeedback()}
 
-                {/* Overlay de verrouillage premium si shouldLock est true */}
-                {shouldLock && (
-                    <div style={{
-                        position: 'fixed',
-                        inset: 0,
-                        zIndex: 999,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'rgba(26, 28, 26, 0.3)',
-                        backdropFilter: 'blur(12px)',
-                        padding: '24px',
-                        animation: 'fadeIn 0.3s ease',
-                    }}>
-                        <div style={{
-                            background: '#ffffff',
-                            borderRadius: '24px',
-                            padding: '40px 32px',
-                            maxWidth: '460px',
-                            width: '100%',
-                            boxShadow: 'var(--shadow-lg)',
-                            textAlign: 'center',
-                            border: '1px solid var(--color-border)',
-                        }}>
-                            <div style={{
-                                width: '72px',
-                                height: '72px',
-                                borderRadius: '50%',
-                                background: 'rgba(129, 84, 49, 0.1)',
-                                margin: '0 auto 24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}>
-                                <Lock color="var(--color-primary)" size={32} />
-                            </div>
-
-                            <h2 style={{
-                                margin: '0 0 12px',
-                                fontSize: '1.5rem',
-                                fontWeight: 800,
-                                color: 'var(--color-text)',
-                                fontFamily: 'var(--font-display)',
-                                letterSpacing: '-0.02em',
-                            }}>
-                                Boutique fermée
-                            </h2>
-
-                            <p style={{
-                                margin: '0 0 32px',
-                                fontSize: '0.95rem',
-                                color: 'var(--color-muted)',
-                                lineHeight: 1.6,
-                                fontWeight: 500,
-                            }}>
-                                La caisse est actuellement fermée. Vous devez l&apos;ouvrir pour accéder aux fonctionnalités opérationnelles (ventes, commandes, inventaire et statistiques).
-                            </p>
-
-                            {canCloseSession ? (
-                                <button
-                                    onClick={doToggle}
-                                    disabled={loading}
-                                    style={{
-                                        width: '100%',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        minHeight: '48px',
-                                        padding: '0 28px',
-                                        background: 'var(--color-primary)',
-                                        color: '#fff',
-                                        fontWeight: 700,
-                                        fontSize: '1rem',
-                                        borderRadius: '9999px',
-                                        border: 'none',
-                                        cursor: loading ? 'not-allowed' : 'pointer',
-                                        boxShadow: 'var(--shadow-sm)',
-                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                        opacity: loading ? 0.7 : 1,
-                                    }}
-                                    onMouseDown={e => { if (!loading) e.currentTarget.style.transform = 'scale(0.98)' }}
-                                    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                                >
-                                    {loading ? (
-                                        <>
-                                            <Loader2 size={18} className="animate-spin" />
-                                            Ouverture de la caisse...
-                                        </>
-                                    ) : (
-                                        'Ouvrir la caisse'
-                                    )}
-                                </button>
-                            ) : (
-                                <div style={{
-                                    background: '#FEE2E2',
-                                    borderRadius: '12px',
-                                    padding: '16px',
-                                    border: '1px solid #FECACA',
-                                    textAlign: 'center',
-                                }}>
-                                    <p style={{
-                                        margin: 0,
-                                        fontSize: '0.875rem',
-                                        color: '#991B1B',
-                                        fontWeight: 600,
-                                    }}>
-                                        Seul un gérant ou un vendeur peut ouvrir la caisse et démarrer la journée.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Content wrapper with disabled visual state ONLY if shouldLock is true */}
+                {/* Content wrapper with disabled visual state ONLY if redirection is pending */}
                 <div style={{ 
                     flex: 1, 
                     transition: 'opacity 0.3s, filter 0.3s',
-                    opacity: shouldLock ? 0.6 : 1, 
-                    pointerEvents: shouldLock ? 'none' : 'auto',
-                    filter: shouldLock ? 'blur(5px) grayscale(0.5)' : 'none'
+                    opacity: shouldRedirect ? 0.4 : 1, 
+                    pointerEvents: shouldRedirect ? 'none' : 'auto',
+                    filter: shouldRedirect ? 'blur(6px) grayscale(0.6)' : 'none'
                 }}>
                     {children}
                 </div>

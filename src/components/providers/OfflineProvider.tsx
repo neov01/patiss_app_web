@@ -6,6 +6,7 @@ import {
   queueTransaction, 
   queueOrder,
   getPendingCounts,
+  resetPendingRetries,
   cacheProducts,
   cacheReadyOrders,
   getCachedProducts,
@@ -16,12 +17,15 @@ import {
 } from '@/lib/offline/db'
 import { syncPendingData } from '@/lib/offline/sync'
 import { toast } from 'sonner'
+import SyncErrorResolutionModal from '@/components/offline/SyncErrorResolutionModal'
+
 
 type OfflineContextType = {
   isOffline: boolean
   isUnstable: boolean
   networkStatus: 'online' | 'unstable' | 'offline'
   pendingCount: number
+  deadCount: number
   cachedProducts: CachedProduct[]
   /** Queue une transaction pour sync ultérieure */
   saveTransactionOffline: (tx: Omit<PendingTransaction, 'offlineId' | 'createdAt'>) => Promise<void>
@@ -33,6 +37,8 @@ type OfflineContextType = {
   refreshReadyOrdersCache: (orders: CachedReadyOrder[]) => Promise<void>
   /** Force une synchronisation manuelle */
   forceSync: () => Promise<void>
+  /** Réinitialise les opérations en erreur persistante */
+  resetFailedOperations: () => Promise<void>
 }
 
 const OfflineContext = createContext<OfflineContextType | null>(null)
@@ -46,8 +52,11 @@ export function useOffline() {
 export default function OfflineProvider({ children }: { children: React.ReactNode }) {
   const { status: networkStatus } = useNetworkStatus()
   const [pendingCount, setPendingCount] = useState(0)
+  const [deadCount, setDeadCount] = useState(0)
   const [cachedProducts, setCachedProducts] = useState<CachedProduct[]>([])
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
   const isSyncing = useRef(false)
+
   const prevStatus = useRef(networkStatus)
 
   const isOffline = networkStatus === 'offline'
@@ -66,7 +75,10 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
   const updatePendingCount = useCallback(async () => {
     try {
       const counts = await getPendingCounts()
-      setPendingCount(counts.transactions + counts.orders)
+      const activeTx = counts.transactions - counts.deadTransactions
+      const activeOrders = counts.orders - counts.deadOrders
+      setPendingCount(activeTx + activeOrders)
+      setDeadCount(counts.deadTransactions + counts.deadOrders)
     } catch {
       // IndexedDB non dispo
     }
@@ -177,47 +189,72 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     await handleSync()
   }, [isOffline, handleSync])
 
+  const resetFailedOperations = useCallback(async () => {
+    try {
+      await resetPendingRetries()
+      await updatePendingCount()
+      toast.success('Les compteurs d\'essais hors-ligne ont été réinitialisés. Relancement de la synchronisation...')
+      if (!isOffline) {
+        void handleSync()
+      }
+    } catch {
+      toast.error('Erreur lors de la réinitialisation des essais')
+    }
+  }, [updatePendingCount, isOffline, handleSync])
+
   return (
     <OfflineContext.Provider value={{
       isOffline,
       isUnstable,
       networkStatus,
       pendingCount,
+      deadCount,
       cachedProducts,
       saveTransactionOffline,
       saveOrderOffline,
       refreshProductCache,
       refreshReadyOrdersCache,
-      forceSync
+      forceSync,
+      resetFailedOperations
     }}>
       {children}
       
-      {/* Badge flottant de sync si des opérations sont en attente */}
-      {pendingCount > 0 && (
+      {/* Badge flottant de sync si des opérations actives ou en échec sont présentes */}
+      {(pendingCount > 0 || deadCount > 0) && (
         <div 
-          onClick={isOffline ? undefined : forceSync}
+          onClick={
+            deadCount > 0 
+              ? () => setIsSyncModalOpen(true)
+              : (isOffline ? undefined : forceSync)
+          }
           style={{
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            background: isOffline ? '#FEF3C7' : '#DBEAFE',
-            border: isOffline ? '2px solid #F59E0B' : '2px solid #3B82F6',
+            background: deadCount > 0 ? '#FEE2E2' : (isOffline ? '#FEF3C7' : '#DBEAFE'),
+            border: deadCount > 0 ? '2px solid #EF4444' : (isOffline ? '2px solid #F59E0B' : '2px solid #3B82F6'),
             borderRadius: '16px',
             padding: '12px 20px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            cursor: isOffline ? 'default' : 'pointer',
+            cursor: (isOffline && deadCount === 0) ? 'default' : 'pointer',
             zIndex: 60,
             boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
             animation: 'pulse 2s infinite',
             fontSize: '0.85rem',
             fontWeight: 700,
-            color: isOffline ? '#92400E' : '#1E40AF'
+            color: deadCount > 0 ? '#991B1B' : (isOffline ? '#92400E' : '#1E40AF')
           }}
         >
-          <span style={{ fontSize: '1.1rem' }}>{isOffline ? '⏳' : '🔄'}</span>
-          {pendingCount} en attente{!isOffline && ' — Synchroniser'}
+          <span style={{ fontSize: '1.1rem' }}>
+            {deadCount > 0 ? '⚠️' : (isOffline ? '⏳' : '🔄')}
+          </span>
+          {deadCount > 0 ? (
+            <span>{deadCount} échec(s) critique(s) — Résoudre</span>
+          ) : (
+            <span>{pendingCount} en attente{!isOffline && ' — Synchroniser'}</span>
+          )}
 
           <style>{`
             @keyframes pulse {
@@ -227,6 +264,12 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
           `}</style>
         </div>
       )}
+
+      <SyncErrorResolutionModal 
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onResolved={updatePendingCount}
+      />
     </OfflineContext.Provider>
   )
 }

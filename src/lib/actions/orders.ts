@@ -1097,8 +1097,7 @@ export async function updateOrderItemDetails(
             .update({
                 name: input.name,
                 quantity: updatedQty,
-                unit_price: updatedPrice,
-                subtotal: newSubtotal
+                unit_price: updatedPrice
             })
             .eq('id', itemId)
             .eq('order_id', orderId)
@@ -1246,8 +1245,7 @@ export async function updateOrderTotal(orderId: string, newTotal: number, commen
             await supabaseAny
                 .from('order_items')
                 .update({
-                    unit_price: newUnitPrice,
-                    subtotal: newTotal
+                    unit_price: newUnitPrice
                 })
                 .eq('id', item.id)
                 .eq('order_id', orderId)

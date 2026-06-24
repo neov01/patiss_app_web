@@ -11,6 +11,7 @@ import OrderDrawer, { type OrderPayment } from './OrderDrawer'
 import HistoricalImportModal from './HistoricalImportModal'
 import DatePicker from '@/components/ui/DatePicker'
 import SessionPill from '@/components/layout/SessionPill'
+import { useSession } from '@/components/layout/SessionMaster'
 
 interface Product { id: string; name: string; selling_price: number; current_stock: number | null }
 interface OrderItem { id: string; order_id: string; product_id: string | null; quantity: number; unit_price: number; created_at: string | null; products: { name: string } | null }
@@ -134,6 +135,7 @@ export default function OrdersClient({
     initialVitrineHasMore?: boolean;
 }) {
     const router = useRouter()
+    const { isConsultationMode } = useSession()
 
     // --- États Communs ---
     const [activeTab, setActiveTab] = useState<'todo' | 'history' | 'vitrine'>('todo')
@@ -543,11 +545,31 @@ export default function OrdersClient({
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <SessionPill />
                     {(roleSlug === 'gerant' || roleSlug === 'super_admin' || canImportHistory) && (
-                        <button onClick={() => setShowImportModal(true)} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', fontSize: '0.85rem', padding: '0 16px' }}>
+                        <button 
+                            onClick={() => {
+                                if (isConsultationMode) {
+                                    toast.error("Importation d'historique désactivée en mode consultation.")
+                                    return
+                                }
+                                setShowImportModal(true)
+                            }} 
+                            className="btn-secondary" 
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', fontSize: '0.85rem', padding: '0 16px' }}
+                        >
                             📥 Saisie Historique
                         </button>
                     )}
-                    <button onClick={() => setShowModal(true)} className="btn-primary" style={{ minHeight: '40px', padding: '0 20px', fontSize: '0.85rem' }}>
+                    <button 
+                        onClick={() => {
+                            if (isConsultationMode) {
+                                toast.error("Création de commande désactivée en mode consultation.")
+                                return
+                            }
+                            setShowModal(true)
+                        }} 
+                        className="btn-primary" 
+                        style={{ minHeight: '40px', padding: '0 20px', fontSize: '0.85rem' }}
+                    >
                         <Plus size={16} /> Nouvelle commande
                     </button>
                 </div>
