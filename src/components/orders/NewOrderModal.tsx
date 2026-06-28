@@ -73,6 +73,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     // Header States
     const [status, setStatus] = useState('confirmed')
     const [priority, setPriority] = useState('normale')
+    const [vipNote, setVipNote] = useState('')
     
     // Customer Logistics States
     const [clientName, setClientName] = useState('')
@@ -277,6 +278,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     function handleReset() {
         setStatus('confirmed')
         setPriority('normale')
+        setVipNote('')
         setClientName('')
         setClientPhone('')
         setReceptionType('retrait')
@@ -378,9 +380,15 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             return
         }
 
-        // Validation de l'acompte
+        // Validation de la note VIP obligatoire
+        if (priority === 'vip' && !vipNote.trim()) {
+            toast.error("Veuillez saisir une note de commentaire pour la commande VIP.")
+            return
+        }
+
+        // Validation de l'acompte (optionnel si VIP)
         if (!isMultiplePayment) {
-            if (paymentType === 'ACOMPTE' && (!deposit || deposit <= 0)) {
+            if (paymentType === 'ACOMPTE' && (!deposit || deposit <= 0) && priority !== 'vip') {
                 toast.error("Le montant de l'acompte est obligatoire pour un règlement en acompte.")
                 return
             }
@@ -391,7 +399,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
         }
 
         if (isMultiplePayment) {
-            if (paymentType === 'ACOMPTE') {
+            if (paymentType === 'ACOMPTE' && priority !== 'vip') {
                 const acomptePaid = payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
                 if (acomptePaid <= 0) {
                     toast.error("Le montant de l'acompte est obligatoire pour un règlement en acompte.")
@@ -459,9 +467,17 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                 }
             })
 
-            // On n'enregistre le JSON que si au moins un article a des notes ou une image
             const hasCustomization = notesArray.some(n => n.notes || n.image_url)
-            const customizationNotes = hasCustomization ? JSON.stringify(notesArray) : undefined
+            const cleanVipNote = priority === 'vip' ? vipNote.trim() : undefined
+
+            // Structurer le JSON pour inclure à la fois les personnalisations d'articles et la note VIP
+            let customizationNotes: string | undefined = undefined
+            if (hasCustomization || cleanVipNote) {
+                customizationNotes = JSON.stringify({
+                    items: notesArray,
+                    vip_note: cleanVipNote
+                })
+            }
 
             const calculatedDeposit = isMultiplePayment
                 ? payments.filter(p => p.label_type === 'ACOMPTE').reduce((sum, p) => sum + p.amount, 0)
@@ -1302,17 +1318,59 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                 {!isMultiplePayment && paymentType === 'ACOMPTE' && (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <span style={{ color: showErrors && (!deposit || deposit <= 0) ? 'var(--color-error)' : 'var(--color-muted)', fontSize: '0.78rem', fontWeight: 600 }}>Saisir le montant de l&apos;acompte * :</span>
+                                                            <span style={{ color: showErrors && priority !== 'vip' && (!deposit || deposit <= 0) ? 'var(--color-error)' : 'var(--color-muted)', fontSize: '0.78rem', fontWeight: 600 }}>
+                                                                Saisir le montant de l&apos;acompte {priority === 'vip' ? '(Optionnel)' : '*'} :
+                                                            </span>
                                                             <div style={{ width: '110px' }}>
                                                                 <TouchInput 
                                                                     value={deposit.toString()} 
                                                                     onChange={v => setDeposit(parseFloat(v) || 0)} 
-                                                                    placeholder="Acompte *"
-                                                                    hasError={showErrors && (!deposit || deposit <= 0)}
-                                                                    style={{ height: '40px', minHeight: '40px', padding: '4px 8px', textAlign: 'right', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid', borderColor: showErrors && (!deposit || deposit <= 0) ? 'var(--color-error)' : 'var(--color-border)', background: 'var(--color-lift)' }} 
+                                                                    placeholder={priority === 'vip' ? "Acompte" : "Acompte *"}
+                                                                    hasError={showErrors && priority !== 'vip' && (!deposit || deposit <= 0)}
+                                                                    style={{ height: '40px', minHeight: '40px', padding: '4px 8px', textAlign: 'right', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid', borderColor: showErrors && priority !== 'vip' && (!deposit || deposit <= 0) ? 'var(--color-error)' : 'var(--color-border)', background: 'var(--color-lift)' }} 
                                                                 />
                                                             </div>
                                                         </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Champ Note / Commentaire obligatoire pour les commandes VIP */}
+                                                {priority === 'vip' && (
+                                                    <div style={{
+                                                        background: '#FEFCE8',
+                                                        border: '1.5px solid #B57C1E',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        padding: '12px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '6px',
+                                                        marginTop: '4px'
+                                                    }}>
+                                                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B57C1E', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            ⭐ Note / Commentaire VIP *
+                                                        </label>
+                                                        <textarea
+                                                            value={vipNote}
+                                                            onChange={e => setVipNote(e.target.value)}
+                                                            placeholder="Motif / Commentaire pour la commande VIP..."
+                                                            rows={2}
+                                                            style={{
+                                                                width: '100%',
+                                                                borderRadius: '8px',
+                                                                border: showErrors && !vipNote.trim() ? '1.5px solid var(--color-error)' : '1px solid #EAB308',
+                                                                padding: '8px 10px',
+                                                                fontSize: '0.82rem',
+                                                                outline: 'none',
+                                                                background: 'white',
+                                                                color: 'var(--color-text)',
+                                                                resize: 'none'
+                                                            }}
+                                                        />
+                                                        {showErrors && !vipNote.trim() && (
+                                                            <span style={{ color: 'var(--color-error)', fontSize: '0.72rem', fontWeight: 700 }}>
+                                                                La note de commentaire est obligatoire pour les commandes VIP.
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
 
