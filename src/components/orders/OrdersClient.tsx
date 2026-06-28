@@ -1425,11 +1425,20 @@ export default function OrdersClient({
         const isToday = pickupDate.toDateString() === new Date().toDateString()
         const isDeleting = deletingId === order.id
 
+        let cardBorder = '1.5px solid var(--color-border)'
+        if (order.priority === 'urgent') {
+            cardBorder = '4px solid #EF4444'
+        } else if (order.priority === 'vip') {
+            cardBorder = '4px solid #B57C1E'
+        } else if (order.status === 'ready') {
+            cardBorder = '1.5px solid var(--color-success)'
+        }
+
         return (
             <div key={order.id} className="card" 
                 onClick={() => setSelectedOrder(order)}
                 style={{ 
-                    border: `1.5px solid ${order.status === 'ready' ? 'var(--color-success)' : 'var(--color-border)'}`,
+                    border: cardBorder,
                     opacity: isDeleting ? 0.5 : 1,
                     transition: 'all 0.2s',
                     cursor: 'pointer',
@@ -1448,6 +1457,9 @@ export default function OrdersClient({
                             {s.label}
                         </span>
                         
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: '#FEE2E2', color: '#DC2626', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
+
                         {(() => {
                             const pStatus = order.payment_status || 'unpaid'
                             const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
@@ -1571,6 +1583,16 @@ export default function OrdersClient({
         const s = STATUS_LABELS[order.status] ?? STATUS_LABELS.completed
         const pickupDate = new Date(order.pickup_date)
 
+        let rowBorder = '1.5px solid var(--color-border)'
+        let hoverBorderColor = 'var(--color-secondary)'
+        if (order.priority === 'urgent') {
+            rowBorder = '4px solid #EF4444'
+            hoverBorderColor = '#EF4444'
+        } else if (order.priority === 'vip') {
+            rowBorder = '4px solid #B57C1E'
+            hoverBorderColor = '#B57C1E'
+        }
+
         // Rendu Mobile
         const mobileView = (
             <div className="block md:hidden">
@@ -1578,7 +1600,7 @@ export default function OrdersClient({
                     onClick={() => setSelectedOrder(order)}
                     style={{
                         padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
-                        border: '1.5px solid var(--color-border)', borderRadius: '16px', cursor: 'pointer',
+                        border: rowBorder, borderRadius: '16px', cursor: 'pointer',
                         boxShadow: 'var(--shadow-sm)', background: 'white', marginBottom: '8px'
                     }}
                 >
@@ -1593,6 +1615,8 @@ export default function OrdersClient({
                         <span style={{ background: s.bg, color: s.text, fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
                             {s.label}
                         </span>
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: '#FEE2E2', color: '#DC2626', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
                         {(() => {
                             const pStatus = order.payment_status || 'unpaid'
                             const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
@@ -1626,11 +1650,11 @@ export default function OrdersClient({
                     onClick={() => setSelectedOrder(order)}
                     style={{
                         display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '14px 20px',
-                        background: 'white', borderRadius: '12px', border: '1.5px solid var(--color-border)',
+                        background: 'white', borderRadius: '12px', border: rowBorder,
                         cursor: 'pointer', transition: 'all 0.15s', marginBottom: '4px'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-secondary)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorderColor}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = order.priority === 'urgent' ? '#EF4444' : order.priority === 'vip' ? '#B57C1E' : 'var(--color-border)'}
                 >
                     {/* Client */}
                     <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>

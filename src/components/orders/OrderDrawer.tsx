@@ -389,13 +389,49 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
 
     let parsedCustomizations: Array<{ name: string; notes: string; image_url: string }> = []
     let isJsonCustomization = false
-    try {
-        if (order.customization_notes && (order.customization_notes.startsWith('[') || order.customization_notes.startsWith('{'))) {
-            parsedCustomizations = JSON.parse(order.customization_notes)
-            isJsonCustomization = Array.isArray(parsedCustomizations)
+    let vipNoteExtracted: string | null = null
+    let extraAuditNotes: string[] = []
+
+    if (order.customization_notes) {
+        const rawNotes = order.customization_notes.trim()
+        let jsonPart = ''
+        let remainingText = rawNotes
+
+        if (rawNotes.startsWith('{') || rawNotes.startsWith('[')) {
+            const firstChar = rawNotes[0]
+            const lastIndex = firstChar === '{' ? rawNotes.lastIndexOf('}') : rawNotes.lastIndexOf(']')
+            if (lastIndex !== -1) {
+                jsonPart = rawNotes.substring(0, lastIndex + 1)
+                remainingText = rawNotes.substring(lastIndex + 1).trim()
+            }
         }
-    } catch (e) {
-        console.warn('Failed to parse customization notes JSON', e)
+
+        if (jsonPart) {
+            try {
+                const parsed = JSON.parse(jsonPart)
+                if (Array.isArray(parsed)) {
+                    parsedCustomizations = parsed
+                    isJsonCustomization = true
+                } else if (parsed && typeof parsed === 'object') {
+                    if (Array.isArray(parsed.items)) {
+                        parsedCustomizations = parsed.items
+                        isJsonCustomization = true
+                    }
+                    if (parsed.vip_note) {
+                        vipNoteExtracted = parsed.vip_note
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to parse jsonPart in customization notes', e)
+            }
+        } else if (!rawNotes.startsWith('[DETTE]') && !rawNotes.startsWith('[Modif')) {
+            // Si ce n'est pas du JSON du tout
+            remainingText = rawNotes
+        }
+
+        if (remainingText) {
+            extraAuditNotes = remainingText.split('\n').map(s => s.trim()).filter(Boolean)
+        }
     }
 
     const status = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending
@@ -629,6 +665,27 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         </div>
                     </section>
 
+                    {/* Commentaire / Note VIP */}
+                    {(order.priority === 'vip' || vipNoteExtracted) && (
+                        <section style={{ marginBottom: '24px' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B57C1E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                ⭐ Commentaire VIP
+                            </div>
+                            <div style={{
+                                background: '#FEFCE8',
+                                border: '1.5px solid #B57C1E',
+                                borderRadius: 'var(--radius-md)',
+                                padding: '14px 16px',
+                                fontSize: '0.88rem',
+                                color: '#78350F',
+                                lineHeight: 1.6,
+                                fontWeight: 600
+                            }}>
+                                {vipNoteExtracted || "Commande VIP validée."}
+                            </div>
+                        </section>
+                    )}
+
                     {/* Articles */}
                     <section style={{ marginBottom: '24px' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
@@ -818,8 +875,32 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         </div>
                     </section>
 
-                    {/* Personnalisation (ancienne version textuelle brute, masquée si JSON décodé par article) */}
-                    {!isJsonCustomization && (order.customization_notes || order.custom_image_url) && (
+                    {/* Remarques & Suivi de livraison (Dettes / Modifs tarifaires) */}
+                    {extraAuditNotes.length > 0 && (
+                        <section style={{ marginBottom: '24px' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                                📝 Remarques & Suivi de livraison
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {extraAuditNotes.map((note, idx) => (
+                                    <div key={idx} style={{
+                                        background: note.includes('[DETTE]') ? '#FEF2F2' : 'var(--color-well)',
+                                        border: note.includes('[DETTE]') ? '1px solid #FCA5A5' : '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '12px 14px',
+                                        fontSize: '0.85rem',
+                                        color: note.includes('[DETTE]') ? '#991B1B' : 'var(--color-text)',
+                                        fontWeight: 600
+                                    }}>
+                                        {note}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Personnalisation (ancienne version textuelle brute, masquée si JSON décodé par article ou s'il y a des notes de dette) */}
+                    {!isJsonCustomization && extraAuditNotes.length === 0 && (order.customization_notes || order.custom_image_url) && (
                         <section style={{ marginBottom: '24px' }}>
                             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                                 Personnalisation
