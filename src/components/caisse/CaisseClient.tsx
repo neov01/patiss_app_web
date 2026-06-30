@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useState, useEffect, useRef, useOptimistic, useTransition } from 'react'
+import { useState, useEffect, useRef, useOptimistic, useTransition, useMemo } from 'react'
 import SessionPill from '@/components/layout/SessionPill'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/components/layout/SessionMaster'
@@ -143,7 +143,32 @@ export default function CaisseClient({
     const [readyOrders, setReadyOrders] = useState(initialOrders)
 
     // Offline support
-    const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache, cachedProducts } = useOffline()
+    const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache, cachedProducts, isStoragePersistent, requestPersistence } = useOffline()
+
+    // Fusionner bestSellers et cachedProducts/initialProducts pour toujours avoir jusqu'à 8 produits dans "Vente Rapide"
+    // en gardant les meilleures ventes réelles d'abord, complété par les autres produits du catalogue par ordre alphabétique.
+    const displayBestSellers = useMemo(() => {
+        const list = [...bestSellers]
+        // On récupère la liste de référence (initialProducts ou cachedProducts)
+        const referenceProducts = (initialProducts && initialProducts.length > 0) ? initialProducts : cachedProducts
+
+        // Trier les produits de référence par ordre alphabétique
+        const sortedReference = [...referenceProducts].sort((a, b) => a.name.localeCompare(b.name))
+
+        for (const p of sortedReference) {
+            if (list.length >= 8) break
+            if (!list.some(item => item.id === p.id)) {
+                list.push({
+                    id: p.id,
+                    name: p.name,
+                    selling_price: p.selling_price,
+                    stock_qty: p.current_stock ?? 0,
+                    quantity: 0
+                })
+            }
+        }
+        return list
+    }, [bestSellers, cachedProducts, initialProducts])
 
     // Cache les produits pour le mode hors-ligne
     useEffect(() => {
@@ -566,6 +591,19 @@ export default function CaisseClient({
                                 Mode hors-ligne
                             </div>
                         )}
+                        {!isStoragePersistent && (
+                            <button 
+                                onClick={requestPersistence}
+                                title="Le stockage local n'est pas sécurisé contre la purge automatique du système. Cliquez pour sécuriser."
+                                style={{
+                                    padding: '6px 12px', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
+                                    background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5',
+                                    display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'
+                                }}
+                            >
+                                🔒 Sécuriser le stockage
+                            </button>
+                        )}
                         <SessionPill />
                     </div>
                 </div>
@@ -718,7 +756,7 @@ export default function CaisseClient({
                 </h2>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-                    {((bestSellers && bestSellers.length > 0) ? bestSellers : cachedProducts.slice(0, 12)).map(bs => {
+                    {displayBestSellers.map(bs => {
                         const stockQty = bs.stock_qty !== undefined ? bs.stock_qty : (bs.current_stock ?? 0)
                         return (
                             <button key={bs.id} onClick={() => addToCart({
@@ -1241,6 +1279,7 @@ export default function CaisseClient({
                 onAddToCart={addToCart}
                 organizationId={organizationId}
                 currency={currency}
+                initialProducts={cachedProducts}
             />
 
             {renderFeedback()}
