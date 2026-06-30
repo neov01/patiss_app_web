@@ -27,6 +27,8 @@ type OfflineContextType = {
   pendingCount: number
   deadCount: number
   cachedProducts: CachedProduct[]
+  isStoragePersistent: boolean
+  requestPersistence: () => Promise<boolean>
   /** Queue une transaction pour sync ultérieure */
   saveTransactionOffline: (tx: Omit<PendingTransaction, 'offlineId' | 'createdAt'>) => Promise<void>
   /** Queue une commande pour sync ultérieure */
@@ -55,6 +57,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
   const [deadCount, setDeadCount] = useState(0)
   const [cachedProducts, setCachedProducts] = useState<CachedProduct[]>([])
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
+  const [isStoragePersistent, setIsStoragePersistent] = useState(false)
   const isSyncing = useRef(false)
 
   const prevStatus = useRef(networkStatus)
@@ -64,12 +67,48 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
 
   // Demander la persistance du stockage (critique pour iOS/Safari)
   useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
-      navigator.storage.persist().then(persistent => {
-        if (persistent) console.log("[Offline] Stockage persistant accordé.")
-        else console.warn("[Offline] Stockage persistant refusé (risque de purge iOS).")
-      }).catch(console.error)
+    if (typeof navigator !== 'undefined' && navigator.storage) {
+      // 1. Vérifier si c'est déjà persistant
+      if (navigator.storage.persisted) {
+        navigator.storage.persisted().then(persistent => {
+          setIsStoragePersistent(persistent)
+          if (persistent) {
+            console.log("[Offline] Le stockage est déjà persistant.")
+          } else {
+            // 2. Si non persistant, tenter de le demander silencieusement.
+            // Certains navigateurs (comme Chrome) l'accordent silencieusement sous conditions (ex: PWA, signets, engagement).
+            // Les navigateurs plus restrictifs (comme Firefox) attendront un clic utilisateur via `requestPersistence` pour éviter les popups intrusifs au chargement.
+            if (navigator.storage.persist) {
+              navigator.storage.persist().then(granted => {
+                setIsStoragePersistent(granted)
+                if (granted) console.log("[Offline] Stockage persistant accordé silencieusement.")
+              }).catch(console.error)
+            }
+          }
+        }).catch(console.error)
+      }
     }
+  }, [])
+
+  const requestPersistence = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+      try {
+        const granted = await navigator.storage.persist()
+        setIsStoragePersistent(granted)
+        if (granted) {
+          console.log("[Offline] Stockage persistant accordé via geste utilisateur.")
+          toast.success("Stockage persistant activé avec succès.")
+        } else {
+          console.warn("[Offline] Stockage persistant refusé par l'utilisateur.")
+          toast.warning("Stockage persistant refusé. Attention, vos données locales pourraient être purgées en cas d'espace disque saturé.")
+        }
+        return granted
+      } catch (err) {
+        console.error("[Offline] Erreur lors de la demande de persistance:", err)
+        return false
+      }
+    }
+    return false
   }, [])
 
   const updatePendingCount = useCallback(async () => {
@@ -210,6 +249,8 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       pendingCount,
       deadCount,
       cachedProducts,
+      isStoragePersistent,
+      requestPersistence,
       saveTransactionOffline,
       saveOrderOffline,
       refreshProductCache,

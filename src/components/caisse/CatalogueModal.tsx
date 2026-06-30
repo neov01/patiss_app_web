@@ -22,18 +22,38 @@ export default function CatalogueModal({
     onClose,
     onAddToCart,
     organizationId,
-    currency
+    currency,
+    initialProducts = []
 }: {
     open: boolean
     onClose: () => void
     onAddToCart: (r: Product) => void
     organizationId: string
     currency: string
+    initialProducts?: Product[]
 }) {
     const inputRef = useRef<HTMLInputElement>(null)
-    const { data: rawProducts = [], isLoading: loading } = useQuery({
+    const { data: rawProducts = initialProducts, isLoading: loading } = useQuery({
         queryKey: ['catalog', organizationId],
         queryFn: async () => {
+            // 1. Lire d'abord depuis IndexedDB pour avoir un fallback immédiat
+            let cached: Product[] = []
+            try {
+                const localProducts = await getCachedProducts()
+                if (localProducts && localProducts.length > 0) {
+                    cached = localProducts.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        selling_price: Number(p.selling_price),
+                        current_stock: p.current_stock,
+                        category: p.category || '',
+                    }))
+                }
+            } catch (localErr) {
+                console.error("[Catalogue] Échec de lecture initiale du cache local:", localErr)
+            }
+
+            // 2. Requête en ligne
             const supabase = createClient()
             try {
                 const { data, error } = await supabase.from('products')
@@ -54,25 +74,29 @@ export default function CatalogueModal({
                         category: p.category || '',
                     }))
                     await cacheProducts(productsToCache, true)
+                    return productsToCache
                 }
 
-                return data || []
+                // Si la requête réussit mais est vide, et qu'on a du cache local, on utilise le cache
+                if (cached.length > 0) {
+                    return cached
+                }
+
+                return []
             } catch (err) {
                 console.error("[Catalogue] Erreur en ligne, tentative via cache local:", err)
-                try {
-                    const localProducts = await getCachedProducts()
-                    if (localProducts && localProducts.length > 0) {
-                        return localProducts
-                    }
-                } catch (localErr) {
-                    console.error("[Catalogue] Échec de lecture du cache local:", localErr)
+                if (cached.length > 0) {
+                    return cached
                 }
                 throw err
             }
         },
         enabled: open && !!organizationId,
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
+        placeholderData: initialProducts.length > 0 ? initialProducts : undefined
     })
+
+    const showSpinner = loading && rawProducts.length === 0
 
     useEffect(() => {
         if (open) setTimeout(() => inputRef.current?.focus(), 100)
@@ -173,7 +197,7 @@ export default function CatalogueModal({
 
                 {/* GRID */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-                    {loading ? (
+                    {showSpinner ? (
                         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Loader2 size={32} color="var(--color-rose-dark, var(--color-rose-dark))" className="animate-spin" />
                         </div>

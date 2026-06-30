@@ -65,7 +65,7 @@ const PAYMENT_METHODS = [
 
 export default function NewOrderModal({ open, onClose, currency, organizationId }: Props) {
     const { execute, isPending, renderFeedback } = useActionFeedback()
-    const { isOffline, saveOrderOffline } = useOffline()
+    const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
     // Auto Order Number
     const [orderNumber, setOrderNumber] = useState('')
@@ -1515,6 +1515,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             }}
             organizationId={organizationId}
             currency={currency}
+            initialProducts={cachedProducts}
         />
         {renderFeedback()}
         </>
