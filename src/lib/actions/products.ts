@@ -4,7 +4,7 @@ import { productSchema, ProductFormValues } from '@/lib/schemas/product'
 import { revalidatePath } from 'next/cache'
 import { AuthContextError, requireOpenSalesSession, requireRoleContext } from '@/lib/auth/organization-context'
 
-const CATALOG_ROLES = ['gerant', 'super_admin']
+const CATALOG_ROLES = ['gerant', 'vendeur', 'super_admin']
 
 async function requireCatalogMutationContext() {
   const context = await requireRoleContext(CATALOG_ROLES)
