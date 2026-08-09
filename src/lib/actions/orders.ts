@@ -208,7 +208,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
 type SoftDeleteOrderRpcClient = {
     rpc(
         fn: 'soft_delete_order_atomic',
-        args: { p_order_id: string; p_organization_id: string; p_reason: string }
+        args: { p_order_id: string; p_organization_id: string; p_reason: string; p_actor_id: string }
     ): Promise<{ error: { message?: string } | null }>
 }
 
@@ -225,7 +225,8 @@ export async function softDeleteOrder(orderId: string, reason: string) {
         const { error } = await (context.supabase as unknown as SoftDeleteOrderRpcClient).rpc('soft_delete_order_atomic', {
             p_order_id: orderId,
             p_organization_id: context.organizationId,
-            p_reason: reason.trim()
+            p_reason: reason.trim(),
+            p_actor_id: context.userId
         })
 
         if (error) return { error: error.message || 'Erreur lors de la suppression de la commande' }
@@ -245,7 +246,7 @@ export async function softDeleteOrder(orderId: string, reason: string) {
 type RestoreOrderRpcClient = {
     rpc(
         fn: 'restore_order_atomic',
-        args: { p_order_id: string; p_organization_id: string; p_reason: string }
+        args: { p_order_id: string; p_organization_id: string; p_reason: string; p_actor_id: string }
     ): Promise<{ error: { message?: string } | null }>
 }
 
@@ -262,7 +263,8 @@ export async function restoreOrder(orderId: string, reason: string) {
         const { error } = await (context.supabase as unknown as RestoreOrderRpcClient).rpc('restore_order_atomic', {
             p_order_id: orderId,
             p_organization_id: context.organizationId,
-            p_reason: reason.trim()
+            p_reason: reason.trim(),
+            p_actor_id: context.userId
         })
 
         if (error) return { error: error.message || 'Erreur lors de la restauration de la commande' }
