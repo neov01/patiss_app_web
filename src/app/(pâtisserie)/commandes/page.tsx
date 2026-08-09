@@ -34,6 +34,7 @@ export default async function CommandesPage() {
             .from('orders')
             .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
             .eq('organization_id', orgId)
+            .is('deleted_at', null)
             .or(activeFilter)
             .order('pickup_date', { ascending: true }),
         supabase

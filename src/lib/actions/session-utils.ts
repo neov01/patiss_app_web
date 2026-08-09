@@ -98,6 +98,7 @@ export async function closeSingleSession(
         .from('orders')
         .select('id, total_amount, deposit_amount, status')
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .gte('created_at', sessionStart)
 
     const transactions = periodTransactions ?? []
@@ -216,6 +217,7 @@ export async function closeSingleSession(
         .from('orders')
         .select('is_historical, created_by, profiles!orders_created_by_fkey(full_name, role_slug)')
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .gte('created_at', sessionStart)
 
     const vendorStats: Record<string, { name: string; role: string; newOrders: number; historicalOrders: number }> = {}

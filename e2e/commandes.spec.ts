@@ -179,6 +179,7 @@ test.describe('Page Commandes - Test complet & Audit ergonomie mobile', () => {
 
     // Confirmer la suppression dans la modale de confirmation
     await expect(page.locator('h3:has-text("Supprimer la commande ?")')).toBeVisible();
+    await page.fill('textarea', 'Suppression de test E2E');
     await page.locator('button:has-text("Supprimer")').click();
 
     // Vérifier que la carte de commande a disparu

@@ -161,6 +161,7 @@ export type Database = {
           id: string
           ingredient_id: string
           log_date: string | null
+          note: string | null
           organization_id: string
           quantity_change: number
           reason: string
@@ -170,6 +171,7 @@ export type Database = {
           id?: string
           ingredient_id: string
           log_date?: string | null
+          note?: string | null
           organization_id: string
           quantity_change: number
           reason: string
@@ -179,6 +181,7 @@ export type Database = {
           id?: string
           ingredient_id?: string
           log_date?: string | null
+          note?: string | null
           organization_id?: string
           quantity_change?: number
           reason?: string
@@ -203,57 +206,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      order_items: {
-        Row: {
-          created_at: string | null
-          from_inventory: boolean | null
-          id: string
-          name: string | null
-          order_id: string
-          product_id: string | null
-          quantity: number
-          subtotal: number | null
-          unit_price: number
-        }
-        Insert: {
-          created_at?: string | null
-          from_inventory?: boolean | null
-          id?: string
-          name?: string | null
-          order_id: string
-          product_id?: string | null
-          quantity: number
-          subtotal?: number | null
-          unit_price: number
-        }
-        Update: {
-          created_at?: string | null
-          from_inventory?: boolean | null
-          id?: string
-          name?: string | null
-          order_id?: string
-          product_id?: string | null
-          quantity?: number
-          subtotal?: number | null
-          unit_price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -313,116 +265,110 @@ export type Database = {
           },
         ]
       }
-      orders: {
+      order_deletion_audit: {
         Row: {
-          balance: number | null
-          created_at: string | null
-          created_by: string | null
-          custom_image_url: string | null
-          customer_contact: string | null
-          customer_id: string | null
-          customer_name: string
-          customization_notes: string | null
-          delivery_address: string | null
-          deposit_amount: number
+          action: string
+          created_at: string
           id: string
-          is_historical: boolean
-          order_channel: string | null
-          order_number: string | null
+          order_id: string
+          order_reference: string
+          order_snapshot: Json | null
           organization_id: string
-          paid_amount: number
-          payment_status: string
-          pickup_date: string
-          priority: string | null
-          reception_type: string | null
-          status: string
-          subtotal: number | null
-          total_amount: number
+          performed_by: string | null
+          performed_by_name: string
+          reason: string
+          stock_adjustment: Json | null
         }
         Insert: {
-          balance?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          custom_image_url?: string | null
-          customer_contact?: string | null
-          customer_id?: string | null
-          customer_name: string
-          customization_notes?: string | null
-          delivery_address?: string | null
-          deposit_amount?: number
+          action: string
+          created_at?: string
           id?: string
-          is_historical?: boolean
-          order_channel?: string | null
-          order_number?: string | null
+          order_id: string
+          order_reference: string
+          order_snapshot?: Json | null
           organization_id: string
-          paid_amount?: number
-          payment_status?: string
-          pickup_date: string
-          priority?: string | null
-          reception_type?: string | null
-          status?: string
-          subtotal?: number | null
-          total_amount: number
+          performed_by?: string | null
+          performed_by_name: string
+          reason: string
+          stock_adjustment?: Json | null
         }
         Update: {
-          balance?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          custom_image_url?: string | null
-          customer_contact?: string | null
-          customer_id?: string | null
-          customer_name?: string
-          customization_notes?: string | null
-          delivery_address?: string | null
-          deposit_amount?: number
+          action?: string
+          created_at?: string
           id?: string
-          is_historical?: boolean
-          order_channel?: string | null
-          order_number?: string | null
+          order_id?: string
+          order_reference?: string
+          order_snapshot?: Json | null
           organization_id?: string
-          paid_amount?: number
-          payment_status?: string
-          pickup_date?: string
-          priority?: string | null
-          reception_type?: string | null
-          status?: string
-          subtotal?: number | null
-          total_amount?: number
+          performed_by?: string | null
+          performed_by_name?: string
+          reason?: string
+          stock_adjustment?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "orders_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "order_deletion_audit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_deletion_audit_performed_by_fkey"
+            columns: ["performed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      order_items: {
+        Row: {
+          created_at: string | null
+          from_inventory: boolean | null
+          id: string
+          name: string | null
+          order_id: string
+          product_id: string | null
+          quantity: number
+          subtotal: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          from_inventory?: boolean | null
+          id?: string
+          name?: string | null
+          order_id: string
+          product_id?: string | null
+          quantity: number
+          subtotal?: number | null
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          from_inventory?: boolean | null
+          id?: string
+          name?: string | null
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          subtotal?: number | null
+          unit_price?: number
+        }
+        Relationships: [
           {
-            foreignKeyName: "orders_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "customer_rfm"
-            referencedColumns: ["customer_id"]
-          },
-          {
-            foreignKeyName: "orders_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customer_rfm_segments"
-            referencedColumns: ["customer_id"]
-          },
-          {
-            foreignKeyName: "orders_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_organization_id_fkey"
-            columns: ["organization_id"]
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "organizations"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -478,6 +424,139 @@ export type Database = {
           },
           {
             foreignKeyName: "order_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          balance: number | null
+          created_at: string | null
+          created_by: string | null
+          custom_image_url: string | null
+          customer_contact: string | null
+          customer_id: string | null
+          customer_name: string
+          customization_notes: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          delivery_address: string | null
+          deposit_amount: number
+          discount_amount: number | null
+          id: string
+          inserted_at: string
+          is_historical: boolean
+          order_channel: string | null
+          order_number: string | null
+          organization_id: string
+          paid_amount: number
+          payment_status: string
+          pickup_date: string
+          priority: string | null
+          reception_type: string | null
+          status: string
+          subtotal: number | null
+          total_amount: number
+        }
+        Insert: {
+          balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_image_url?: string | null
+          customer_contact?: string | null
+          customer_id?: string | null
+          customer_name: string
+          customization_notes?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          delivery_address?: string | null
+          deposit_amount?: number
+          discount_amount?: number | null
+          id?: string
+          inserted_at?: string
+          is_historical?: boolean
+          order_channel?: string | null
+          order_number?: string | null
+          organization_id: string
+          paid_amount?: number
+          payment_status?: string
+          pickup_date: string
+          priority?: string | null
+          reception_type?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount: number
+        }
+        Update: {
+          balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_image_url?: string | null
+          customer_contact?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          customization_notes?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          delivery_address?: string | null
+          deposit_amount?: number
+          discount_amount?: number | null
+          id?: string
+          inserted_at?: string
+          is_historical?: boolean
+          order_channel?: string | null
+          order_number?: string | null
+          organization_id?: string
+          paid_amount?: number
+          payment_status?: string
+          pickup_date?: string
+          priority?: string | null
+          reception_type?: string | null
+          status?: string
+          subtotal?: number | null
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_rfm_segments"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -831,8 +910,8 @@ export type Database = {
           id: string
           is_historical: boolean
           label_type: string
-          order_payment_id: string | null
           order_id: string | null
+          order_payment_id: string | null
           organization_id: string
           payment_details: Json | null
           payment_method: string
@@ -846,8 +925,8 @@ export type Database = {
           id?: string
           is_historical?: boolean
           label_type?: string
-          order_payment_id?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           organization_id: string
           payment_details?: Json | null
           payment_method: string
@@ -861,13 +940,20 @@ export type Database = {
           id?: string
           is_historical?: boolean
           label_type?: string
-          order_payment_id?: string | null
           order_id?: string | null
+          order_payment_id?: string | null
           organization_id?: string
           payment_details?: Json | null
           payment_method?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_customer_id_fkey"
             columns: ["customer_id"]
@@ -890,17 +976,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_order_payment_id_fkey"
-            columns: ["order_payment_id"]
-            isOneToOne: false
-            referencedRelation: "order_payments"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_order_payment_id_fkey"
+            columns: ["order_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
             referencedColumns: ["id"]
           },
           {
@@ -969,18 +1055,52 @@ export type Database = {
       }
     }
     Functions: {
-      decrement_product_stock: {
-        Args: { p_product_id: string; p_qty: number }
-        Returns: undefined
+      create_order_atomic: {
+        Args: {
+          p_items: Json
+          p_metrics?: Json
+          p_order: Json
+          p_payments?: Json
+        }
+        Returns: Json
       }
+      decrement_product_stock:
+        | {
+            Args: {
+              p_organization_id: string
+              p_product_id: string
+              p_qty: number
+            }
+            Returns: undefined
+          }
+        | { Args: { p_product_id: string; p_qty: number }; Returns: undefined }
       decrement_stock: {
         Args: { p_qty: number; p_recipe_id: string }
         Returns: undefined
       }
+      delete_vente_rapide_atomic: {
+        Args: { p_organization_id: string; p_transaction_id: string }
+        Returns: undefined
+      }
+      encaisser_atomic: {
+        Args: {
+          p_amount: number
+          p_client_name: string
+          p_created_by: string
+          p_customer_id: string
+          p_items: Database["public"]["CompositeTypes"]["encaisser_item"][]
+          p_label_type: string
+          p_order_id: string
+          p_organization_id: string
+          p_payment_details: Json
+          p_payment_method: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
       get_best_sellers_v2: {
         Args: { p_days_limit?: number; p_org_id: string; p_top_n?: number }
         Returns: {
-          category: string
           id: string
           name: string
           selling_price: number
@@ -1000,12 +1120,40 @@ export type Database = {
         Returns: undefined
       }
       is_super_admin: { Args: never; Returns: boolean }
+      normalize_payment_method: { Args: { raw: string }; Returns: string }
+      purge_expired_deleted_orders: { Args: never; Returns: number }
+      recalculate_order_payment_status: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      restore_order_atomic: {
+        Args: {
+          p_order_id: string
+          p_organization_id: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
+      soft_delete_order_atomic: {
+        Args: {
+          p_order_id: string
+          p_organization_id: string
+          p_reason: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      encaisser_item: {
+        item_id: string | null
+        product_id: string | null
+        name: string | null
+        quantity: number | null
+        unit_price: number | null
+      }
     }
   }
 }

@@ -144,6 +144,7 @@ export async function getCustomerOrders(customerId: string) {
     .select("id, order_number, total_amount, payment_status, status, created_at")
     .eq("customer_id", customerId)
     .eq("organization_id", organizationId)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(10);
 

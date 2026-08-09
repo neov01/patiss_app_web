@@ -79,6 +79,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         .from('orders')
         .select('id, order_number, total_amount, status, pickup_date, customer_name, deposit_amount, payment_status, reception_type')
         .eq('organization_id', profile.organization_id!)
+        .is('deleted_at', null)
         .or(`pickup_date.gte.${startDate},status.in.(pending,production,ready,confirmed,in_preparation,awaiting_pickup)`)
 
     const filteredOrdersQuery = clientFilter
