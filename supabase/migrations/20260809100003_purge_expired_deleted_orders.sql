@@ -5,7 +5,12 @@
 --             commande), avec journal d'audit conservé après suppression.
 -- ============================================================
 
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+DO $$
+BEGIN
+  EXECUTE 'CREATE EXTENSION IF NOT EXISTS pg_cron';
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'pg_cron n''a pas pu être activé (%) : la purge automatique devra être planifiée manuellement.', SQLERRM;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.purge_expired_deleted_orders()
 RETURNS INTEGER
@@ -66,16 +71,22 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.purge_expired_deleted_orders() FROM PUBLIC, anon, authenticated;
 
--- Idempotent : on retire l'ancien job avant de le recréer, pour permettre de rejouer la migration
+-- Idempotent : on retire l'ancien job avant de le recréer, pour permettre de rejouer la migration.
+-- Gardé par to_regclass('cron.job') pour ne pas faire échouer toute la migration sur un
+-- environnement où pg_cron ne serait pas disponible (ex: nouveau projet, clone).
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-expired-deleted-orders') THEN
-    PERFORM cron.unschedule('purge-expired-deleted-orders');
+  IF to_regclass('cron.job') IS NOT NULL THEN
+    IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-expired-deleted-orders') THEN
+      PERFORM cron.unschedule('purge-expired-deleted-orders');
+    END IF;
+
+    PERFORM cron.schedule(
+      'purge-expired-deleted-orders',
+      '0 3 * * *',
+      $cron$SELECT public.purge_expired_deleted_orders();$cron$
+    );
+  ELSE
+    RAISE WARNING 'pg_cron indisponible : la purge automatique des commandes supprimées n''est pas planifiée.';
   END IF;
 END $$;
-
-SELECT cron.schedule(
-  'purge-expired-deleted-orders',
-  '0 3 * * *',
-  $$SELECT public.purge_expired_deleted_orders();$$
-);
