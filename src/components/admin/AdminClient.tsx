@@ -466,7 +466,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
         setLoadingActivity(true)
         const supabase = createSupabaseClient()
         Promise.all([
-            supabase.from('orders').select('id, order_number, created_at').eq('organization_id', selectedOrg.id).order('created_at', { ascending: false }).limit(3),
+            supabase.from('orders').select('id, order_number, created_at').eq('organization_id', selectedOrg.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(3),
             supabase.from('transactions').select('id, amount, created_at').eq('organization_id', selectedOrg.id).order('created_at', { ascending: false }).limit(3),
         ]).then(([ordersRes, txRes]) => {
             const items: Array<{ type: string; msg: string; date: string; ts: number }> = []

@@ -193,6 +193,7 @@ export default async function CaissePage() {
             .from('orders')
             .select('id, order_number, customer_id, customer_name, customer_contact, pickup_date, deposit_amount, paid_amount, total_amount, balance, priority, status, order_items(*, products(name))')
             .eq('organization_id', orgId)
+            .is('deleted_at', null)
             .in('status', ['pending', 'production', 'ready', 'confirmed', 'in_preparation', 'awaiting_pickup'])
             .order('pickup_date', { ascending: true }),
 

@@ -85,6 +85,7 @@ export async function getCommandesImpayeesForIA(orgId: string) {
         .from('orders')
         .select('id, order_number, customer_name, total_amount, deposit_amount, balance, payment_status, status, created_at')
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .in('payment_status', ['EN_ATTENTE', 'PARTIEL'])
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false })

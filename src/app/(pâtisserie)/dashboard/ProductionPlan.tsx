@@ -61,6 +61,7 @@ export default async function ProductionPlan({
             )
         `)
         .eq('organization_id', organizationId)
+        .is('deleted_at', null)
         .in('status', ['pending', 'production', 'confirmed', 'in_preparation'])
         .gte('pickup_date', startDate)
         .lt('pickup_date', endDate)

@@ -66,6 +66,7 @@ export async function POST(request: Request) {
                 .from('orders')
                 .select('id, total_amount, deposit_amount, status')
                 .eq('organization_id', orgId)
+                .is('deleted_at', null)
                 .gte('created_at', today.toISOString())
                 .lt('created_at', tomorrow.toISOString())
 
