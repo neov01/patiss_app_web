@@ -29,6 +29,12 @@ export default function OrderAuditClient({
 }) {
     const router = useRouter()
     const [entries, setEntries] = useState(initialEntries)
+    // Taille de la fenêtre demandée au serveur (page 1, pageSize = windowSize) — suivie
+    // explicitement plutôt que dérivée de entries.length, pour rester correcte même
+    // quand une restauration insère une nouvelle ligne en tête de liste (ce qui décale
+    // toutes les autres lignes d'une position et rendrait un calcul par "page fixe"
+    // incohérent, source de doublons ou de lignes manquantes).
+    const [windowSize, setWindowSize] = useState(Math.max(initialEntries.length, PAGE_SIZE))
     const [hasMore, setHasMore] = useState(initialHasMore)
     const [loadingMore, setLoadingMore] = useState(false)
     const [search, setSearch] = useState('')
@@ -52,13 +58,14 @@ export default function OrderAuditClient({
 
     const loadMore = async () => {
         setLoadingMore(true)
-        const nextPage = Math.floor(entries.length / PAGE_SIZE) + 1
-        const result = await getOrderDeletionAudit({ page: nextPage, pageSize: PAGE_SIZE })
+        const nextWindowSize = windowSize + PAGE_SIZE
+        const result = await getOrderDeletionAudit({ page: 1, pageSize: nextWindowSize })
         if ('error' in result) {
             toast.error(result.error)
         } else {
-            setEntries(prev => [...prev, ...result.entries])
+            setEntries(result.entries)
             setHasMore(result.hasMore)
+            setWindowSize(nextWindowSize)
         }
         setLoadingMore(false)
     }
@@ -80,20 +87,18 @@ export default function OrderAuditClient({
         toast.success('Commande restaurée')
         router.refresh()
 
-        // Re-récupère la première page (taille fixe) pour faire apparaître la nouvelle
-        // ligne "Restauration" et les isRestorable à jour, sans casser l'invariant de
-        // pagination de loadMore (on ne remplace que la fenêtre de la page 1).
-        const refreshed = await getOrderDeletionAudit({ page: 1, pageSize: PAGE_SIZE })
+        // Re-récupère toute la fenêtre actuellement affichée (même taille, page 1) pour
+        // faire apparaître la nouvelle ligne "Restauration" et les isRestorable à jour.
+        // windowSize reste fixe ici : la nouvelle ligne prend la première place et la
+        // dernière ligne visible sort de la fenêtre, comme un flux normal — pas de
+        // doublon ni de perte, contrairement à une fusion partielle avec l'ancienne liste.
+        const refreshed = await getOrderDeletionAudit({ page: 1, pageSize: windowSize })
         if ('error' in refreshed) {
             toast.error(refreshed.error)
             return
         }
-        setEntries(prev => [...refreshed.entries, ...prev.slice(PAGE_SIZE)])
-        // Si des pages suivantes étaient déjà chargées, hasMore leur reste attaché ;
-        // sinon on suit l'indication de la page 1 fraîchement récupérée.
-        if (entries.length <= PAGE_SIZE) {
-            setHasMore(refreshed.hasMore)
-        }
+        setEntries(refreshed.entries)
+        setHasMore(refreshed.hasMore)
     }
 
     return (
