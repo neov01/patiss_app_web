@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bot, Send, Loader2, MoreVertical, Trash2 } from 'lucide-react'
+import { Send, Loader2, MoreVertical, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import DOMPurify from 'dompurify'
-import { getMascotImagePath } from '@/lib/domain/mascot'
+import { getMascotImagePath, getMessageMascotState } from '@/lib/domain/mascot'
 
 interface Props {
     currency: string
@@ -23,7 +23,7 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24h
 
 export default function AIAssistant({ currency, organizationId, userRole = 'vendeur' }: Props) {
     const [question, setQuestion] = useState('')
-    const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean }>>([])
+    const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean; isError?: boolean }>>([])
     const [loading, setLoading] = useState(false)
     const [showMenu, setShowMenu] = useState(false)
     const chatEndRef = useRef<HTMLDivElement>(null)
@@ -115,7 +115,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
             setHistory(prev => {
                 const updated = prev.map((item, idx) =>
                     idx === prev.length - 1
-                        ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false }
+                        ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false, isError: true }
                         : item
                 )
                 persistHistory(updated)
@@ -205,8 +205,8 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
             }} className="no-scrollbar" onClick={() => setShowMenu(false)}>
                 {history.length === 0 && (
                     <div style={{ display: 'flex', gap: '12px', maxWidth: '85%' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Bot size={16} color="var(--color-primary)" />
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                            <Image src={getMascotImagePath('greeting')} alt="Croustik" width={28} height={28} />
                         </div>
                         <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                             Bonjour ! J&apos;ai analysé vos données. Souhaitez-vous un récapitulatif ou une prévision ?
@@ -228,8 +228,8 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                             {item.q}
                         </div>
                         <div style={{ display: 'flex', gap: '12px', maxWidth: '85%', alignSelf: 'flex-start' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Bot size={16} color="var(--color-primary)" />
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                <Image src={getMascotImagePath(getMessageMascotState(item))} alt="Croustik" width={28} height={28} />
                             </div>
                             <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                                 {item.loading ? (
