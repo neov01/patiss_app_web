@@ -109,6 +109,7 @@ export default function CustomerIntelligenceModal({
         .from("orders")
         .select("id, order_number, customer_id, total_amount, status, payment_status, balance, created_at, order_payments(id, amount, payment_method, payment_date)")
         .eq("customer_id", clientId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;

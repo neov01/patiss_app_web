@@ -186,13 +186,17 @@ export async function updateOrderStatus(orderId: string, status: string) {
         const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
         await requireOpenSalesSession(context)
 
-        const { error } = await context.supabase
+        const { data: updated, error } = await context.supabase
             .from('orders')
             .update({ status })
             .eq('id', orderId)
             .eq('organization_id', context.organizationId)
+            .is('deleted_at', null)
+            .select('id')
+            .maybeSingle()
 
         if (error) return { error: error.message }
+        if (!updated) return { error: 'Impossible de modifier une commande supprimée' }
         revalidatePath('/commandes')
         return { success: true }
     } catch (e: unknown) {
@@ -359,12 +363,16 @@ export async function updateOrderDetails(
         await ensureActiveSubscription()
         const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
         await requireOpenSalesSession(context)
-        const { error } = await context.supabase
+        const { data: updated, error } = await context.supabase
             .from('orders')
             .update(details)
             .eq('id', orderId)
             .eq('organization_id', context.organizationId)
+            .is('deleted_at', null)
+            .select('id')
+            .maybeSingle()
         if (error) return { error: error.message }
+        if (!updated) return { error: 'Impossible de modifier une commande supprimée' }
         revalidatePath('/commandes')
         revalidatePath('/dashboard')
         revalidatePath('/caisse')
@@ -793,6 +801,7 @@ export async function getHistoricalOrders(filters: {
             .from('orders')
             .select(selectStr, { count: 'exact' })
             .eq('organization_id', organizationId)
+            .is('deleted_at', null)
 
         // 3. Appliquer le filtrage par statut d'historique
         if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
@@ -919,12 +928,16 @@ export async function addOrderPayment(
         // 1. Récupérer la commande pour validations
         const { data: order, error: fetchErr } = await supabaseAny
             .from('orders')
-            .select('status, balance, total_amount, paid_amount')
+            .select('status, balance, total_amount, paid_amount, deleted_at')
             .eq('id', orderId)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.deleted_at) {
+            return { error: 'Impossible de modifier une commande supprimée' }
+        }
 
         if (order.status === 'cancelled') {
             return { error: 'Impossible d\'ajouter un paiement sur une commande annulée' }
@@ -999,12 +1012,16 @@ export async function updateOrderPayment(
         // 1. Récupérer la commande pour validations
         const { data: order, error: fetchOrderErr } = await supabaseAny
             .from('orders')
-            .select('status')
+            .select('status, deleted_at')
             .eq('id', orderId)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.deleted_at) {
+            return { error: 'Impossible de modifier une commande supprimée' }
+        }
 
         if (order.status === 'cancelled') {
             return { error: 'Impossible de modifier un paiement sur une commande annulée' }
@@ -1057,12 +1074,16 @@ export async function deleteOrderPayment(paymentId: string, orderId: string) {
         // 1. Récupérer la commande pour validations
         const { data: order, error: fetchOrderErr } = await supabaseAny
             .from('orders')
-            .select('status')
+            .select('status, deleted_at')
             .eq('id', orderId)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+
+        if (order.deleted_at) {
+            return { error: 'Impossible de modifier une commande supprimée' }
+        }
 
         if (order.status === 'cancelled') {
             return { error: 'Impossible de supprimer un paiement sur une commande annulée' }
@@ -1130,13 +1151,17 @@ export async function updateOrderItemDetails(
         // 2. Récupérer la commande
         const { data: order, error: fetchOrderErr } = await supabaseAny
             .from('orders')
-            .select('status, customization_notes')
+            .select('status, customization_notes, deleted_at')
             .eq('id', orderId)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchOrderErr || !order) {
             return { error: "Commande introuvable" }
+        }
+
+        if (order.deleted_at) {
+            return { error: "Impossible de modifier une commande supprimée" }
         }
 
         if (order.status === 'cancelled') {
@@ -1268,12 +1293,15 @@ export async function updateOrderTotal(orderId: string, newTotal: number, commen
         // 1. Récupérer la commande
         const { data: order, error: fetchOrderErr } = await supabaseAny
             .from('orders')
-            .select('status, subtotal, total_amount, customization_notes')
+            .select('status, subtotal, total_amount, customization_notes, deleted_at')
             .eq('id', orderId)
             .eq('organization_id', organizationId)
             .single()
 
         if (fetchOrderErr || !order) return { error: 'Commande introuvable' }
+        if (order.deleted_at) {
+            return { error: 'Impossible de modifier une commande supprimée' }
+        }
         if (order.status === 'cancelled') {
             return { error: 'Impossible de modifier le total d\'une commande annulée' }
         }
