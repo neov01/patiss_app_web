@@ -34,7 +34,7 @@ Task 1 requires actually generating image files with an image-generation tool. A
 **Interfaces:**
 - Produces: 4 PNG files at the exact paths above, square (equal width/height), with an alpha channel (transparent background). Later tasks reference these paths as string literals — the filenames must match exactly (lowercase, hyphenated, `.png`).
 
-- [ ] **Step 1: Generate the 4 images**
+- [x] **Step 1: Generate the 4 images**
 
 Use an image-generation tool with these 4 prompts (from [docs/superpowers/specs/2026-08-09-croustik-mascot-design.md](2026-08-09-croustik-mascot-design.md)). Each prompt is self-contained — include the full style block every time so the 4 outputs read as one consistent character.
 
@@ -55,7 +55,7 @@ watermark, no other characters, square framing.
 3. `croustik-happy.png`: `[style block] Pose: both gloved hands giving an enthusiastic thumbs-up (or one thumbs-up if two hands reads awkwardly), big joyful smile, eyes slightly closed with happiness, small sparkle accents optional, celebratory and confident expression.`
 4. `croustik-alert.png`: `[style block] Pose: one gloved hand touching the side of the face or head in a worried gesture, slightly furrowed brow, wide concerned eyes, mouth in a small worried line, apologetic and concerned expression (not scared or sad, just mildly concerned).`
 
-- [ ] **Step 2: Save the outputs**
+- [x] **Step 2: Save the outputs**
 
 Save each generated image at its exact path:
 ```bash
@@ -67,22 +67,52 @@ mkdir -p "public/mascot"
 #   public/mascot/croustik-alert.png
 ```
 
-- [ ] **Step 3: Verify format and dimensions**
+- [x] **Step 3: Verify format and dimensions**
 
-Run (macOS):
+Note: `sips -g hasAlpha` only reports whether a file has an alpha *channel*, not
+whether any pixel is actually transparent. A fully-opaque RGBA file (every pixel
+alpha=255, with a checkerboard baked into the RGB content) passes that check
+while looking broken in the UI — this exact bug shipped once already in this
+project and was only caught by a human re-generating the assets after a later
+manual review. Use a Python-based check that actually inspects the alpha
+channel's pixel values instead (Pillow may need a one-off venv):
+
 ```bash
-for f in public/mascot/croustik-*.png; do
-  echo "$f"
-  sips -g pixelWidth -g pixelHeight -g hasAlpha "$f"
-done
-```
-Expected: each file reports equal `pixelWidth`/`pixelHeight` and `hasAlpha: yes`. If any file is missing or fails this check, regenerate it before continuing — later tasks assume these files exist and are transparent PNGs.
+python3 -c "
+from PIL import Image
+import sys
 
-- [ ] **Step 4: Visual consistency check**
+files = ['public/mascot/croustik-greeting.png', 'public/mascot/croustik-thinking.png', 'public/mascot/croustik-happy.png', 'public/mascot/croustik-alert.png']
+ok = True
+for path in files:
+    img = Image.open(path)
+    if img.mode != 'RGBA':
+        print(f'{path}: FAIL — no alpha channel (mode={img.mode})')
+        ok = False
+        continue
+    w, h = img.size
+    if w != h:
+        print(f'{path}: FAIL — not square ({w}x{h})')
+        ok = False
+    alpha = img.getchannel('A')
+    hist = alpha.histogram()
+    total = w * h
+    transparent_pct = 100 * hist[0] / total
+    if transparent_pct < 10:
+        print(f'{path}: FAIL — only {transparent_pct:.1f}% fully transparent pixels, likely opaque/fake-transparent')
+        ok = False
+    else:
+        print(f'{path}: OK — {w}x{h}, {transparent_pct:.1f}% fully transparent')
+sys.exit(0 if ok else 1)
+"
+```
+Expected: every file prints `OK` with a meaningful (not near-zero) transparent-pixel percentage, and the script exits 0. If any file is missing or fails this check, regenerate it before continuing — later tasks assume these files exist and are genuinely transparent PNGs.
+
+- [x] **Step 4: Visual consistency check**
 
 Open all 4 files side by side (Finder Quick Look or an image viewer) and confirm they read as the *same* character: same glasses shape, same toque, same body color/proportions, only pose and expression differ. If one pose looks like a different character, regenerate it with the same style block before moving on.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add public/mascot/croustik-greeting.png public/mascot/croustik-thinking.png public/mascot/croustik-happy.png public/mascot/croustik-alert.png
@@ -104,7 +134,7 @@ git commit -m "assets: add Croustik mascot images (greeting, thinking, happy, al
   - `export function getMascotImagePath(state: MascotState): string` — returns `/mascot/croustik-${state}.png`
   - `export function getMessageMascotState(item: { loading?: boolean; isError?: boolean }): MascotState` — `loading` wins over `isError`; used by Task 4.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/domain/mascot.test.ts`:
 
@@ -135,12 +165,12 @@ describe('mascot domain helpers', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/lib/domain/mascot.test.ts`
 Expected: FAIL — `Cannot find module './mascot'` (or similar), because `mascot.ts` doesn't exist yet.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/domain/mascot.ts`:
 
@@ -158,12 +188,12 @@ export function getMessageMascotState(item: { loading?: boolean; isError?: boole
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/domain/mascot.test.ts`
 Expected: PASS — 4 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/domain/mascot.ts src/lib/domain/mascot.test.ts
@@ -182,7 +212,7 @@ git commit -m "feat: add mascot state-to-image mapping for Comptable IA chat"
 - Consumes: `getMascotImagePath` from `@/lib/domain/mascot` (Task 2). `Image` from `next/image` (existing project dependency — see [src/components/catalogue/ProductModal.tsx](../../../src/components/catalogue/ProductModal.tsx) for the established usage pattern).
 - Produces: no new exports — this is a leaf UI change.
 
-- [ ] **Step 1: Update imports**
+- [x] **Step 1: Update imports**
 
 In `src/components/dashboard/AIAssistant.tsx`, the current import block is:
 
@@ -206,7 +236,7 @@ import DOMPurify from 'dompurify'
 import { getMascotImagePath } from '@/lib/domain/mascot'
 ```
 
-- [ ] **Step 2: Replace the header avatar and title**
+- [x] **Step 2: Replace the header avatar and title**
 
 Find this block (inside the header's first `<div>` with `gap: '20px'`):
 
@@ -243,12 +273,12 @@ Replace with:
 
 Leave the rest of that block (the "Intelligence Artisanale" status line) untouched.
 
-- [ ] **Step 3: Type-check**
+- [x] **Step 3: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no new errors. (If `Sparkles` or `Bot` show as unused-import errors, that's expected only for `Sparkles` at this point — `Bot` is still used by the message bubbles until Task 4. If `Sparkles` is reported unused, confirm it was fully removed from the import in Step 1.)
 
-- [ ] **Step 4: Manual visual check**
+- [x] **Step 4: Manual visual check**
 
 Run the dev server and open both places this component renders:
 ```bash
@@ -257,7 +287,7 @@ npm run dev
 - Dashboard (`/dashboard`): the chat card's header should show the Croustik greeting image instead of the sparkle icon, with the title "Croustik".
 - `/ai-assistant`: same check.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/dashboard/AIAssistant.tsx
@@ -279,7 +309,7 @@ git commit -m "feat: show Croustik mascot and name in Comptable IA chat header"
 - Consumes: `getMascotImagePath`, `getMessageMascotState` from `@/lib/domain/mascot` (Task 2).
 - Produces: no new exports.
 
-- [ ] **Step 1: Finish the import cleanup**
+- [x] **Step 1: Finish the import cleanup**
 
 The import block from Task 3 currently reads:
 
@@ -299,7 +329,7 @@ import DOMPurify from 'dompurify'
 import { getMascotImagePath, getMessageMascotState } from '@/lib/domain/mascot'
 ```
 
-- [ ] **Step 2: Track error state on history entries**
+- [x] **Step 2: Track error state on history entries**
 
 Find:
 
@@ -313,7 +343,7 @@ Replace with:
     const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean; isError?: boolean }>>([])
 ```
 
-- [ ] **Step 3: Set `isError` in the connection-failure branch**
+- [x] **Step 3: Set `isError` in the connection-failure branch**
 
 Find:
 
@@ -347,7 +377,7 @@ Replace with:
         }
 ```
 
-- [ ] **Step 4: Replace the empty-state greeting bubble's icon**
+- [x] **Step 4: Replace the empty-state greeting bubble's icon**
 
 Find (note: this is the bubble shown when `history.length === 0`, distinguishable from the loop version by the surrounding `{history.length === 0 && (` line just above it):
 
@@ -371,7 +401,7 @@ Replace with:
                         </div>
 ```
 
-- [ ] **Step 5: Replace the per-message loop bubble's icon**
+- [x] **Step 5: Replace the per-message loop bubble's icon**
 
 Find (inside `history.map(...)`, distinguishable by the preceding `alignSelf: 'flex-start'` line):
 
@@ -391,12 +421,12 @@ Replace with:
                             </div>
 ```
 
-- [ ] **Step 6: Type-check**
+- [x] **Step 6: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: no errors (no unused-import errors — `Bot` is fully removed, `Loader2` is still used by the "Analyse en cours…" spinner further down).
 
-- [ ] **Step 7: Manual visual check of all 4 states**
+- [x] **Step 7: Manual visual check of all 4 states**
 
 With `npm run dev` running, on both `/dashboard` and `/ai-assistant`:
 - **greeting**: clear the chat (menu → "Effacer la conversation") — the empty-state bubble shows the greeting pose.
@@ -404,7 +434,7 @@ With `npm run dev` running, on both `/dashboard` and `/ai-assistant`:
 - **happy**: after a normal response finishes, its bubble shows the happy pose.
 - **alert**: temporarily stop the dev server's ability to reach `/api/ai` (e.g. go offline, or block the request in devtools' Network tab) and submit a question — the resulting bubble ("Erreur de connexion à l'assistant IA.") shows the alert pose.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/components/dashboard/AIAssistant.tsx
@@ -419,17 +449,17 @@ git commit -m "feat: show per-state Croustik mascot in chat message bubbles"
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `npm run test`
 Expected: all tests pass, including the 4 new `mascot.test.ts` cases.
 
-- [ ] **Step 2: Run the type checker**
+- [x] **Step 2: Run the type checker**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 3: Confirm no stray changes**
+- [x] **Step 3: Confirm no stray changes**
 
 Run: `git status --short`
 Expected: clean (everything from Tasks 1–4 already committed). If anything is unstaged, review it before deciding whether to commit or discard.

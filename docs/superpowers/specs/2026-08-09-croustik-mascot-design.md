@@ -83,9 +83,8 @@ Pas de changement sur la page `/ai-assistant` au-delà de ce que le composant
 ### Copie
 
 - Header du chat : `"Assistant Compta-Gâteau"` → `"Croustik"`.
-- Sous-titre du header : `"Intelligence Artisanale"` reste inchangé (ou peut
-  devenir `"Comptable IA"` si on veut expliciter la fonction — décision libre
-  à l'implémentation, sans impact structurel).
+- Sous-titre du header : `"Intelligence Artisanale"` a été conservé tel quel
+  (implémentation confirmée dans `AIAssistant.tsx`).
 - Titre de la page `ai-assistant/page.tsx` (`"Comptable IA"`) : **inchangé**.
 
 ### Assets
