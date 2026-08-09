@@ -206,7 +206,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                 {history.length === 0 && (
                     <div style={{ display: 'flex', gap: '12px', maxWidth: '85%' }}>
                         <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                            <Image src={getMascotImagePath('greeting')} alt="Croustik" width={28} height={28} />
+                            <Image src={getMascotImagePath('greeting')} alt="" width={28} height={28} />
                         </div>
                         <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                             Bonjour ! J&apos;ai analysé vos données. Souhaitez-vous un récapitulatif ou une prévision ?
@@ -229,7 +229,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                         </div>
                         <div style={{ display: 'flex', gap: '12px', maxWidth: '85%', alignSelf: 'flex-start' }}>
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                                <Image src={getMascotImagePath(getMessageMascotState(item))} alt="Croustik" width={28} height={28} />
+                                <Image src={getMascotImagePath(getMessageMascotState(item))} alt="" width={28} height={28} />
                             </div>
                             <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                                 {item.loading ? (
