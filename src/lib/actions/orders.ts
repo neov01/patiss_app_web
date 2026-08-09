@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { AuthContextError, requireOpenSalesSession, requireRoleContext } from '@/lib/auth/organization-context'
 import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
-import { addLoyaltyPoints, calculateLoyaltyPoints, subtractLoyaltyPoints } from '@/lib/domain/loyalty'
+import { addLoyaltyPoints, calculateLoyaltyPoints } from '@/lib/domain/loyalty'
 import { getPhoneSearchCandidates, normalizeCustomerPhone } from '@/lib/domain/phone'
 
 import { orderSchema } from '@/lib/schemas/order.schema'
