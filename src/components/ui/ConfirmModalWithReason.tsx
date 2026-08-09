@@ -61,6 +61,7 @@ export default function ConfirmModalWithReason({
         {!isLoading && (
           <button
             onClick={handleClose}
+            aria-label="Fermer"
             style={{
               position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', padding: '8px',
               cursor: 'pointer', color: 'var(--color-muted)', borderRadius: '50%', display: 'flex',
@@ -78,7 +79,7 @@ export default function ConfirmModalWithReason({
           <AlertCircle size={32} color="#EF4444" />
         </div>
 
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px', margin: 0 }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>
           {title}
         </h3>
         <p style={{ fontSize: '0.95rem', lineHeight: '1.5', color: '#6B7280', marginBottom: '20px', padding: '0 10px' }}>
@@ -86,10 +87,11 @@ export default function ConfirmModalWithReason({
         </p>
 
         <div style={{ width: '100%', textAlign: 'left', marginBottom: '24px' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)', display: 'block', marginBottom: '8px' }}>
+          <label htmlFor="confirm-modal-reason" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)', display: 'block', marginBottom: '8px' }}>
             {reasonLabel}
           </label>
           <textarea
+            id="confirm-modal-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={reasonPlaceholder}
@@ -108,7 +110,7 @@ export default function ConfirmModalWithReason({
             disabled={isLoading}
             style={{
               flex: 1, padding: '14px', borderRadius: '14px', border: '1.5px solid var(--color-border)',
-              background: '#fff', fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)', cursor: 'pointer'
+              background: '#fff', fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text)', cursor: isLoading ? 'not-allowed' : 'pointer'
             }}
           >
             {cancelText}
