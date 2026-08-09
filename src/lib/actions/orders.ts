@@ -201,63 +201,150 @@ export async function updateOrderStatus(orderId: string, status: string) {
     }
 }
 
-export async function deleteOrder(orderId: string) {
+type SoftDeleteOrderRpcClient = {
+    rpc(
+        fn: 'soft_delete_order_atomic',
+        args: { p_order_id: string; p_organization_id: string; p_reason: string }
+    ): Promise<{ error: { message?: string } | null }>
+}
+
+export async function softDeleteOrder(orderId: string, reason: string) {
     try {
         await ensureActiveSubscription()
-        const context = await requireRoleContext(['gerant', 'super_admin'])
+        const context = await requireRoleContext(['vendeur', 'gerant', 'super_admin'])
         await requireOpenSalesSession(context)
-        const { supabase, organizationId } = context
 
-        // 1. Récupérer les transactions liées pour déduire les points de fidélité correspondants
-        const { data: linkedTransactions } = await supabase
-            .from('transactions')
-            .select('amount, customer_id')
-            .eq('order_id', orderId)
-            .eq('organization_id', organizationId)
-
-        if (linkedTransactions && linkedTransactions.length > 0) {
-            for (const tx of linkedTransactions) {
-                if (tx.customer_id && Number(tx.amount) > 0) {
-                    const pointsToSubtract = calculateLoyaltyPoints(Number(tx.amount))
-                    if (pointsToSubtract > 0) {
-                        const { data: cust } = await supabase
-                            .from('customers')
-                            .select('loyalty_points, lifetime_points')
-                            .eq('id', tx.customer_id)
-                            .eq('organization_id', organizationId)
-                            .single()
-                        if (cust) {
-                            await supabase.from('customers').update({
-                                loyalty_points: subtractLoyaltyPoints(cust.loyalty_points, pointsToSubtract),
-                                lifetime_points: subtractLoyaltyPoints(cust.lifetime_points, pointsToSubtract)
-                            })
-                                .eq('id', tx.customer_id)
-                                .eq('organization_id', organizationId)
-                        }
-                    }
-                }
-            }
-            // 2. Supprimer les transactions associées
-            await supabase
-                .from('transactions')
-                .delete()
-                .eq('order_id', orderId)
-                .eq('organization_id', organizationId)
+        if (!reason || !reason.trim()) {
+            return { error: 'Un commentaire est obligatoire pour supprimer une commande.' }
         }
 
-        // 3. Supprimer la commande
-        const { error } = await supabase
-            .from('orders')
-            .delete()
-            .eq('id', orderId)
-            .eq('organization_id', organizationId)
-        if (error) return { error: error.message }
+        const { error } = await (context.supabase as unknown as SoftDeleteOrderRpcClient).rpc('soft_delete_order_atomic', {
+            p_order_id: orderId,
+            p_organization_id: context.organizationId,
+            p_reason: reason.trim()
+        })
+
+        if (error) return { error: error.message || 'Erreur lors de la suppression de la commande' }
 
         revalidatePath('/commandes')
+        revalidatePath('/commandes/audit')
         revalidatePath('/dashboard')
         revalidatePath('/caisse')
 
-        return { success: true }
+        return { success: true as const }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+type RestoreOrderRpcClient = {
+    rpc(
+        fn: 'restore_order_atomic',
+        args: { p_order_id: string; p_organization_id: string; p_reason: string }
+    ): Promise<{ error: { message?: string } | null }>
+}
+
+export async function restoreOrder(orderId: string, reason: string) {
+    try {
+        await ensureActiveSubscription()
+        const context = await requireRoleContext(['vendeur', 'gerant', 'super_admin'])
+        await requireOpenSalesSession(context)
+
+        if (!reason || !reason.trim()) {
+            return { error: 'Un commentaire est obligatoire pour restaurer une commande.' }
+        }
+
+        const { error } = await (context.supabase as unknown as RestoreOrderRpcClient).rpc('restore_order_atomic', {
+            p_order_id: orderId,
+            p_organization_id: context.organizationId,
+            p_reason: reason.trim()
+        })
+
+        if (error) return { error: error.message || 'Erreur lors de la restauration de la commande' }
+
+        revalidatePath('/commandes')
+        revalidatePath('/commandes/audit')
+        revalidatePath('/dashboard')
+        revalidatePath('/caisse')
+
+        return { success: true as const }
+    } catch (e: unknown) {
+        if (e instanceof AuthContextError) return { error: e.message }
+        return { error: getErrorMessage(e) }
+    }
+}
+
+export type OrderDeletionAuditEntry = {
+    id: string
+    organization_id: string
+    order_id: string
+    order_reference: string
+    action: 'delete' | 'restore' | 'purge'
+    performed_by: string | null
+    performed_by_name: string
+    reason: string
+    order_snapshot: Record<string, unknown> | null
+    stock_adjustment: Record<string, number> | null
+    created_at: string
+}
+
+export async function getOrderDeletionAudit(filters: { page?: number; pageSize?: number } = {}) {
+    try {
+        const context = await requireRoleContext(['vendeur', 'gerant', 'super_admin'])
+        const page = filters.page ?? 1
+        const pageSize = filters.pageSize ?? 30
+        const from = (page - 1) * pageSize
+        const to = from + pageSize - 1
+
+        const [{ data, error, count }, { data: deletedOrders, error: deletedOrdersError }] = await Promise.all([
+            context.supabase
+                .from('order_deletion_audit')
+                .select('*', { count: 'exact' })
+                .eq('organization_id', context.organizationId)
+                .order('created_at', { ascending: false })
+                .range(from, to),
+            context.supabase
+                .from('orders')
+                .select('id')
+                .eq('organization_id', context.organizationId)
+                .not('deleted_at', 'is', null)
+        ])
+
+        if (error) return { error: error.message }
+        if (deletedOrdersError) return { error: deletedOrdersError.message }
+
+        const currentlyDeletedIds = (deletedOrders ?? []).map(o => o.id)
+        const latestDeleteAuditIdByOrder = new Map<string, string>()
+
+        if (currentlyDeletedIds.length > 0) {
+            const { data: activeDeleteEntries, error: activeErr } = await context.supabase
+                .from('order_deletion_audit')
+                .select('id, order_id, created_at')
+                .eq('organization_id', context.organizationId)
+                .eq('action', 'delete')
+                .in('order_id', currentlyDeletedIds)
+                .order('created_at', { ascending: false })
+
+            if (activeErr) return { error: activeErr.message }
+
+            for (const entry of activeDeleteEntries ?? []) {
+                if (!latestDeleteAuditIdByOrder.has(entry.order_id)) {
+                    latestDeleteAuditIdByOrder.set(entry.order_id, entry.id)
+                }
+            }
+        }
+
+        const entries = ((data ?? []) as OrderDeletionAuditEntry[]).map(entry => ({
+            ...entry,
+            isRestorable: latestDeleteAuditIdByOrder.get(entry.order_id) === entry.id
+        }))
+
+        return {
+            entries,
+            count: count ?? 0,
+            hasMore: (count ?? 0) > to + 1
+        }
     } catch (e: unknown) {
         if (e instanceof AuthContextError) return { error: e.message }
         return { error: getErrorMessage(e) }
