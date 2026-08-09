@@ -77,11 +77,7 @@ export default function OrderAuditClient({
 
         toast.success('Commande restaurée')
         router.refresh()
-        const refreshed = await getOrderDeletionAudit({ page: 1, pageSize: entries.length || 30 })
-        if (!('error' in refreshed)) {
-            setEntries(refreshed.entries)
-            setHasMore(refreshed.hasMore)
-        }
+        setEntries(prev => prev.map(e => e.id === entryToRestore.id ? { ...e, isRestorable: false } : e))
     }
 
     return (
@@ -127,7 +123,7 @@ export default function OrderAuditClient({
                     const daysLeft = entry.action === 'delete' && entry.isRestorable
                         ? getDaysUntilPurge(entry.created_at)
                         : null
-                    const expired = entry.action === 'delete' && entry.isRestorable && isPurgeable(entry.created_at)
+                    const purgeImminent = entry.action === 'delete' && entry.isRestorable && isPurgeable(entry.created_at)
 
                     return (
                         <div key={entry.id} style={{ border: '1.5px solid var(--color-border)', borderRadius: '16px', padding: '16px', background: '#fff' }}>
@@ -142,7 +138,7 @@ export default function OrderAuditClient({
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {entry.isRestorable && !expired && (
+                                    {entry.isRestorable && (
                                         <button
                                             onClick={() => setEntryToRestore(entry)}
                                             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', background: '#10B981', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
@@ -160,8 +156,8 @@ export default function OrderAuditClient({
                             </div>
 
                             {daysLeft !== null && (
-                                <p style={{ marginTop: '8px', fontSize: '0.8rem', color: expired ? '#EF4444' : 'var(--color-muted)' }}>
-                                    {expired ? 'Purge définitive imminente' : `Purge définitive dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`}
+                                <p style={{ marginTop: '8px', fontSize: '0.8rem', color: purgeImminent ? '#EF4444' : 'var(--color-muted)' }}>
+                                    {purgeImminent ? 'Purge définitive imminente' : `Purge définitive dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`}
                                 </p>
                             )}
 
