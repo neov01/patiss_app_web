@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bot, Send, Loader2, Sparkles, MoreVertical, Trash2 } from 'lucide-react'
+import { Send, Loader2, MoreVertical, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import DOMPurify from 'dompurify'
+import { getMascotImagePath, getMessageMascotState } from '@/lib/domain/mascot'
 
 interface Props {
     currency: string
@@ -21,7 +23,7 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24h
 
 export default function AIAssistant({ currency, organizationId, userRole = 'vendeur' }: Props) {
     const [question, setQuestion] = useState('')
-    const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean }>>([])
+    const [history, setHistory] = useState<Array<{ q: string; a: string; loading?: boolean; isError?: boolean }>>([])
     const [loading, setLoading] = useState(false)
     const [showMenu, setShowMenu] = useState(false)
     const chatEndRef = useRef<HTMLDivElement>(null)
@@ -113,7 +115,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
             setHistory(prev => {
                 const updated = prev.map((item, idx) =>
                     idx === prev.length - 1
-                        ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false }
+                        ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false, isError: true }
                         : item
                 )
                 persistHistory(updated)
@@ -151,12 +153,13 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                         width: '48px', height: '48px', borderRadius: '16px',
                         background: 'rgba(255,255,255,0.15)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                        overflow: 'hidden'
                     }}>
-                        <Sparkles size={24} color="white" />
+                        <Image src={getMascotImagePath('greeting')} alt="Croustik" width={40} height={40} />
                     </div>
                     <div>
-                        <h4 style={{ margin: 0, color: 'white', fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.15rem', letterSpacing: '-0.02em' }}>Assistant Compta-Gâteau</h4>
+                        <h4 style={{ margin: 0, color: 'white', fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.15rem', letterSpacing: '-0.02em' }}>Croustik</h4>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ADE80', animation: 'pulse-dot 2s infinite' }} />
                             <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intelligence Artisanale</p>
@@ -202,8 +205,8 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
             }} className="no-scrollbar" onClick={() => setShowMenu(false)}>
                 {history.length === 0 && (
                     <div style={{ display: 'flex', gap: '12px', maxWidth: '85%' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Bot size={16} color="var(--color-primary)" />
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                            <Image src={getMascotImagePath('greeting')} alt="" width={28} height={28} />
                         </div>
                         <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                             Bonjour ! J&apos;ai analysé vos données. Souhaitez-vous un récapitulatif ou une prévision ?
@@ -225,8 +228,8 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                             {item.q}
                         </div>
                         <div style={{ display: 'flex', gap: '12px', maxWidth: '85%', alignSelf: 'flex-start' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Bot size={16} color="var(--color-primary)" />
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-container)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                                <Image src={getMascotImagePath(getMessageMascotState(item))} alt="" width={28} height={28} />
                             </div>
                             <div style={{ background: 'var(--color-surface-container-low)', padding: '16px', borderRadius: '0 16px 16px 16px', fontSize: '0.875rem', color: 'var(--color-on-surface)' }}>
                                 {item.loading ? (
