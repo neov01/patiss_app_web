@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Bot, Send, Loader2, Sparkles, MoreVertical, Trash2 } from 'lucide-react'
+import { Bot, Send, Loader2, MoreVertical, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import DOMPurify from 'dompurify'
+import { getMascotImagePath } from '@/lib/domain/mascot'
 
 interface Props {
     currency: string
@@ -151,12 +153,13 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                         width: '48px', height: '48px', borderRadius: '16px',
                         background: 'rgba(255,255,255,0.15)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                        boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                        overflow: 'hidden'
                     }}>
-                        <Sparkles size={24} color="white" />
+                        <Image src={getMascotImagePath('greeting')} alt="Croustik" width={40} height={40} />
                     </div>
                     <div>
-                        <h4 style={{ margin: 0, color: 'white', fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.15rem', letterSpacing: '-0.02em' }}>Assistant Compta-Gâteau</h4>
+                        <h4 style={{ margin: 0, color: 'white', fontWeight: 900, fontFamily: 'var(--font-display)', fontSize: '1.15rem', letterSpacing: '-0.02em' }}>Croustik</h4>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                             <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ADE80', animation: 'pulse-dot 2s infinite' }} />
                             <p style={{ margin: 0, color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intelligence Artisanale</p>
