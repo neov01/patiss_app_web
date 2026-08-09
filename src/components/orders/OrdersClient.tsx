@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
 import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search, SlidersHorizontal, X, Eye } from 'lucide-react'
-import { updateOrderStatus, deleteOrder, getHistoricalOrders, getVitrineSales, deleteVitrineSale } from '@/lib/actions/orders'
+import { updateOrderStatus, softDeleteOrder, getHistoricalOrders, getVitrineSales, deleteVitrineSale } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer, { type OrderPayment } from './OrderDrawer'
 import HistoricalImportModal from './HistoricalImportModal'
 import DatePicker from '@/components/ui/DatePicker'
+import ConfirmModalWithReason from '@/components/ui/ConfirmModalWithReason'
 import SessionPill from '@/components/layout/SessionPill'
 import { useSession } from '@/components/layout/SessionMaster'
 
@@ -434,15 +435,15 @@ export default function OrdersClient({
         })
     }
 
-    const handleDelete = async () => {
+    const handleDelete = async (reason: string) => {
         if (!orderToDelete) return
-        
+
         const { id } = orderToDelete
         setDeletingId(id)
         setOrderToDelete(null)
-        
+
         const deletePromise = async () => {
-            const result = await deleteOrder(id)
+            const result = await softDeleteOrder(id, reason)
             if (result && typeof result === 'object' && 'error' in result && result.error) {
                 throw new Error(String(result.error))
             }
@@ -456,7 +457,7 @@ export default function OrdersClient({
                 setHistoryOrders(prev => prev.filter(o => o.id !== id))
                 router.refresh()
                 setDeletingId(null)
-                return 'Commande supprimée'
+                return 'Commande supprimée. Restaurable pendant 30 jours depuis "Historique des suppressions".'
             },
             error: (err) => {
                 setDeletingId(null)
@@ -1306,41 +1307,15 @@ export default function OrdersClient({
             )}
 
             {/* --- MODAL CONFIRMATION DE SUPPRESSION --- */}
-            {orderToDelete && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div 
-                        style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(45,27,14,0.6)', backdropFilter: 'blur(4px)' }} 
-                        onClick={() => setOrderToDelete(null)}
-                    />
-                    <div className="animate-scale-in" style={{
-                        position: 'relative', width: '100%', maxWidth: '400px', background: 'white', 
-                        borderRadius: '24px', padding: '32px', textAlign: 'center',
-                        boxShadow: 'var(--shadow-lg)'
-                    }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: 'var(--color-error-container, #FEE2E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-error)' }}>
-                            <Trash2 size={32} />
-                        </div>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>Supprimer la commande ?</h3>
-                        <p style={{ color: 'var(--color-muted)', marginBottom: '32px', lineHeight: 1.5 }}>
-                            Êtes-vous sûr de vouloir supprimer la commande de <strong>{orderToDelete.name}</strong> ? Cette action supprimera également les articles associés.
-                        </p>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button 
-                                onClick={() => setOrderToDelete(null)}
-                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid var(--color-border)', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer' }}
-                            >
-                                Annuler
-                            </button>
-                            <button 
-                                onClick={handleDelete}
-                                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--color-error)', color: 'white', fontWeight: 700, cursor: 'pointer' }}
-                            >
-                                Supprimer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmModalWithReason
+                isOpen={!!orderToDelete}
+                onClose={() => setOrderToDelete(null)}
+                onConfirm={handleDelete}
+                title="Supprimer la commande ?"
+                message={`Êtes-vous sûr de vouloir supprimer la commande de ${orderToDelete?.name ?? ''} ? Elle restera restaurable pendant 30 jours depuis la page d'audit.`}
+                confirmText="Supprimer"
+                reasonLabel="Raison de la suppression (obligatoire)"
+            />
 
             {/* --- MODAL CONFIRMATION SUPPRESSION VENTE VITRINE --- */}
             {vitrineToDelete && (
