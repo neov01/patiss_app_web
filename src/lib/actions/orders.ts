@@ -295,6 +295,7 @@ export type OrderDeletionAuditEntry = {
 
 export async function getOrderDeletionAudit(filters: { page?: number; pageSize?: number } = {}) {
     try {
+        await ensureActiveSubscription()
         const context = await requireRoleContext(['vendeur', 'gerant', 'super_admin'])
         const page = filters.page ?? 1
         const pageSize = filters.pageSize ?? 30

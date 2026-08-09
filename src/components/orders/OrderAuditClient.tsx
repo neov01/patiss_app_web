@@ -10,6 +10,8 @@ import ConfirmModalWithReason from '@/components/ui/ConfirmModalWithReason'
 
 type AuditEntry = OrderDeletionAuditEntry & { isRestorable: boolean }
 
+const PAGE_SIZE = 30
+
 const ACTION_LABELS: Record<AuditEntry['action'], { label: string; bg: string; color: string }> = {
     delete: { label: 'Suppression', bg: '#FEF2F2', color: '#EF4444' },
     restore: { label: 'Restauration', bg: '#ECFDF5', color: '#10B981' },
@@ -50,8 +52,8 @@ export default function OrderAuditClient({
 
     const loadMore = async () => {
         setLoadingMore(true)
-        const nextPage = Math.floor(entries.length / 30) + 1
-        const result = await getOrderDeletionAudit({ page: nextPage, pageSize: 30 })
+        const nextPage = Math.floor(entries.length / PAGE_SIZE) + 1
+        const result = await getOrderDeletionAudit({ page: nextPage, pageSize: PAGE_SIZE })
         if ('error' in result) {
             toast.error(result.error)
         } else {
@@ -77,7 +79,21 @@ export default function OrderAuditClient({
 
         toast.success('Commande restaurée')
         router.refresh()
-        setEntries(prev => prev.map(e => e.id === entryToRestore.id ? { ...e, isRestorable: false } : e))
+
+        // Re-récupère la première page (taille fixe) pour faire apparaître la nouvelle
+        // ligne "Restauration" et les isRestorable à jour, sans casser l'invariant de
+        // pagination de loadMore (on ne remplace que la fenêtre de la page 1).
+        const refreshed = await getOrderDeletionAudit({ page: 1, pageSize: PAGE_SIZE })
+        if ('error' in refreshed) {
+            toast.error(refreshed.error)
+            return
+        }
+        setEntries(prev => [...refreshed.entries, ...prev.slice(PAGE_SIZE)])
+        // Si des pages suivantes étaient déjà chargées, hasMore leur reste attaché ;
+        // sinon on suit l'indication de la page 1 fraîchement récupérée.
+        if (entries.length <= PAGE_SIZE) {
+            setHasMore(refreshed.hasMore)
+        }
     }
 
     return (
@@ -115,6 +131,12 @@ export default function OrderAuditClient({
                     <option value="purge">Purges définitives</option>
                 </select>
             </div>
+
+            {hasMore && (search.trim() || actionFilter !== 'all') && (
+                <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: '-12px', marginBottom: '16px' }}>
+                    La recherche et les filtres ne portent que sur les événements déjà chargés — utilisez « Charger plus » pour élargir.
+                </p>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {filteredEntries.map(entry => {

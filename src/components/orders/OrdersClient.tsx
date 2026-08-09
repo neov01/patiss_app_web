@@ -722,16 +722,18 @@ export default function OrdersClient({
                                 {counts.vitrine}
                             </span>
                         </button>
-                        <button
-                            onClick={() => router.push('/commandes/audit')}
-                            style={{
-                                marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px',
-                                padding: '8px 14px', borderRadius: '999px', border: '1.5px solid var(--color-border)',
-                                background: '#fff', color: 'var(--color-muted)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
-                            }}
-                        >
-                            🗂️ Historique des suppressions
-                        </button>
+                        {(roleSlug === 'vendeur' || roleSlug === 'gerant' || roleSlug === 'super_admin') && (
+                            <button
+                                onClick={() => router.push('/commandes/audit')}
+                                style={{
+                                    marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px',
+                                    padding: '8px 14px', borderRadius: '999px', border: '1.5px solid var(--color-border)',
+                                    background: '#fff', color: 'var(--color-muted)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                                }}
+                            >
+                                🗂️ Historique des suppressions
+                            </button>
+                        )}
                     </div>
 
                     {/* --- CONTENU DE L'ONGLET SÉLECTIONNÉ --- */}
