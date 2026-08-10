@@ -80,7 +80,7 @@ props déjà calculées dans ce layout : `currency` (`organization.currency_symb
 - `z-index: 45` — au-dessus du contenu de page et de la barre mobile
   (`zIndex: 40`), en dessous des overlays plein écran de l'app (drawer mobile
   et `SessionMaster`/`SessionPill`, `zIndex: 50`/`9999`).
-- Contenu : `next/image` avec `getMascotImagePath('greeting')`, `alt="Ouvrir Croustik, l'assistant comptable IA"`, taille ~44px dans le cercle de 56px.
+- Contenu : `next/image` avec `getMascotImagePath('greeting')`, `alt=""` (image décorative — le bouton porte déjà `aria-label="Ouvrir Croustik, l'assistant comptable IA"`), taille ~44px dans le cercle de 56px.
 - Animation : pulsation CSS discrète en boucle sur le cercle (`transform: scale`
   ou `box-shadow` pulsé, ~2s de cycle) — implémentée en CSS pur
   (`@keyframes`), pas de librairie d'animation. Cesse pendant que le panneau
@@ -96,7 +96,7 @@ props déjà calculées dans ce layout : `currency` (`organization.currency_symb
   petit écran), pas de hauteur forcée par ce conteneur — `AIAssistant`
   applique déjà sa propre hauteur (`500px`) en interne, le conteneur du
   panneau se contente de l'envelopper avec `border-radius`/`box-shadow`
-  cohérents avec le reste de l'UI (`var(--radius)`/`box-shadow` déjà utilisés
+  cohérents avec le reste de l'UI (`var(--radius-md)`/`box-shadow` déjà utilisés
   ailleurs dans l'app, pas de nouvelle valeur inventée).
 - Le bouton flottant reste visible et cliquable pendant que le panneau est
   ouvert (cliquer dessus referme le panneau — pas de bouton de fermeture
