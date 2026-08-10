@@ -33,7 +33,7 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
                     justifyContent: 'center',
                     cursor: 'pointer',
                     zIndex: 45,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    boxShadow: 'var(--shadow-md)',
                     padding: 0,
                     animation: open ? 'none' : 'floating-mascot-pulse 2s ease-in-out infinite',
                 }}
@@ -48,10 +48,11 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
                         position: 'fixed',
                         right: '20px',
                         width: 'min(360px, calc(100vw - 40px))',
+                        height: 'min(500px, calc(100dvh - 174px))',
                         zIndex: 45,
-                        borderRadius: '16px',
+                        borderRadius: 'var(--radius-md)',
                         overflow: 'hidden',
-                        boxShadow: '0 16px 40px rgba(0,0,0,0.25)',
+                        boxShadow: 'var(--shadow-lg)',
                     }}
                 >
                     <AIAssistant currency={currency} organizationId={organizationId} userRole={userRole} />
@@ -60,14 +61,10 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
 
             <style jsx>{`
                 .floating-mascot-button {
-                    bottom: 20px;
+                    bottom: 90px;
                 }
                 .floating-mascot-panel {
-                    bottom: 84px;
-                }
-                @keyframes floating-mascot-pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.08); }
+                    bottom: 154px;
                 }
                 @media (max-width: 767px) {
                     .floating-mascot-button {
@@ -76,6 +73,9 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
                     .floating-mascot-panel {
                         bottom: 154px;
                     }
+                }
+                .floating-mascot-panel :global(.card) {
+                    height: 100% !important;
                 }
             `}</style>
         </>
