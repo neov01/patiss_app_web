@@ -1112,7 +1112,10 @@ export type Database = {
         Args: { p_org_id: string; p_target_date: string }
         Returns: Json
       }
-      get_ia_financial_context: { Args: { p_org_id: string }; Returns: Json }
+      get_ia_financial_context: {
+        Args: { p_actor_id?: string | null; p_org_id: string }
+        Returns: Json
+      }
       get_user_organization_id: { Args: never; Returns: string }
       get_user_role: { Args: never; Returns: string }
       increment_customer_points: {

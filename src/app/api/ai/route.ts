@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import { env } from '@/lib/env'
-import { AuthContextError, requireOrganizationContext } from '@/lib/auth/organization-context'
+import { AuthContextError, requireOrganizationContextOrKiosk } from '@/lib/auth/organization-context'
 
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
 
@@ -27,14 +29,15 @@ const _ctxCache = new Map<string, { data: unknown; ts: number }>()
 const CTX_TTL = 5 * 60 * 1000
 
 async function getCachedContext(
-    supabase: Awaited<ReturnType<typeof requireOrganizationContext>>['supabase'],
-    organizationId: string
+    supabase: SupabaseClient<Database>,
+    organizationId: string,
+    actorId: string
 ) {
     const hit = _ctxCache.get(organizationId)
     if (hit && Date.now() - hit.ts < CTX_TTL) return hit.data
     const { data, error } = await supabase.rpc(
         'get_ia_financial_context',
-        { p_org_id: organizationId }
+        { p_org_id: organizationId, p_actor_id: actorId }
     )
     if (error) throw error
     _ctxCache.set(organizationId, { data, ts: Date.now() })
@@ -134,7 +137,7 @@ Tu as accès aux données opérationnelles de la pâtisserie depuis sa création
 export async function POST(req: NextRequest) {
     try {
         const { question } = await req.json()
-        const { supabase, userId, organizationId, currency, role } = await requireOrganizationContext()
+        const { supabase, userId, organizationId, currency, role } = await requireOrganizationContextOrKiosk()
 
         // Validation de l'entrée utilisateur
         if (typeof question !== 'string') {
@@ -152,7 +155,7 @@ export async function POST(req: NextRequest) {
         // Contexte financier avec cache 5 min (évite de rescanner 12 mois à chaque question)
         let rawContext: Record<string, unknown>
         try {
-            rawContext = (await getCachedContext(supabase, organizationId)) as Record<string, unknown>
+            rawContext = (await getCachedContext(supabase, organizationId, userId)) as Record<string, unknown>
         } catch (rpcErr) {
             console.error('[AI Route] RPC error:', rpcErr)
             return new Response("Erreur d'accès aux données financières. Contactez l'administrateur.", { status: 200 })

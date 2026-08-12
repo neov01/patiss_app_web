@@ -9,6 +9,7 @@ import { getOpenSession } from '@/lib/actions/sessions'
 import SessionMaster from '@/components/layout/SessionMaster'
 import RealtimeSync from '@/components/shared/RealtimeSync'
 import { CurrencyProvider } from '@/providers/CurrencyProvider'
+import FloatingMascot from '@/components/dashboard/FloatingMascot'
 
 import NetworkStatusBar from '@/components/layout/NetworkWrapper'
 import OfflineProvider from '@/components/providers/OfflineProvider'
@@ -138,6 +139,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
                             </SessionMaster>
                         </main>
                     </div>
+                    <FloatingMascot
+                        currency={currency}
+                        organizationId={typedDisplayProfile.organization_id!}
+                        userRole={typedDisplayProfile.role_slug}
+                    />
                 </div>
             </AutoLockProvider>
         </OfflineProvider>
