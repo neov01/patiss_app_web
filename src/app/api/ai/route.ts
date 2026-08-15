@@ -24,6 +24,25 @@ function checkRateLimit(key: string): boolean {
     return true
 }
 
+// Retry léger : absorbe les pannes transitoires de l'API Gemini (503/overload, hoquet réseau)
+// sur l'ouverture du stream, avant qu'aucun octet n'ait été envoyé au client.
+async function generateContentStreamWithRetry(
+    model: ReturnType<typeof genAI.getGenerativeModel>,
+    prompt: string,
+    attempts = 3
+) {
+    let lastErr: unknown
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await model.generateContentStream(prompt)
+        } catch (e) {
+            lastErr = e
+            if (i < attempts - 1) await new Promise((r) => setTimeout(r, 500 * (i + 1)))
+        }
+    }
+    throw lastErr
+}
+
 // Cache in-process du contexte financier (5 min par organisation)
 const _ctxCache = new Map<string, { data: unknown; ts: number }>()
 const CTX_TTL = 5 * 60 * 1000
@@ -203,7 +222,7 @@ ${JSON.stringify(context, (k, v) => v === null ? undefined : v, 2)}
 Question : ${trimmedQuestion}`
 
         // Streaming → le texte apparaît dès le premier token (~200 ms)
-        const result = await model.generateContentStream(prompt)
+        const result = await generateContentStreamWithRetry(model, prompt)
         const encoder = new TextEncoder()
 
         const stream = new ReadableStream({
