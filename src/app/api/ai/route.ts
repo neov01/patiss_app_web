@@ -200,8 +200,11 @@ export async function POST(req: NextRequest) {
 
         const systemInstruction = isManager ? SYSTEM_INSTRUCTION_GERANT : SYSTEM_INSTRUCTION_EMPLOYE
 
+        // JSON compact : l'indentation ne sert qu'à un lecteur humain, et personne ne
+        // lit ce prompt. Sur un contexte représentatif, elle coûtait 9 000 tokens
+        // par question (24 917 → 15 924, mesuré avec countTokens sur gemini-2.5-flash).
         const prompt = `Contexte complet de la pâtisserie (JSON) :
-${JSON.stringify(context, (k, v) => v === null ? undefined : v, 2)}
+${JSON.stringify(context, (k, v) => v === null ? undefined : v)}
 
 Question : ${trimmedQuestion}`
 
