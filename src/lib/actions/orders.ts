@@ -8,6 +8,7 @@ import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js
 import { randomUUID } from 'crypto'
 import { addLoyaltyPoints, calculateLoyaltyPoints } from '@/lib/domain/loyalty'
 import { getPhoneSearchCandidates, normalizeCustomerPhone } from '@/lib/domain/phone'
+import { buildIlikeOrFilter } from '@/lib/domain/postgrest-search'
 
 import { orderSchema } from '@/lib/schemas/order.schema'
 
@@ -831,8 +832,11 @@ export async function getHistoricalOrders(filters: {
 
         // 4. Filtre de recherche universelle / globale textuelle
         if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
-            const q = `%${filters.searchQuery.trim()}%`
-            query = query.or(`customer_name.ilike.${q},customer_contact.ilike.${q},order_number.ilike.${q}`)
+            const orFilter = buildIlikeOrFilter(
+                ['customer_name', 'customer_contact', 'order_number'],
+                filters.searchQuery
+            )
+            if (orFilter) query = query.or(orFilter)
         }
 
         // 5. Filtre client et téléphone spécifiques (historique)
@@ -1410,12 +1414,15 @@ export async function getVitrineSales(filters: {
             .from('transactions')
             .select('*, transaction_items(*), creator_profile:profiles!transactions_created_by_fkey(full_name, role_slug)', { count: 'exact' })
             .eq('organization_id', organizationId)
+            .is('deleted_at', null)
             .is('order_id', null)
             .eq('label_type', 'VENTE_DIRECTE')
 
         if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
-            const q = `%${filters.searchQuery.trim()}%`
-            query = query.or(`client_name.ilike.${q},id::text.ilike.${q}`)
+            // `reference_code` est la référence courte affichée dans l'UI ; un cast
+            // `id::text` ici serait refusé par le parseur d'arbre logique PostgREST.
+            const orFilter = buildIlikeOrFilter(['client_name', 'reference_code'], filters.searchQuery)
+            if (orFilter) query = query.or(orFilter)
         }
 
         if (filters.amount) {

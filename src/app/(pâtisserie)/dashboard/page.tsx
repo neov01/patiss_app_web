@@ -91,7 +91,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         supabase.from('ingredients').select('name, current_stock, alert_threshold').eq('organization_id', profile.organization_id!),
         supabase.from('inventory_logs').select('quantity_change, reason').eq('organization_id', profile.organization_id!).gte('log_date', startDate + 'T00:00:00'),
         period === 'day' && !clientFilter ? getDailyStats(profile.organization_id!) : Promise.resolve({ ca_encaisse: null }),
-        supabase.from('transactions').select('amount, payment_method, created_at').eq('organization_id', profile.organization_id!).gte('created_at', startDate + 'T00:00:00')
+        supabase.from('transactions').select('amount, payment_method, created_at').eq('organization_id', profile.organization_id!).is('deleted_at', null).gte('created_at', startDate + 'T00:00:00')
     ])
 
     const orders = ordersRes.data ?? []

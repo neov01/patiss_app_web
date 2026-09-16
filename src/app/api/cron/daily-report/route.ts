@@ -58,6 +58,7 @@ export async function POST(request: Request) {
                 .from('transactions')
                 .select('amount, payment_method, payment_details, label_type')
                 .eq('organization_id', orgId)
+                .is('deleted_at', null)
                 .gte('created_at', today.toISOString())
                 .lt('created_at', tomorrow.toISOString())
 

@@ -178,6 +178,7 @@ export async function rembourserTransaction(payload: {
             .select('id, amount, organization_id, client_name, customer_id')
             .eq('id', payload.originalTransactionId)
             .eq('organization_id', organizationId)
+            .is('deleted_at', null)
             .single()
 
         if (!originalTx) return { error: "Transaction originale introuvable ou hors organisation" }
