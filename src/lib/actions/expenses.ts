@@ -10,6 +10,7 @@ import {
   CloseExpenseCycleSchema,
   CreateExpenseSchema,
   CreateTopUpSchema,
+  UpdateWeeklyBudgetSchema,
   type BudgetTopUp,
   type Expense,
   type ExpenseCycle,
@@ -32,12 +33,21 @@ export async function getActiveExpenseCycleData() {
       'patissier',
     ])
 
+    // 0. Récupérer le budget hebdomadaire configuré sur l'organisation (défaut 150 000)
+    const { data: orgData } = await (supabase as any)
+      .from('organizations')
+      .select('weekly_expense_budget')
+      .eq('id', organizationId)
+      .single()
+
+    const orgWeeklyBudget = Number(orgData?.weekly_expense_budget) || 150000.0
+
     // 1. Récupérer ou initialiser le cycle actif via la RPC atomique
     const { data: cycleData, error: cycleErr } = await (supabase as any).rpc(
       'get_or_create_active_expense_cycle',
       {
         p_org_id: organizationId,
-        p_default_budget: 100000.0,
+        p_default_budget: orgWeeklyBudget,
       }
     )
 
@@ -140,6 +150,7 @@ export async function getActiveExpenseCycleData() {
       hasOpenSalesSession: !!openSession,
       availableCashInDrawer: Math.max(0, availableCashInDrawer),
       totalWeekCashSales,
+      org_weekly_budget: orgWeeklyBudget,
     }
   } catch (err: unknown) {
     if (err instanceof AuthContextError) {
@@ -358,3 +369,42 @@ export async function uploadExpenseReceiptAction(formData: FormData) {
     return { success: false, error: getErrorMessage(err) }
   }
 }
+
+/**
+ * Met à jour le montant du budget hebdomadaire alloué à l'organisation
+ * et permet d'ajuster immédiatement le solde du cycle actif en cours.
+ */
+export async function updateOrganizationWeeklyBudgetAction(rawInput: unknown) {
+  try {
+    const { supabase, organizationId, userId } = await requireOrgRole([
+      'gerant',
+      'super_admin',
+    ])
+
+    const parsed = UpdateWeeklyBudgetSchema.parse(rawInput)
+
+    const { data, error } = await (supabase as any).rpc(
+      'update_organization_expense_budget',
+      {
+        p_org_id: organizationId,
+        p_new_budget: parsed.new_budget,
+        p_adjust_active_cycle: parsed.adjust_active_cycle,
+        p_user_id: userId,
+      }
+    )
+
+    if (error) {
+      console.error('Erreur update_organization_expense_budget:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/depenses')
+    revalidatePath('/dashboard')
+    revalidatePath('/admin')
+
+    return { success: true, data }
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) }
+  }
+}
+

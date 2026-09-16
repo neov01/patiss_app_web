@@ -54,6 +54,7 @@ export async function updateOrganization(orgId: string, data: {
   max_users?: number
   contact_email?: string | null
   contact_phone?: string | null
+  weekly_expense_budget?: number
 }) {
   try {
     await checkSuperAdmin()
