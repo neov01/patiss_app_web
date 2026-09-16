@@ -130,10 +130,18 @@ export type CreateTopUpInput = z.infer<typeof CreateTopUpSchema>
 export const CloseExpenseCycleSchema = z.object({
   cycle_id: z.string().uuid('ID de cycle invalide'),
   recharge_source: z.enum(['ventes_hebdo', 'apport_externe', 'mixte', 'aucune']).default('ventes_hebdo'),
-  new_budget: z.number().positive('Le budget cible doit être supérieur à 0').default(100000),
+  new_budget: z.number().positive('Le budget cible doit être supérieur à 0').default(150000),
 })
 
 export type CloseExpenseCycleInput = z.infer<typeof CloseExpenseCycleSchema>
+
+export const UpdateWeeklyBudgetSchema = z.object({
+  new_budget: z.number().positive('Le budget cible doit être supérieur à 0'),
+  adjust_active_cycle: z.boolean().default(false),
+})
+
+export type UpdateWeeklyBudgetInput = z.infer<typeof UpdateWeeklyBudgetSchema>
+
 
 // Types pour la vue et le state
 export interface ExpenseCycle {
