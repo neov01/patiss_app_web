@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import {
     LayoutDashboard, ShoppingBag, BookOpen, Package,
-    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store
+    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store, Wallet
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logoutKiosk } from '@/lib/actions/auth'
@@ -25,6 +25,7 @@ interface Props {
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'gerant', 'vendeur', 'patissier'] },
     { href: '/caisse', label: 'Caisse', icon: Store, roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/depenses', label: 'Dépenses', icon: Wallet, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/dashboard/clients', label: 'Clients', icon: Users, roles: ['super_admin', 'gerant', 'vendeur'] },
     { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, roles: ['super_admin', 'gerant', 'patissier', 'vendeur'] },

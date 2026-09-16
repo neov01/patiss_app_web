@@ -44,3 +44,4 @@ next-env.d.ts
 /test_profile.js
 /scripts/*.mjs
 test_*.js
+.claude/

@@ -129,6 +129,7 @@ export default function CustomerIntelligenceModal({
         .from("transactions")
         .select("amount, created_at")
         .eq("customer_id", clientId)
+        .is("deleted_at", null)
         .gte("created_at", sixMonthsAgo.toISOString())
         .order("created_at", { ascending: true })
       if (!data) return []

@@ -202,6 +202,7 @@ export default async function CaissePage() {
             .from('transactions')
             .select('id, client_name, amount, payment_method, order_id, order_payment_id, customer_id, created_at, label_type, orders(order_number, customer_id, total_amount, paid_amount, order_items(name, quantity), order_payments(id, amount, payment_method, payment_date, created_at)), transaction_items(name, quantity)')
             .eq('organization_id', orgId)
+            .is('deleted_at', null)
             .gte('created_at', todayStart)
             .order('created_at', { ascending: false }),
 

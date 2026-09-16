@@ -57,6 +57,7 @@ export async function getTransactionsForIA(orgId: string, daysBack: number = 7) 
         .from('transactions')
         .select('order_id, amount, label_type, payment_method, created_at, client_name')
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .gte('created_at', startDate)
         .order('created_at', { ascending: true })
 

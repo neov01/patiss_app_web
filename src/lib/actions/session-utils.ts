@@ -91,6 +91,7 @@ export async function closeSingleSession(
         .from('transactions')
         .select('amount, payment_method, payment_details, label_type')
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .gte('created_at', sessionStart)
 
     // Récupération des commandes depuis l'ouverture de la session

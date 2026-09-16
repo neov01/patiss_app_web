@@ -907,6 +907,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           customer_id: string | null
+          deleted_at: string | null
           id: string
           is_historical: boolean
           label_type: string
@@ -915,6 +916,7 @@ export type Database = {
           organization_id: string
           payment_details: Json | null
           payment_method: string
+          reference_code: string | null
         }
         Insert: {
           amount: number
@@ -922,6 +924,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
+          deleted_at?: string | null
           id?: string
           is_historical?: boolean
           label_type?: string
@@ -930,6 +933,7 @@ export type Database = {
           organization_id: string
           payment_details?: Json | null
           payment_method: string
+          reference_code?: string | null
         }
         Update: {
           amount?: number
@@ -937,6 +941,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
+          deleted_at?: string | null
           id?: string
           is_historical?: boolean
           label_type?: string
@@ -945,6 +950,7 @@ export type Database = {
           organization_id?: string
           payment_details?: Json | null
           payment_method?: string
+          reference_code?: string | null
         }
         Relationships: [
           {
