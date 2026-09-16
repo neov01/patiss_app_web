@@ -47,8 +47,7 @@ patiss_app_web/
 | **Permissions Vendeur** | Extension des droits : les profils vendeurs ont désormais les droits d'écriture complets sur le catalogue. |
 | **Modernisation Tactile** | 100% des inputs numériques convertis (TouchInput/NumPad). |
 | **Logiciel de Reporting** | Correction majeure du calcul du chiffre d'affaires (basé sur `transactions` et `opened_at`) pour des rapports quotidiens 100% fidèles. |
-| **Prise de Main Admin** | Système d'impersonation corrigé pour la production (détection DNS dynamique) permettant au Super Admin d'aider les clients en direct. |
-| **Dépenses & Régie d'avances** | Module de gestion de la menue caisse hebdomadaire (enveloppe 100 000 FCFA), étanche au tiroir-caisse des ventes, rallonges tracées en sortie de caisse, clôture dominicale et justificatifs photos. |
+| **Dépenses & Régie d'avances** | Module de gestion de la menue caisse hebdomadaire (enveloppe 150 000 FCFA par défaut, personnalisable par établissement), étanche au tiroir-caisse des ventes, rallonges tracées en sortie de caisse, clôture dominicale et justificatifs photos. |
 
 ---
 
