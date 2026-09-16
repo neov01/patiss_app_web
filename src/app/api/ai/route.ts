@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { env } from '@/lib/env'
-import { AuthContextError, requireOrganizationContext } from '@/lib/auth/organization-context'
-
-const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY)
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
+import { AuthContextError, requireOrganizationContextOrKiosk } from '@/lib/auth/organization-context'
+import { AllModelsUnavailableError, generateContentStreamResilient } from '@/lib/ai/gemini-resilient'
+import { reserveGlobalQuota } from '@/lib/ai/quota-guard'
 
 // Rate-limiter simple : 10 requêtes / 5 minutes par utilisateur + organisation
 const _rateLimiter = new Map<string, { count: number; resetAt: number }>()
@@ -27,14 +27,15 @@ const _ctxCache = new Map<string, { data: unknown; ts: number }>()
 const CTX_TTL = 5 * 60 * 1000
 
 async function getCachedContext(
-    supabase: Awaited<ReturnType<typeof requireOrganizationContext>>['supabase'],
-    organizationId: string
+    supabase: SupabaseClient<Database>,
+    organizationId: string,
+    actorId: string
 ) {
     const hit = _ctxCache.get(organizationId)
     if (hit && Date.now() - hit.ts < CTX_TTL) return hit.data
     const { data, error } = await supabase.rpc(
         'get_ia_financial_context',
-        { p_org_id: organizationId }
+        { p_org_id: organizationId, p_actor_id: actorId }
     )
     if (error) throw error
     _ctxCache.set(organizationId, { data, ts: Date.now() })
@@ -134,7 +135,7 @@ Tu as accès aux données opérationnelles de la pâtisserie depuis sa création
 export async function POST(req: NextRequest) {
     try {
         const { question } = await req.json()
-        const { supabase, userId, organizationId, currency, role } = await requireOrganizationContext()
+        const { supabase, userId, organizationId, currency, role } = await requireOrganizationContextOrKiosk()
 
         // Validation de l'entrée utilisateur
         if (typeof question !== 'string') {
@@ -147,12 +148,22 @@ export async function POST(req: NextRequest) {
             return new Response('⏳ Trop de requêtes. Attendez quelques minutes avant de réessayer.', { status: 429 })
         }
 
+        // Plafond à l'échelle du projet : le quota Gemini est partagé entre toutes
+        // les organisations, pas seulement entre les questions d'un même utilisateur.
+        const quota = reserveGlobalQuota()
+        if (!quota.allowed) {
+            return new Response(
+                `⏳ L'assistant reçoit beaucoup de questions en ce moment. Réessayez dans ${quota.retryAfterSec} secondes.`,
+                { status: 429, headers: { 'Retry-After': String(quota.retryAfterSec) } }
+            )
+        }
+
         const today = new Date().toISOString().split('T')[0]
 
         // Contexte financier avec cache 5 min (évite de rescanner 12 mois à chaque question)
         let rawContext: Record<string, unknown>
         try {
-            rawContext = (await getCachedContext(supabase, organizationId)) as Record<string, unknown>
+            rawContext = (await getCachedContext(supabase, organizationId, userId)) as Record<string, unknown>
         } catch (rpcErr) {
             console.error('[AI Route] RPC error:', rpcErr)
             return new Response("Erreur d'accès aux données financières. Contactez l'administrateur.", { status: 200 })
@@ -189,18 +200,27 @@ export async function POST(req: NextRequest) {
 
         const systemInstruction = isManager ? SYSTEM_INSTRUCTION_GERANT : SYSTEM_INSTRUCTION_EMPLOYE
 
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-flash-latest',
-            systemInstruction,
-        })
-
+        // JSON compact : l'indentation ne sert qu'à un lecteur humain, et personne ne
+        // lit ce prompt. Sur un contexte représentatif, elle coûtait 9 000 tokens
+        // par question (24 917 → 15 924, mesuré avec countTokens sur gemini-2.5-flash).
         const prompt = `Contexte complet de la pâtisserie (JSON) :
-${JSON.stringify(context, (k, v) => v === null ? undefined : v, 2)}
+${JSON.stringify(context, (k, v) => v === null ? undefined : v)}
 
 Question : ${trimmedQuestion}`
 
-        // Streaming → le texte apparaît dès le premier token (~200 ms)
-        const result = await model.generateContentStream(prompt)
+        // Streaming → le texte apparaît dès le premier token (~200 ms).
+        // La cascade encaisse les 503 de surcharge et les 429 de quota en changeant
+        // de modèle plutôt qu'en martelant le même.
+        const { result, model: usedModel, attempts } = await generateContentStreamResilient(
+            prompt,
+            systemInstruction
+        )
+
+        // Étape 5 — observabilité : quel modèle a répondu, au bout de combien d'essais.
+        if (attempts.length > 1) {
+            console.warn('[AI Route] cascade', JSON.stringify({ usedModel, attempts }))
+        }
+
         const encoder = new TextEncoder()
 
         const stream = new ReadableStream({
@@ -210,10 +230,12 @@ Question : ${trimmedQuestion}`
                         const text = chunk.text()
                         if (text) controller.enqueue(encoder.encode(text))
                     }
-                } catch (e) {
-                    controller.error(e)
-                } finally {
                     controller.close()
+                } catch (e) {
+                    // Pas de close() ici : appeler close() après error() lève un TypeError
+                    // et masque la panne d'origine.
+                    console.error('[AI Route] stream interrompu:', e)
+                    controller.error(e)
                 }
             }
         })
@@ -228,12 +250,30 @@ Question : ${trimmedQuestion}`
             return new Response(err.message, { status: err.status })
         }
 
+        // Cascade épuisée : tous les modèles ont refusé. On explique sans jargon.
+        // Le détail (modèles essayés, codes HTTP) reste dans les logs serveur.
+        if (err instanceof AllModelsUnavailableError) {
+            console.error('[AI Route] cascade épuisée', JSON.stringify(err.attempts))
+            return new Response(
+                "Croustik est momentanément surchargé côté serveur. Réessayez dans quelques instants.",
+                { status: 503, headers: { 'Retry-After': '15' } }
+            )
+        }
+
         const message = err instanceof Error ? err.message : 'Erreur inconnue'
 
         if (message.includes('429') || message.includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
-            return new Response("⏳ Le quota de l'IA est temporairement atteint. Réessayez dans 1-2 minutes.", { status: 200 })
+            return new Response(
+                "⏳ Le quota de l'IA est temporairement atteint. Réessayez dans 1-2 minutes.",
+                { status: 429, headers: { 'Retry-After': '60' } }
+            )
         }
 
-        return new Response(`Erreur technique : ${message.substring(0, 120)}. Réessayez.`, { status: 200 })
+        // Ne jamais renvoyer le message brut du SDK : il était tronqué à 120 caractères
+        // et s'affichait tel quel dans la bulle de chat ("[GoogleGenerativeAI E... flash-lat").
+        return new Response(
+            "Croustik n'a pas pu répondre à cette question. Réessayez dans un instant.",
+            { status: 502 }
+        )
     }
 }

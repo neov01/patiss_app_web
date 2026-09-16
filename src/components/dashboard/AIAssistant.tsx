@@ -81,7 +81,13 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                 body: JSON.stringify({ question: prompt, organizationId, currency, userRole }),
             })
 
-            if (!res.ok || !res.body) throw new Error('Réponse invalide')
+            // La route renvoie désormais un vrai code d'erreur avec un message déjà
+            // rédigé pour l'utilisateur : on l'affiche au lieu d'un texte générique.
+            if (!res.ok) {
+                const serverMessage = (await res.text()).trim()
+                throw new Error(serverMessage || 'Réponse invalide')
+            }
+            if (!res.body) throw new Error('Réponse invalide')
 
             const reader = res.body.getReader()
             const decoder = new TextDecoder()
@@ -111,11 +117,14 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                 return updated
             })
 
-        } catch {
+        } catch (err) {
+            const shown = err instanceof Error && err.message && err.message !== 'Réponse invalide'
+                ? err.message
+                : "Erreur de connexion à l'assistant IA."
             setHistory(prev => {
                 const updated = prev.map((item, idx) =>
                     idx === prev.length - 1
-                        ? { ...item, a: "Erreur de connexion à l'assistant IA.", loading: false, isError: true }
+                        ? { ...item, a: shown, loading: false, isError: true }
                         : item
                 )
                 persistHistory(updated)
