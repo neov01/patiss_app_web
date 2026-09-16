@@ -1,13 +1,15 @@
 'use client'
 
-import { Plus, Zap, CheckSquare, History } from 'lucide-react'
+import { Plus, Zap, CheckSquare, History, SlidersHorizontal } from 'lucide-react'
 
 interface Props {
   onOpenNewExpense: () => void
   onOpenTopUp: () => void
   onOpenClosing: () => void
   onOpenArchives: () => void
+  onOpenBudgetSettings?: () => void
   canClose: boolean
+  canManageBudget?: boolean
   isSundayOrMonday: boolean
 }
 
@@ -16,7 +18,9 @@ export default function QuickActionsBar({
   onOpenTopUp,
   onOpenClosing,
   onOpenArchives,
+  onOpenBudgetSettings,
   canClose,
+  canManageBudget,
   isSundayOrMonday,
 }: Props) {
   return (
@@ -92,8 +96,25 @@ export default function QuickActionsBar({
           title="Historique des cycles précédents"
         >
           <History className="w-4 h-4" />
-          <span className="hidden md:inline">Archives cycles</span>
+          <span className="hidden md:inline">Archives</span>
         </button>
+
+        {/* 5. Paramétrage Budget (Gérant/Admin) */}
+        {canManageBudget && onOpenBudgetSettings && (
+          <button
+            onClick={onOpenBudgetSettings}
+            className="flex items-center justify-center gap-1.5 px-3.5 text-xs font-semibold text-[#51443C] bg-[#FFFFFF] border border-[rgba(131,116,107,0.2)] hover:bg-[#F5EEE4] transition-all"
+            style={{
+              height: '44px',
+              borderRadius: '9999px',
+              cursor: 'pointer',
+            }}
+            title="Modifier le budget de régie hebdomadaire"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-[#815431]" />
+            <span className="hidden sm:inline">Budget régie</span>
+          </button>
+        )}
       </div>
     </div>
   )

@@ -29,6 +29,7 @@ interface Props {
   expenses: Expense[]
   topUps: BudgetTopUp[]
   totalWeekCashSales: number
+  orgWeeklyBudget?: number
   onCycleClosed: () => void
 }
 
@@ -39,17 +40,19 @@ export default function WeeklyClosingModal({
   expenses,
   topUps,
   totalWeekCashSales,
+  orgWeeklyBudget,
   onCycleClosed,
 }: Props) {
   const { currency } = useCurrency()
-  const [newBudgetStr, setNewBudgetStr] = useState(String(cycle.initial_budget || 100000))
+  const targetDefault = orgWeeklyBudget || Number(cycle.initial_budget) || 150000
+  const [newBudgetStr, setNewBudgetStr] = useState(String(targetDefault))
   const [rechargeSource, setRechargeSource] = useState<'ventes_hebdo' | 'apport_externe' | 'mixte'>('ventes_hebdo')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const newBudgetTarget = parseFloat(newBudgetStr) || 100000
+  const newBudgetTarget = parseFloat(newBudgetStr) || targetDefault
   const currentBalance = Number(cycle.current_balance) || 0
   const totalSpent = Number(cycle.total_spent) || 0
-  const totalAllocated = Number(cycle.total_allocated) || 100000
+  const totalAllocated = Number(cycle.total_allocated) || targetDefault
 
   // Calcul exact de la recharge nécessaire
   // Si currentBalance < 0, GREATEST(0, newBudgetTarget - (-X)) = newBudgetTarget + X
@@ -359,7 +362,7 @@ export default function WeeklyClosingModal({
             <TouchInput
               value={newBudgetStr}
               onChange={setNewBudgetStr}
-              placeholder="100000"
+              placeholder={String(targetDefault)}
               title="Budget cible de la nouvelle semaine"
               style={{
                 height: '46px',

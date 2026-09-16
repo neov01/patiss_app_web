@@ -39,6 +39,7 @@ interface Org {
     max_users: number
     contact_email: string | null
     contact_phone: string | null
+    weekly_expense_budget?: number
 }
 
 
@@ -164,7 +165,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
         tier: 'Basic',
         max_users: 5,
         contact_email: '',
-        contact_phone: ''
+        contact_phone: '',
+        weekly_expense_budget: 150000,
     })
 
     const [impersonationLoading, setImpersonationLoading] = useState(false)
@@ -182,7 +184,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 tier: org.tier || 'Basic',
                 max_users: org.max_users || 5,
                 contact_email: org.contact_email ?? '',
-                contact_phone: org.contact_phone ?? ''
+                contact_phone: org.contact_phone ?? '',
+                weekly_expense_budget: Number(org.weekly_expense_budget) || 150000,
             })
         }
         setTab('info')
@@ -268,7 +271,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 tier: subForm.tier,
                 max_users: subForm.max_users,
                 contact_email: subForm.contact_email || null,
-                contact_phone: subForm.contact_phone || null
+                contact_phone: subForm.contact_phone || null,
+                weekly_expense_budget: subForm.weekly_expense_budget,
             })
             if (res.error) { toast.error(res.error); return }
             setOrgs(prev => prev.map(o => o.id === selectedOrg.id ? {
@@ -279,7 +283,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 tier: subForm.tier,
                 max_users: subForm.max_users,
                 contact_email: subForm.contact_email || null,
-                contact_phone: subForm.contact_phone || null
+                contact_phone: subForm.contact_phone || null,
+                weekly_expense_budget: subForm.weekly_expense_budget,
             } : o))
             toast.success('Pâtisserie mise à jour ✓')
         })
@@ -916,6 +921,17 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                 isPhone={true}
                                                 placeholder="+225 ..."
                                                 title="Téléphone Propriétaire"
+                                            />
+                                        </Field>
+                                    </div>
+
+                                    <div>
+                                        <Field label={`Budget Régie Hebdomadaire (${subForm.currency_symbol || 'FCFA'})`}>
+                                            <TouchInput 
+                                                value={String(subForm.weekly_expense_budget || 150000)} 
+                                                onChange={val => setSubForm(f => ({ ...f, weekly_expense_budget: parseFloat(val) || 0 }))}
+                                                placeholder="150000"
+                                                title="Budget régie hebdomadaire"
                                             />
                                         </Field>
                                     </div>

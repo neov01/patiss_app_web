@@ -19,7 +19,7 @@ export default function BudgetHeroGauge({
   const { currency } = useCurrency()
 
   // Calcul du pourcentage dépensé
-  const totalAllocated = Number(cycle.total_allocated) || 100000
+  const totalAllocated = Number(cycle.total_allocated) || 150000
   const totalSpent = Number(cycle.total_spent) || 0
   const currentBalance = Number(cycle.current_balance) || 0
 

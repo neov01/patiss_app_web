@@ -576,6 +576,7 @@ export type Database = {
           name: string
           subscription_end_date: string | null
           tier: string
+          weekly_expense_budget: number
         }
         Insert: {
           contact_email?: string | null
@@ -588,6 +589,7 @@ export type Database = {
           name: string
           subscription_end_date?: string | null
           tier?: string
+          weekly_expense_budget?: number
         }
         Update: {
           contact_email?: string | null
@@ -600,6 +602,7 @@ export type Database = {
           name?: string
           subscription_end_date?: string | null
           tier?: string
+          weekly_expense_budget?: number
         }
         Relationships: []
       }

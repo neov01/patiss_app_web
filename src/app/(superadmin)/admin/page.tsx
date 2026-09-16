@@ -12,6 +12,7 @@ type AdminOrg = {
   max_users: number
   contact_email: string | null
   contact_phone: string | null
+  weekly_expense_budget?: number
 }
 
 type RoleOption = {
@@ -35,7 +36,7 @@ export default async function AdminPage() {
   // Fetch all orgs with member count
   const { data: fetchedOrgs, error: orgsError } = await supabase
     .from('organizations')
-    .select('id, name, currency_symbol, subscription_end_date, kiosk_code, tier, max_users, contact_email, contact_phone')
+    .select('id, name, currency_symbol, subscription_end_date, kiosk_code, tier, max_users, contact_email, contact_phone, weekly_expense_budget')
     .order('name')
   let orgs: AdminOrg[] | null = fetchedOrgs
 

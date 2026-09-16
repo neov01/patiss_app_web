@@ -12,9 +12,9 @@ import WeeklyClosingModal from './WeeklyClosingModal'
 import CancelExpenseModal from './CancelExpenseModal'
 import ReceiptPreviewModal from './ReceiptPreviewModal'
 import CycleArchiveDrawer from './CycleArchiveDrawer'
+import BudgetSettingsModal from './BudgetSettingsModal'
 import type { ExpenseCycle, Expense, BudgetTopUp } from '@/lib/schemas/expenses'
 import { getActiveExpenseCycleData } from '@/lib/actions/expenses'
-import { toast } from 'sonner'
 
 interface Props {
   initialCycle: ExpenseCycle
@@ -24,6 +24,7 @@ interface Props {
   availableCashInDrawer: number
   totalWeekCashSales: number
   userRole: string
+  initialOrgBudget?: number
 }
 
 export default function DepensesClient({
@@ -34,6 +35,7 @@ export default function DepensesClient({
   availableCashInDrawer,
   totalWeekCashSales,
   userRole,
+  initialOrgBudget,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -43,16 +45,19 @@ export default function DepensesClient({
   const [topUps, setTopUps] = useState<BudgetTopUp[]>(initialTopUps)
   const [cashInDrawer, setCashInDrawer] = useState(availableCashInDrawer)
   const [weekSales, setWeekSales] = useState(totalWeekCashSales)
+  const [orgBudget, setOrgBudget] = useState(initialOrgBudget || Number(initialCycle.initial_budget) || 150000)
 
   // Modals state
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false)
   const [isTopUpOpen, setIsTopUpOpen] = useState(false)
   const [isClosingOpen, setIsClosingOpen] = useState(false)
   const [isArchivesOpen, setIsArchivesOpen] = useState(false)
+  const [isBudgetSettingsOpen, setIsBudgetSettingsOpen] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<Expense | null>(null)
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null)
 
   const canClose = ['super_admin', 'gerant'].includes(userRole)
+  const canManageBudget = ['super_admin', 'gerant'].includes(userRole)
 
   // Détection du dimanche ou lundi pour la clôture
   const now = new Date()
@@ -70,6 +75,9 @@ export default function DepensesClient({
       setTopUps(res.topUps || [])
       setCashInDrawer(res.availableCashInDrawer || 0)
       setWeekSales(res.totalWeekCashSales || 0)
+      if (res.org_weekly_budget) {
+        setOrgBudget(res.org_weekly_budget)
+      }
     }
     startTransition(() => {
       router.refresh()
@@ -85,7 +93,7 @@ export default function DepensesClient({
             Régie Dépenses & Menue Caisse
           </h1>
           <p className="text-xs md:text-sm text-[#51443C] mt-0.5">
-            Petite caisse de fonctionnement hebdomadaire fixe (100 000 FCFA) · Isolée des ventes
+            Petite caisse de fonctionnement hebdomadaire ({new Intl.NumberFormat('fr-FR').format(orgBudget)} FCFA) · Isolée des ventes
           </p>
         </div>
       </div>
@@ -103,7 +111,9 @@ export default function DepensesClient({
         onOpenTopUp={() => setIsTopUpOpen(true)}
         onOpenClosing={() => setIsClosingOpen(true)}
         onOpenArchives={() => setIsArchivesOpen(true)}
+        onOpenBudgetSettings={() => setIsBudgetSettingsOpen(true)}
         canClose={canClose}
+        canManageBudget={canManageBudget}
         isSundayOrMonday={isSundayOrMonday}
       />
 
@@ -158,7 +168,18 @@ export default function DepensesClient({
         expenses={expenses}
         topUps={topUps}
         totalWeekCashSales={weekSales}
+        orgWeeklyBudget={orgBudget}
         onCycleClosed={refreshData}
+      />
+
+      {/* Modal de paramétrage du budget hebdomadaire */}
+      <BudgetSettingsModal
+        isOpen={isBudgetSettingsOpen}
+        onClose={() => setIsBudgetSettingsOpen(false)}
+        currentOrgBudget={orgBudget}
+        activeCycleBudget={Number(cycle.initial_budget)}
+        activeCycleBalance={Number(cycle.current_balance)}
+        onBudgetUpdated={refreshData}
       />
 
       {/* Modal d'annulation de dépense avec motif */}

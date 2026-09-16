@@ -5,7 +5,7 @@ import DepensesClient from '@/components/depenses/DepensesClient'
 
 export const metadata = {
   title: 'Dépenses & Petite Caisse — Pâtiss\'App',
-  description: 'Gestion de la régie d’avances hebdomadaire (100 000 FCFA), dépenses quotidiennes et clôture.',
+  description: 'Gestion de la régie d’avances hebdomadaire (150 000 FCFA), dépenses quotidiennes et clôture.',
 }
 
 export default async function DepensesPage() {
@@ -52,6 +52,7 @@ export default async function DepensesPage() {
       availableCashInDrawer={result.availableCashInDrawer || 0}
       totalWeekCashSales={result.totalWeekCashSales || 0}
       userRole={profile.role_slug}
+      initialOrgBudget={result.org_weekly_budget || 150000}
     />
   )
 }
