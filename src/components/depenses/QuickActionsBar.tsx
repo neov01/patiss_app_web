@@ -10,7 +10,7 @@ interface Props {
   onOpenBudgetSettings?: () => void
   canClose: boolean
   canManageBudget?: boolean
-  isSundayOrMonday: boolean
+  isClosingDue: boolean
 }
 
 export default function QuickActionsBar({
@@ -21,7 +21,7 @@ export default function QuickActionsBar({
   onOpenBudgetSettings,
   canClose,
   canManageBudget,
-  isSundayOrMonday,
+  isClosingDue,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
@@ -64,12 +64,12 @@ export default function QuickActionsBar({
 
       {/* Boutons de gestion et archives */}
       <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-        {/* 3. Clôture Hebdomadaire (Gérant/Admin) */}
+        {/* 3. Bilan hebdomadaire (dimanche, caissière ou gérant) */}
         {canClose && (
           <button
             onClick={onOpenClosing}
             className={`flex items-center justify-center gap-2 px-4 text-xs font-bold transition-all active:scale-[0.98] ${
-              isSundayOrMonday
+              isClosingDue
                 ? 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] animate-pulse'
                 : 'bg-[#F5EEE4] text-[#815431] border border-[rgba(131,116,107,0.2)]'
             }`}
@@ -80,7 +80,7 @@ export default function QuickActionsBar({
             }}
           >
             <CheckSquare className="w-4 h-4" />
-            <span>Clôture hebdomadaire</span>
+            <span>Bilan de la semaine</span>
           </button>
         )}
 

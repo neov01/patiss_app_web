@@ -133,6 +133,28 @@ export async function closeSingleSession(
 
     const alertItems = (allIngredients ?? []).filter(i => i.current_stock <= i.alert_threshold)
 
+    // 3b. RÉGIE DÉPENSES — dépenses saisies pendant la session et solde de l'enveloppe (lecture seule)
+    const [{ data: dayExpenses }, { data: activeExpenseCycle }] = await Promise.all([
+        supabaseAdmin
+            .from('expenses')
+            .select('amount')
+            .eq('organization_id', orgId)
+            .eq('is_cancelled', false)
+            .gte('created_at', sessionStart),
+        supabaseAdmin
+            .from('expense_cycles')
+            .select('id, current_balance')
+            .eq('organization_id', orgId)
+            .eq('status', 'active')
+            .maybeSingle(),
+    ])
+    const expensesSummary = {
+        totalDay: (dayExpenses ?? []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+        countDay: (dayExpenses ?? []).length,
+        envelopeBalance: activeExpenseCycle ? Number(activeExpenseCycle.current_balance) || 0 : null,
+        cycleId: activeExpenseCycle?.id ?? null,
+    }
+
     // 4. CLÔTURE OFFICIELLE EN DB
     const { error: updateError } = await supabaseAdmin
         .from('sales_sessions')
@@ -148,6 +170,7 @@ export async function closeSingleSession(
                 totalEspeces, totalOrangeMoney, totalWave, totalMtnMomo, totalMoovMoney,
                 totalAcomptes, totalSoldes, totalVentesDirectes,
                 totalPending, totalOrders, completedOrders, alertItems,
+                expenses: expensesSummary,
                 generatedAt: new Date().toISOString()
             }
         })
@@ -376,6 +399,13 @@ export async function closeSingleSession(
     <div style="background:#d4edda;border-left:4px solid #28a745;border-radius:8px;padding:14px 20px;margin-top:16px;">
       <p style="margin:0;color:#155724;font-size:13px;font-weight:600;">✅ Aucun solde en attente — toutes les commandes sont soldées.</p>
     </div>`}
+
+    <!-- RÉGIE DÉPENSES -->
+    <div style="background:#F5EEE4;border-left:4px solid #815431;border-radius:8px;padding:14px 20px;margin-top:16px;">
+      <p style="margin:0;font-size:13px;color:#51443C;font-weight:600;">
+        💸 Dépenses du jour : <strong>${expensesSummary.totalDay.toLocaleString('fr-FR')} ${currency}</strong> (${expensesSummary.countDay} achat${expensesSummary.countDay > 1 ? 's' : ''})${expensesSummary.envelopeBalance !== null ? ` — Solde enveloppe : <strong>${expensesSummary.envelopeBalance.toLocaleString('fr-FR')} ${currency}</strong>` : ''}
+      </p>
+    </div>
 
     <!-- COMMANDES -->
     <div style="margin-top:28px;padding-top:24px;border-top:1px solid #f0e8e0;">

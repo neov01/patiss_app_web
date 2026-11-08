@@ -50,9 +50,9 @@ export default async function DepensesPage() {
       initialTopUps={result.topUps || []}
       hasOpenSalesSession={result.hasOpenSalesSession || false}
       availableCashInDrawer={result.availableCashInDrawer || 0}
-      totalWeekCashSales={result.totalWeekCashSales || 0}
       userRole={profile.role_slug}
       initialOrgBudget={result.org_weekly_budget || 150000}
+      initialPreviousBilanMissing={result.previousBilanMissing || false}
     />
   )
 }

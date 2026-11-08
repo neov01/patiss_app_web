@@ -1,20 +1,33 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   AuthContextError,
   requireOrgRole,
 } from '@/lib/auth/organization-context'
 import {
   CancelExpenseSchema,
-  CloseExpenseCycleSchema,
   CreateExpenseSchema,
   CreateTopUpSchema,
   UpdateWeeklyBudgetSchema,
+  WeeklyClosingSchema,
   type BudgetTopUp,
   type Expense,
   type ExpenseCycle,
+  type WeeklyBilanPreview,
 } from '@/lib/schemas/expenses'
+import {
+  buildWeeklyBilan,
+  isWeeklyClosingDue,
+  sumCashFromTransactions,
+} from '@/lib/domain/expenses'
+
+// Les tables / RPC de la régie ne figurent pas dans les types générés :
+// client non typé explicite plutôt que `any`.
+function untypedDb(client: unknown): SupabaseClient {
+  return client as SupabaseClient
+}
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Erreur inattendue'
@@ -93,7 +106,7 @@ export async function getActiveExpenseCycleData() {
 
     let availableCashInDrawer = 0
     if (openSession) {
-      // Calculer les espèces physiques actuellement en caisse
+      // Espèces physiques actuellement en caisse (sorties de caisse déduites)
       const { data: cashTxs } = await supabase
         .from('transactions')
         .select('amount, payment_method, payment_details')
@@ -101,19 +114,7 @@ export async function getActiveExpenseCycleData() {
         .gte('created_at', openSession.opened_at)
         .is('deleted_at', null)
 
-      if (cashTxs) {
-        for (const tx of cashTxs) {
-          const amt = Number(tx.amount ?? 0)
-          if (tx.payment_method === 'Espèces') {
-            availableCashInDrawer += amt
-          } else if (tx.payment_details && typeof tx.payment_details === 'object') {
-            const details = tx.payment_details as Record<string, number>
-            if (details['Espèces']) {
-              availableCashInDrawer += Number(details['Espèces'] ?? 0)
-            }
-          }
-        }
-      }
+      availableCashInDrawer = sumCashFromTransactions(cashTxs ?? [], { includeOutflows: true })
     }
 
     // 5. Calculer le total des ventes espèces de la semaine en cours (pour la clôture)
@@ -124,23 +125,20 @@ export async function getActiveExpenseCycleData() {
       .gte('created_at', activeCycle.start_date)
       .is('deleted_at', null)
 
-    let totalWeekCashSales = 0
-    if (weekCashTxs) {
-      for (const tx of weekCashTxs) {
-        const amt = Number(tx.amount ?? 0)
-        // Ignorer les sorties de caisse pour connaître les recettes brutes encaissées
-        if (amt > 0) {
-          if (tx.payment_method === 'Espèces') {
-            totalWeekCashSales += amt
-          } else if (tx.payment_details && typeof tx.payment_details === 'object') {
-            const details = tx.payment_details as Record<string, number>
-            if (details['Espèces']) {
-              totalWeekCashSales += Number(details['Espèces'] ?? 0)
-            }
-          }
-        }
-      }
-    }
+    // Recettes espèces brutes (sorties de caisse ignorées)
+    const totalWeekCashSales = sumCashFromTransactions(weekCashTxs ?? [])
+
+    // 6. La semaine précédente a-t-elle basculé automatiquement sans bilan ?
+    const { data: lastClosed } = await untypedDb(supabase)
+      .from('expense_cycles')
+      .select('recharge_source')
+      .eq('organization_id', organizationId)
+      .eq('status', 'closed')
+      .order('closed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const previousBilanMissing = lastClosed?.recharge_source === 'non_enregistree'
 
     return {
       success: true,
@@ -151,6 +149,7 @@ export async function getActiveExpenseCycleData() {
       availableCashInDrawer: Math.max(0, availableCashInDrawer),
       totalWeekCashSales,
       org_weekly_budget: orgWeeklyBudget,
+      previousBilanMissing,
     }
   } catch (err: unknown) {
     if (err instanceof AuthContextError) {
@@ -267,31 +266,97 @@ export async function createTopUpAction(rawInput: unknown) {
   }
 }
 
+const WEEKLY_CLOSING_ROLES = ['gerant', 'super_admin', 'vendeur']
+
 /**
- * Clôture le cycle hebdomadaire et ouvre le cycle suivant à 100 000 FCFA
+ * Aperçu du bilan hebdomadaire : semaine active, recharge à prélever dans le
+ * tiroir et estimation des espèces à remettre à la gérante.
+ * Lecture seule (hormis la bascule automatique d'une semaine dépassée).
  */
-export async function closeWeeklyCycleAction(rawInput: unknown) {
+export async function getWeeklyBilanPreviewAction(): Promise<{
+  success: boolean
+  preview?: WeeklyBilanPreview
+  error?: string
+}> {
   try {
-    const parsed = CloseExpenseCycleSchema.parse(rawInput)
-    const { supabase, organizationId, userId } = await requireOrgRole([
-      'gerant',
-      'super_admin',
+    const { supabase, organizationId } = await requireOrgRole(WEEKLY_CLOSING_ROLES)
+
+    const { data: orgData } = await untypedDb(supabase)
+      .from('organizations')
+      .select('weekly_expense_budget')
+      .eq('id', organizationId)
+      .single()
+    const budget = Number(orgData?.weekly_expense_budget) || 150000
+
+    const { data: cycleData, error: cycleErr } = await untypedDb(supabase).rpc(
+      'get_or_create_active_expense_cycle',
+      { p_org_id: organizationId, p_default_budget: budget }
+    )
+    if (cycleErr || !cycleData) {
+      return { success: false, error: cycleErr?.message || 'Semaine de dépenses introuvable' }
+    }
+    const cycle = cycleData as unknown as ExpenseCycle
+
+    const [{ data: openSession }, { data: weekTxs }] = await Promise.all([
+      supabase
+        .from('sales_sessions')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('status', 'open')
+        .maybeSingle(),
+      supabase
+        .from('transactions')
+        .select('amount, payment_method, payment_details')
+        .eq('organization_id', organizationId)
+        .gte('created_at', cycle.start_date)
+        .is('deleted_at', null),
     ])
 
-    const { data, error } = await (supabase as any).rpc('close_expense_cycle_atomic', {
+    const currentBalance = Number(cycle.current_balance) || 0
+    const netWeekCash = sumCashFromTransactions(weekTxs ?? [], { includeOutflows: true })
+    const figures = buildWeeklyBilan({ budget, currentBalance, netWeekCash })
+
+    return {
+      success: true,
+      preview: {
+        cycleId: cycle.id,
+        startDate: cycle.start_date,
+        endDate: cycle.end_date,
+        isDue: isWeeklyClosingDue(cycle.end_date, new Date()),
+        budget,
+        currentBalance,
+        netWeekCash,
+        ...figures,
+        hasOpenSalesSession: !!openSession,
+      },
+    }
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) }
+  }
+}
+
+/**
+ * Bilan hebdomadaire : prélève la recharge dans le tiroir (sortie de caisse),
+ * archive la semaine et ouvre la suivante au budget de l'organisation.
+ * Accessible aux vendeurs : c'est la caissière qui fait le bilan du dimanche.
+ */
+export async function weeklyExpenseClosingAction(rawInput: unknown) {
+  try {
+    const parsed = WeeklyClosingSchema.parse(rawInput)
+    const { supabase, organizationId } = await requireOrgRole(WEEKLY_CLOSING_ROLES)
+
+    const { data, error } = await untypedDb(supabase).rpc('weekly_expense_closing_atomic', {
       p_org_id: organizationId,
       p_cycle_id: parsed.cycle_id,
-      p_recharge_source: parsed.recharge_source,
-      p_user_id: userId,
-      p_new_budget: parsed.new_budget,
     })
 
     if (error) {
-      console.error('Erreur close_expense_cycle_atomic:', error)
+      console.error('Erreur weekly_expense_closing_atomic:', error.message)
       return { success: false, error: error.message }
     }
 
     revalidatePath('/depenses')
+    revalidatePath('/caisse')
     revalidatePath('/dashboard')
 
     return { success: true, data }

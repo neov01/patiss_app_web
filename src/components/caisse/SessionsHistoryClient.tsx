@@ -23,6 +23,11 @@ type SessionMetricsSnapshot = {
     totalVentesDirectes?: number
     totalOrders?: number
     completedOrders?: number
+    expenses?: {
+        totalDay: number
+        countDay: number
+        envelopeBalance: number | null
+    }
     alertItems?: Array<{
         name: string
         current_stock: number
@@ -398,6 +403,25 @@ export default function SessionsHistoryClient({
                                             <span>{(selectedSession.metrics_snapshot.totalOrders || 0) - (selectedSession.metrics_snapshot.completedOrders || 0)}</span>
                                         </div>
                                     </div>
+
+                                    {/* Régie dépenses : achats saisis pendant la session */}
+                                    {selectedSession.metrics_snapshot.expenses && (
+                                        <>
+                                            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: '12px' }}>💸 Dépenses</h3>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                                                    <span>Dépenses du jour ({selectedSession.metrics_snapshot.expenses.countDay} achat{selectedSession.metrics_snapshot.expenses.countDay > 1 ? 's' : ''})</span>
+                                                    <span>{(selectedSession.metrics_snapshot.expenses.totalDay || 0).toLocaleString('fr-FR')} {currency}</span>
+                                                </div>
+                                                {selectedSession.metrics_snapshot.expenses.envelopeBalance !== null && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 700 }}>
+                                                        <span>Solde de l&apos;enveloppe à la clôture</span>
+                                                        <span>{selectedSession.metrics_snapshot.expenses.envelopeBalance.toLocaleString('fr-FR')} {currency}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
 
                                     {/* Alertes stocks au moment de la clôture */}
                                     {selectedSession.metrics_snapshot.alertItems && selectedSession.metrics_snapshot.alertItems.length > 0 && (

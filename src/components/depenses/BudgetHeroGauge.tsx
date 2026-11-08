@@ -7,14 +7,12 @@ import { useCurrency } from '@/providers/CurrencyProvider'
 
 interface Props {
   cycle: ExpenseCycle
-  isPastCycleUnclosed?: boolean
-  onOpenClosingModal?: () => void
+  previousBilanMissing?: boolean
 }
 
 export default function BudgetHeroGauge({
   cycle,
-  isPastCycleUnclosed = false,
-  onOpenClosingModal,
+  previousBilanMissing = false,
 }: Props) {
   const { currency } = useCurrency()
 
@@ -77,9 +75,10 @@ export default function BudgetHeroGauge({
 
   return (
     <div className="space-y-3">
-      {/* Alerte non bloquante si le cycle de la semaine passée n'a pas été clôturé */}
-      {isPastCycleUnclosed && (
+      {/* Information non bloquante : la semaine précédente a basculé sans bilan */}
+      {previousBilanMissing && (
         <div
+          role="status"
           style={{
             backgroundColor: '#FEF3C7',
             border: '1px solid #FDE68A',
@@ -88,34 +87,14 @@ export default function BudgetHeroGauge({
             padding: '12px 18px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
             gap: '12px',
           }}
         >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-[#D97706]" />
-            <span className="text-sm font-semibold">
-              Le cycle de la semaine passée n'est pas encore clôturé. Clôturez-le pour réinitialiser le budget à {formatMoney(cycle.initial_budget)} {currency}.
-            </span>
-          </div>
-          {onOpenClosingModal && (
-            <button
-              onClick={onOpenClosingModal}
-              style={{
-                backgroundColor: '#815431',
-                color: '#FFFFFF',
-                borderRadius: '9999px',
-                padding: '6px 16px',
-                fontSize: '13px',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Clôturer maintenant
-            </button>
-          )}
+          <AlertTriangle className="w-5 h-5 shrink-0 text-[#D97706]" />
+          <span className="text-sm font-semibold">
+            Le bilan de la semaine dernière n&apos;a pas été fait : la recharge de l&apos;enveloppe n&apos;a pas été enregistrée en caisse.
+            La semaine en cours a démarré automatiquement à {formatMoney(Number(cycle.initial_budget))} {currency}.
+          </span>
         </div>
       )}
 
