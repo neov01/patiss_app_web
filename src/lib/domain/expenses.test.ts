@@ -3,10 +3,16 @@ import {
   EXPENSE_CATEGORIES,
   CATEGORY_CONFIG,
   CreateExpenseSchema,
-  CloseExpenseCycleSchema,
+  WeeklyClosingSchema,
   CreateTopUpSchema,
   UpdateWeeklyBudgetSchema,
 } from '@/lib/schemas/expenses'
+import {
+  computeWeeklyRecharge,
+  sumCashFromTransactions,
+  isWeeklyClosingDue,
+  buildWeeklyBilan,
+} from '@/lib/domain/expenses'
 
 describe('Expenses Domain & Schemas', () => {
   it('should have a configuration entry for every expense category', () => {
@@ -54,44 +60,54 @@ describe('Expenses Domain & Schemas', () => {
   })
 
   it('computes Sunday recharge amount accurately for 150 000 FCFA envelope', () => {
-    const computeRecharge = (budgetTarget: number, currentBalance: number) => {
-      return Math.max(0, budgetTarget - currentBalance)
-    }
-
-    // Standard case: 150k target, 35k remaining -> 115k recharge
-    expect(computeRecharge(150000, 35000)).toBe(115000)
-
-    // Deficit case: 150k target, -8k remaining -> 158k recharge
-    expect(computeRecharge(150000, -8000)).toBe(158000)
-
-    // Unspent case: 150k target, 150k remaining -> 0 recharge
-    expect(computeRecharge(150000, 150000)).toBe(0)
-
-    // Surplus case: 150k target, 180k remaining -> 0 recharge
-    expect(computeRecharge(150000, 180000)).toBe(0)
+    // Cas standard : 150k cible, 35k restants -> 115k de recharge
+    expect(computeWeeklyRecharge(150000, 35000)).toBe(115000)
+    // Découvert : 150k cible, -8k restants -> 158k de recharge
+    expect(computeWeeklyRecharge(150000, -8000)).toBe(158000)
+    // Rien dépensé -> pas de recharge
+    expect(computeWeeklyRecharge(150000, 150000)).toBe(0)
+    // Excédent -> pas de recharge
+    expect(computeWeeklyRecharge(150000, 180000)).toBe(0)
   })
 
-  it('validates and applies 150 000 FCFA default for closing payload', () => {
-    const validWithExplicit = {
-      cycle_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      recharge_source: 'ventes_hebdo',
-      new_budget: 180000,
-    }
-    const resultWithExplicit = CloseExpenseCycleSchema.safeParse(validWithExplicit)
-    expect(resultWithExplicit.success).toBe(true)
-    if (resultWithExplicit.success) {
-      expect(resultWithExplicit.data.new_budget).toBe(180000)
-    }
+  it('sums cash from transactions with and without outflows', () => {
+    const txs = [
+      { amount: 10000, payment_method: 'Espèces', payment_details: null },
+      { amount: 5000, payment_method: 'Wave', payment_details: null },
+      { amount: 8000, payment_method: 'Mixte', payment_details: { 'Espèces': 3000, Wave: 5000 } },
+      { amount: -4000, payment_method: 'Espèces', payment_details: { 'Espèces': -4000 } },
+    ]
+    // Encaissements bruts : 10 000 + 3 000
+    expect(sumCashFromTransactions(txs)).toBe(13000)
+    // Espèces nettes (sorties incluses) : 13 000 - 4 000
+    expect(sumCashFromTransactions(txs, { includeOutflows: true })).toBe(9000)
+    expect(sumCashFromTransactions([])).toBe(0)
+  })
 
-    const validWithDefault = {
-      cycle_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      recharge_source: 'ventes_hebdo',
-    }
-    const resultWithDefault = CloseExpenseCycleSchema.safeParse(validWithDefault)
-    expect(resultWithDefault.success).toBe(true)
-    if (resultWithDefault.success) {
-      expect(resultWithDefault.data.new_budget).toBe(150000)
-    }
+  it('detects when the weekly bilan is due (last day of the cycle, UTC)', () => {
+    const end = '2026-11-08T23:59:59.999Z' // dimanche
+    expect(isWeeklyClosingDue(end, new Date('2026-11-07T20:00:00Z'))).toBe(false) // samedi soir
+    expect(isWeeklyClosingDue(end, new Date('2026-11-08T00:00:00Z'))).toBe(true) // dimanche 00h
+    expect(isWeeklyClosingDue(end, new Date('2026-11-08T21:30:00Z'))).toBe(true) // dimanche soir
+    expect(isWeeklyClosingDue(end, new Date('2026-11-09T00:10:00Z'))).toBe(true) // juste après minuit
+  })
+
+  it('builds the weekly bilan (recharge, amount to remit, sufficiency)', () => {
+    expect(buildWeeklyBilan({ budget: 150000, currentBalance: 50000, netWeekCash: 400000 })).toEqual({
+      recharge: 100000,
+      toRemit: 300000,
+      isCashSufficient: true,
+    })
+    expect(buildWeeklyBilan({ budget: 150000, currentBalance: 20000, netWeekCash: 90000 })).toEqual({
+      recharge: 130000,
+      toRemit: 0,
+      isCashSufficient: false,
+    })
+  })
+
+  it('validates the weekly closing payload (cycle id only, no amount)', () => {
+    expect(WeeklyClosingSchema.safeParse({ cycle_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }).success).toBe(true)
+    expect(WeeklyClosingSchema.safeParse({ cycle_id: 'pas-un-uuid' }).success).toBe(false)
   })
 
   it('validates weekly budget modification schema', () => {

@@ -127,13 +127,27 @@ export const CreateTopUpSchema = z.object({
 
 export type CreateTopUpInput = z.infer<typeof CreateTopUpSchema>
 
-export const CloseExpenseCycleSchema = z.object({
+// Bilan hebdomadaire : seul l'identifiant du cycle est fourni (garde-fou contre un aperçu périmé).
+// Budget, recharge, organisation et auteur sont résolus côté serveur / SQL.
+export const WeeklyClosingSchema = z.object({
   cycle_id: z.string().uuid('ID de cycle invalide'),
-  recharge_source: z.enum(['ventes_hebdo', 'apport_externe', 'mixte', 'aucune']).default('ventes_hebdo'),
-  new_budget: z.number().positive('Le budget cible doit être supérieur à 0').default(150000),
 })
 
-export type CloseExpenseCycleInput = z.infer<typeof CloseExpenseCycleSchema>
+export type WeeklyClosingInput = z.infer<typeof WeeklyClosingSchema>
+
+export interface WeeklyBilanPreview {
+  cycleId: string
+  startDate: string
+  endDate: string
+  isDue: boolean
+  budget: number
+  currentBalance: number
+  recharge: number
+  netWeekCash: number
+  toRemit: number
+  isCashSufficient: boolean
+  hasOpenSalesSession: boolean
+}
 
 export const UpdateWeeklyBudgetSchema = z.object({
   new_budget: z.number().positive('Le budget cible doit être supérieur à 0'),
