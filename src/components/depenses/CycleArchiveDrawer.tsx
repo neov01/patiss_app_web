@@ -119,9 +119,19 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] font-bold text-[#4B6450] bg-[#E6F4EA] px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Clôturé
-                      </span>
+                      {c.recharge_source === 'non_enregistree' ? (
+                        <span className="text-[11px] font-bold text-[#92400E] bg-[#FEF3C7] px-2 py-0.5 rounded-full">
+                          Bilan non fait
+                        </span>
+                      ) : c.recharge_source === 'reinitialisation' ? (
+                        <span className="text-[11px] font-bold text-[#475569] bg-[#F1F5F9] px-2 py-0.5 rounded-full">
+                          Réinitialisé
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[#4B6450] bg-[#E6F4EA] px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Clôturé
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
@@ -152,9 +162,19 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
                       <div className="flex items-center justify-between text-xs pt-1 text-[#51443C]">
                         <span>Recharge effectuée :</span>
                         <strong className="text-[#815431]">
-                          +{formatMoney(Number(c.recharge_amount))} {currency} ({c.recharge_source === 'ventes_hebdo' ? 'Ventes' : 'Externe'})
+                          +{formatMoney(Number(c.recharge_amount))} {currency} ({c.recharge_source === 'ventes_hebdo' ? 'Tiroir de caisse' : 'Externe'})
                         </strong>
                       </div>
+                    )}
+                    {c.recharge_source === 'non_enregistree' && (
+                      <p className="text-[11px] text-[#92400E]">
+                        Semaine basculée automatiquement : aucune recharge enregistrée en caisse.
+                      </p>
+                    )}
+                    {c.recharge_source === 'reinitialisation' && (
+                      <p className="text-[11px] text-[#475569]">
+                        Suivi interrompu : semaine archivée sans recharge lors de la remise à zéro.
+                      </p>
                     )}
                   </div>
                 )

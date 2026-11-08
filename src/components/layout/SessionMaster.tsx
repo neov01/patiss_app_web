@@ -2,6 +2,10 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
+import { getWeeklyBilanPreviewAction, weeklyExpenseClosingAction } from '@/lib/actions/expenses'
+import type { WeeklyBilanPreview } from '@/lib/schemas/expenses'
+import WeeklyBilanSummary from '@/components/depenses/WeeklyBilanSummary'
+import { useCurrency } from '@/providers/CurrencyProvider'
 import { toast } from 'sonner'
 import { usePathname, useRouter } from 'next/navigation'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
@@ -55,6 +59,10 @@ export default function SessionMaster({
     const [showConfirm, setShowConfirm] = useState(false)
     const [isConsultationModeState, setConsultationModeState] = useState(false)
     const { execute, renderFeedback } = useActionFeedback()
+    const { currency } = useCurrency()
+    // Bilan hebdomadaire de la régie, proposé à la clôture du dernier jour de la semaine
+    const [bilanPreview, setBilanPreview] = useState<WeeklyBilanPreview | null>(null)
+    const [bilanLoading, setBilanLoading] = useState(false)
     const pathname = usePathname()
     const router = useRouter()
     const isOpen = !!initialSession
@@ -96,16 +104,44 @@ export default function SessionMaster({
                 return
             }
             setShowConfirm(true)
+            loadBilanPreview()
         } else {
             doToggle()
         }
     }
 
-    const doToggle = async () => {
+    const loadBilanPreview = async () => {
+        setBilanPreview(null)
+        setBilanLoading(true)
+        try {
+            const res = await getWeeklyBilanPreviewAction()
+            // Pas de bilan possible (hors dimanche, erreur, caisse fermée) : clôture simple
+            if (res.success && res.preview?.isDue && res.preview.hasOpenSalesSession) {
+                setBilanPreview(res.preview)
+            }
+        } finally {
+            setBilanLoading(false)
+        }
+    }
+
+    const doToggle = () => runToggle(false)
+
+    const runToggle = async (withBilan: boolean) => {
+        const preview = withBilan ? bilanPreview : null
         setShowConfirm(false)
         setLoading(true)
         if (isOpen) {
             await execute(async () => {
+                // 1. Bilan de la semaine d'abord : la sortie de recharge doit figurer
+                //    dans les totaux de la journée qu'on clôture ensuite.
+                if (preview) {
+                    const bilan = await weeklyExpenseClosingAction({ cycle_id: preview.cycleId })
+                    if (!bilan.success) {
+                        throw new Error(bilan.error || 'Erreur lors du bilan de la semaine')
+                    }
+                }
+                // 2. Clôture de la journée. En cas d'échec, la caisse reste ouverte
+                //    et le bilan déjà fait n'est pas rejoué.
                 const res = await closeCurrentSession()
                 if (!res.success) {
                     throw new Error(res.error || 'Erreur lors de la clôture')
@@ -113,8 +149,10 @@ export default function SessionMaster({
                 return res.session
             }, {
                 type: 'modal',
-                modalTitle: 'Journée clôturée avec succès',
-                modalDescription: 'Les ventes du jour ont été enregistrées.',
+                modalTitle: preview ? 'Semaine et journée clôturées' : 'Journée clôturée avec succès',
+                modalDescription: preview
+                    ? `Recharge de ${new Intl.NumberFormat('fr-FR').format(preview.recharge)} ${currency} enregistrée. La nouvelle semaine démarre à ${new Intl.NumberFormat('fr-FR').format(preview.budget)} ${currency}.`
+                    : 'Les ventes du jour ont été enregistrées.',
                 onSuccess: () => {
                     localStorage.removeItem('isConsultationMode')
                     setConsultationMode(false)
@@ -236,17 +274,18 @@ export default function SessionMaster({
                     </div>
                 )}
                 
-                {/* Confirmation dialog — clôture only */}
+                {/* Confirmation dialog — clôture only (unique pour toute l'app) */}
                 {showConfirm && (
                     <div style={{
                         position: 'fixed', inset: 0, zIndex: 9999,
                         background: 'rgba(0,0,0,0.45)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '24px'
+                        padding: '16px'
                     }}>
                         <div style={{
                             background: '#fff', borderRadius: '20px',
-                            padding: '32px', maxWidth: '420px', width: '100%',
+                            padding: '28px', maxWidth: bilanPreview ? '520px' : '420px', width: '100%',
+                            maxHeight: '92vh', overflowY: 'auto',
                             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
                             textAlign: 'center'
                         }}>
@@ -257,35 +296,89 @@ export default function SessionMaster({
                                 fontSize: '2rem'
                             }}>🔒</div>
                             <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem', fontWeight: 800, color: '#1a1a2e' }}>
-                                Clôturer la journée ?
+                                {bilanPreview ? 'Clôturer la journée et la semaine ?' : 'Clôturer la journée ?'}
                             </h2>
-                            <p style={{ margin: '0 0 28px', fontSize: '0.95rem', color: '#666', lineHeight: 1.5 }}>
+                            <p style={{ margin: '0 0 20px', fontSize: '0.95rem', color: '#666', lineHeight: 1.5 }}>
                                 La caisse sera fermée et aucune vente ne pourra être enregistrée jusqu&apos;à la prochaine ouverture.
                             </p>
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                                <button
-                                    onClick={() => setShowConfirm(false)}
-                                    style={{
-                                        flex: 1, padding: '14px', borderRadius: '12px',
-                                        border: '2px solid #e0e0e0', background: '#fff',
-                                        fontSize: '1rem', fontWeight: 700, cursor: 'pointer', color: '#444'
-                                    }}
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    onClick={doToggle}
-                                    disabled={loading}
-                                    style={{
-                                        flex: 1, padding: '14px', borderRadius: '12px',
-                                        border: 'none', background: '#ea4335',
-                                        fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
-                                        opacity: loading ? 0.7 : 1
-                                    }}
-                                >
-                                    Oui, clôturer
-                                </button>
-                            </div>
+
+                            {bilanLoading && (
+                                <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#83746B' }}>
+                                    Vérification du bilan de la semaine…
+                                </p>
+                            )}
+
+                            {bilanPreview && (
+                                <div style={{ marginBottom: '20px' }}>
+                                    <WeeklyBilanSummary preview={bilanPreview} currency={currency} />
+                                </div>
+                            )}
+
+                            {bilanPreview ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <button
+                                        onClick={() => runToggle(true)}
+                                        disabled={loading}
+                                        style={{
+                                            minHeight: '52px', padding: '12px', borderRadius: '12px',
+                                            border: 'none', background: '#815431',
+                                            fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
+                                            opacity: loading ? 0.7 : 1
+                                        }}
+                                    >
+                                        Valider le bilan et clôturer la journée
+                                    </button>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button
+                                            onClick={() => setShowConfirm(false)}
+                                            style={{
+                                                flex: 1, minHeight: '48px', borderRadius: '12px',
+                                                border: '2px solid #e0e0e0', background: '#fff',
+                                                fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', color: '#444'
+                                            }}
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={() => runToggle(false)}
+                                            disabled={loading}
+                                            style={{
+                                                flex: 1, minHeight: '48px', borderRadius: '12px',
+                                                border: '2px solid #e0e0e0', background: '#fff',
+                                                fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', color: '#51443C',
+                                                opacity: loading ? 0.7 : 1
+                                            }}
+                                        >
+                                            Clôturer sans bilan
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                        onClick={() => setShowConfirm(false)}
+                                        style={{
+                                            flex: 1, padding: '14px', borderRadius: '12px',
+                                            border: '2px solid #e0e0e0', background: '#fff',
+                                            fontSize: '1rem', fontWeight: 700, cursor: 'pointer', color: '#444'
+                                        }}
+                                    >
+                                        Annuler
+                                    </button>
+                                    <button
+                                        onClick={() => runToggle(false)}
+                                        disabled={loading || bilanLoading}
+                                        style={{
+                                            flex: 1, padding: '14px', borderRadius: '12px',
+                                            border: 'none', background: '#ea4335',
+                                            fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
+                                            opacity: loading || bilanLoading ? 0.7 : 1
+                                        }}
+                                    >
+                                        Oui, clôturer
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

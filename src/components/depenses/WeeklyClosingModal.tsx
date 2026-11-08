@@ -1,24 +1,24 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   X,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  TrendingDown,
   PieChart,
   Loader2,
 } from 'lucide-react'
-import TouchInput from '@/components/ui/TouchInput'
 import {
   CATEGORY_CONFIG,
   type Expense,
   type ExpenseCycle,
   type BudgetTopUp,
   type ExpenseCategoryKey,
+  type WeeklyBilanPreview,
 } from '@/lib/schemas/expenses'
-import { closeWeeklyCycleAction } from '@/lib/actions/expenses'
+import { getWeeklyBilanPreviewAction, weeklyExpenseClosingAction } from '@/lib/actions/expenses'
+import WeeklyBilanSummary from './WeeklyBilanSummary'
 import { useCurrency } from '@/providers/CurrencyProvider'
 import { toast } from 'sonner'
 
@@ -28,8 +28,6 @@ interface Props {
   cycle: ExpenseCycle
   expenses: Expense[]
   topUps: BudgetTopUp[]
-  totalWeekCashSales: number
-  orgWeeklyBudget?: number
   onCycleClosed: () => void
 }
 
@@ -39,27 +37,38 @@ export default function WeeklyClosingModal({
   cycle,
   expenses,
   topUps,
-  totalWeekCashSales,
-  orgWeeklyBudget,
   onCycleClosed,
 }: Props) {
   const { currency } = useCurrency()
-  const targetDefault = orgWeeklyBudget || Number(cycle.initial_budget) || 150000
-  const [newBudgetStr, setNewBudgetStr] = useState(String(targetDefault))
-  const [rechargeSource, setRechargeSource] = useState<'ventes_hebdo' | 'apport_externe' | 'mixte'>('ventes_hebdo')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [preview, setPreview] = useState<WeeklyBilanPreview | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
-  const newBudgetTarget = parseFloat(newBudgetStr) || targetDefault
   const currentBalance = Number(cycle.current_balance) || 0
   const totalSpent = Number(cycle.total_spent) || 0
-  const totalAllocated = Number(cycle.total_allocated) || targetDefault
+  const totalAllocated = Number(cycle.total_allocated) || 0
 
-  // Calcul exact de la recharge nécessaire
-  // Si currentBalance < 0, GREATEST(0, newBudgetTarget - (-X)) = newBudgetTarget + X
-  const requiredRecharge = Math.max(0, newBudgetTarget - currentBalance)
-
-  // Ventes espèces suffisantes ?
-  const isWeekSalesSufficient = totalWeekCashSales >= requiredRecharge
+  // Chiffres du bilan calculés côté serveur (budget, recharge, espèces de la semaine)
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    setPreview(null)
+    setPreviewError(null)
+    setIsLoadingPreview(true)
+    getWeeklyBilanPreviewAction()
+      .then((res) => {
+        if (cancelled) return
+        if (res.success && res.preview) setPreview(res.preview)
+        else setPreviewError(res.error || 'Impossible de préparer le bilan')
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPreview(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, cycle.id])
 
   // Ventilation par catégorie des dépenses actives
   const categoryBreakdown = useMemo(() => {
@@ -84,24 +93,30 @@ export default function WeeklyClosingModal({
 
   if (!isOpen) return null
 
+  const blockingReason = !preview
+    ? null
+    : !preview.isDue
+      ? 'Le bilan de la semaine se fait le dimanche, à la clôture de caisse.'
+      : !preview.hasOpenSalesSession
+        ? 'Ouvrez la caisse pour faire le bilan : la recharge est prise dans le tiroir.'
+        : null
+  const canSubmit = !!preview && !blockingReason && !isSubmitting
+
   const handleConfirmClose = async () => {
+    if (!preview) return
     setIsSubmitting(true)
-    const toastId = toast.loading('Clôture du cycle hebdomadaire en cours...')
+    const toastId = toast.loading('Bilan de la semaine en cours...')
 
     try {
-      const res = await closeWeeklyCycleAction({
-        cycle_id: cycle.id,
-        recharge_source: rechargeSource,
-        new_budget: newBudgetTarget,
-      })
+      const res = await weeklyExpenseClosingAction({ cycle_id: preview.cycleId })
 
       if (!res.success) {
-        toast.error(res.error || 'Erreur lors de la clôture', { id: toastId })
+        toast.error(res.error || 'Erreur lors du bilan', { id: toastId })
         return
       }
 
       toast.success(
-        `Semaine clôturée avec succès ! Nouveau cycle initialisé à ${formatMoney(newBudgetTarget)} ${currency}.`,
+        `Semaine clôturée : recharge de ${formatMoney(preview.recharge)} ${currency} enregistrée en sortie de caisse.`,
         { id: toastId }
       )
       onCycleClosed()
@@ -143,10 +158,10 @@ export default function WeeklyClosingModal({
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#1A1C1A] font-display">
-                Clôture Hebdomadaire de la Régie
+                Bilan de la semaine
               </h3>
               <p className="text-xs text-[#51443C]">
-                Bilan de la semaine écoulée & réapprovisionnement à {formatMoney(newBudgetTarget)} {currency}
+                Recharge de l&apos;enveloppe prise dans le tiroir, puis ouverture de la semaine suivante
               </p>
             </div>
           </div>
@@ -247,133 +262,23 @@ export default function WeeklyClosingModal({
             </div>
           )}
 
-          {/* 3. Encadré de Calcul de la Recharge */}
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              padding: '18px',
-              border: '2px solid #815431',
-              boxShadow: '0 4px 12px rgba(129, 84, 49, 0.08)',
-            }}
-            className="space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#815431]">
-                Recharge Automatique Calculée
-              </span>
-              <span className="text-[11px] font-semibold text-[#51443C] bg-[#F5EEE4] px-2.5 py-0.5 rounded-full">
-                Formule : Budget cible - Solde restant
-              </span>
+          {/* 3. Bilan : recharge et espèces de la semaine */}
+          {isLoadingPreview && (
+            <div className="flex items-center gap-2 text-sm text-[#51443C]">
+              <Loader2 className="w-4 h-4 animate-spin" /> Préparation du bilan…
             </div>
-
-            <div className="flex items-baseline justify-between pt-1">
-              <div>
-                <span className="text-2xl font-black text-[#1A1C1A] font-display">
-                  {formatMoney(requiredRecharge)}
-                </span>
-                <span className="text-sm font-bold text-[#815431] ml-1">{currency}</span>
-              </div>
-              <div className="text-xs text-right text-[#51443C]">
-                pour porter l'enveloppe à <strong>{formatMoney(newBudgetTarget)} {currency}</strong>
-              </div>
-            </div>
-
-            {/* Comparaison avec les ventes espèces */}
-            <div className="pt-2 border-t border-[rgba(131,116,107,0.15)] flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
-              <span className="text-[#51443C]">
-                Cumul des ventes espèces de la semaine : <strong>{formatMoney(totalWeekCashSales)} {currency}</strong>
-              </span>
-              {isWeekSalesSufficient ? (
-                <span className="text-[#4B6450] font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Les ventes couvrent la recharge
-                </span>
-              ) : (
-                <span className="text-[#BA1A1A] font-bold flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Déficit ventes espèces ({formatMoney(requiredRecharge - totalWeekCashSales)} {currency})
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* 4. Choix de la Source de Recharge */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-2">
-              Comment prélever cette recharge de {formatMoney(requiredRecharge)} {currency} ? *
-            </label>
-            <div className="space-y-2 text-xs">
-              <label
-                style={{
-                  backgroundColor: rechargeSource === 'ventes_hebdo' ? '#F4F9F5' : '#FFFFFF',
-                  borderColor: rechargeSource === 'ventes_hebdo' ? '#4B6450' : 'rgba(131, 116, 107, 0.2)',
-                }}
-                className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
-              >
-                <input
-                  type="radio"
-                  name="rechargeSource"
-                  value="ventes_hebdo"
-                  checked={rechargeSource === 'ventes_hebdo'}
-                  onChange={() => setRechargeSource('ventes_hebdo')}
-                  className="mt-0.5 text-[#4B6450] focus:ring-[#4B6450]"
-                />
-                <div>
-                  <span className="font-bold text-[#1A1C1A] block">
-                    Prélèvement sur le cumul des ventes de la semaine écoulée
-                  </span>
-                  <span className="text-[11px] text-[#51443C]">
-                    Méthode standard : les ventes accumulées renflouent l'enveloppe de la petite caisse.
-                  </span>
-                </div>
-              </label>
-
-              <label
-                style={{
-                  backgroundColor: rechargeSource === 'apport_externe' ? '#FDF8F3' : '#FFFFFF',
-                  borderColor: rechargeSource === 'apport_externe' ? '#815431' : 'rgba(131, 116, 107, 0.2)',
-                }}
-                className="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all"
-              >
-                <input
-                  type="radio"
-                  name="rechargeSource"
-                  value="apport_externe"
-                  checked={rechargeSource === 'apport_externe'}
-                  onChange={() => setRechargeSource('apport_externe')}
-                  className="mt-0.5 text-[#815431] focus:ring-[#815431]"
-                />
-                <div>
-                  <span className="font-bold text-[#1A1C1A] block">
-                    Apport de trésorerie externe (Gérant / Patron)
-                  </span>
-                  <span className="text-[11px] text-[#51443C]">
-                    Recommandé si les ventes de la semaine sont insuffisantes ou déjà versées en banque.
-                  </span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* 5. Paramètre du Budget Cible de la Semaine Suivante */}
-          <div className="pt-2 border-t border-[rgba(131,116,107,0.12)]">
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1">
-              Budget cible pour la semaine suivante ({currency})
-            </label>
-            <TouchInput
-              value={newBudgetStr}
-              onChange={setNewBudgetStr}
-              placeholder={String(targetDefault)}
-              title="Budget cible de la nouvelle semaine"
-              style={{
-                height: '46px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                backgroundColor: '#F5EEE4',
-                borderRadius: '10px',
-                color: '#1A1C1A',
-              }}
-            />
-          </div>
+          )}
+          {previewError && (
+            <p className="flex items-start gap-1.5 text-sm font-semibold text-[#BA1A1A]">
+              <AlertTriangle className="w-4 h-4 shrink-0" /> {previewError}
+            </p>
+          )}
+          {preview && <WeeklyBilanSummary preview={preview} currency={currency} />}
+          {blockingReason && (
+            <p className="flex items-start gap-1.5 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] p-3 text-sm font-semibold text-[#92400E]">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {blockingReason}
+            </p>
+          )}
         </div>
 
         {/* Actions Footer */}
@@ -398,11 +303,11 @@ export default function WeeklyClosingModal({
           <button
             type="button"
             onClick={handleConfirmClose}
-            disabled={isSubmitting}
+            disabled={!canSubmit}
             style={{
               height: '48px',
               borderRadius: '9999px',
-              backgroundColor: isSubmitting ? '#83746B' : '#815431',
+              backgroundColor: canSubmit ? '#815431' : '#83746B',
               color: '#FFFFFF',
               border: 'none',
             }}
@@ -411,11 +316,11 @@ export default function WeeklyClosingModal({
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Clôture en cours...</span>
+                <span>Bilan en cours...</span>
               </>
             ) : (
               <>
-                <span>Valider la clôture & Ouvrir le nouveau cycle</span>
+                <span>Valider le bilan de la semaine</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

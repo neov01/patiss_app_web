@@ -15,6 +15,7 @@ import CycleArchiveDrawer from './CycleArchiveDrawer'
 import BudgetSettingsModal from './BudgetSettingsModal'
 import type { ExpenseCycle, Expense, BudgetTopUp } from '@/lib/schemas/expenses'
 import { getActiveExpenseCycleData } from '@/lib/actions/expenses'
+import { isWeeklyClosingDue } from '@/lib/domain/expenses'
 
 interface Props {
   initialCycle: ExpenseCycle
@@ -22,9 +23,9 @@ interface Props {
   initialTopUps: BudgetTopUp[]
   hasOpenSalesSession: boolean
   availableCashInDrawer: number
-  totalWeekCashSales: number
   userRole: string
   initialOrgBudget?: number
+  initialPreviousBilanMissing?: boolean
 }
 
 export default function DepensesClient({
@@ -33,9 +34,9 @@ export default function DepensesClient({
   initialTopUps,
   hasOpenSalesSession,
   availableCashInDrawer,
-  totalWeekCashSales,
   userRole,
   initialOrgBudget,
+  initialPreviousBilanMissing = false,
 }: Props) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -44,8 +45,8 @@ export default function DepensesClient({
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [topUps, setTopUps] = useState<BudgetTopUp[]>(initialTopUps)
   const [cashInDrawer, setCashInDrawer] = useState(availableCashInDrawer)
-  const [weekSales, setWeekSales] = useState(totalWeekCashSales)
   const [orgBudget, setOrgBudget] = useState(initialOrgBudget || Number(initialCycle.initial_budget) || 150000)
+  const [previousBilanMissing, setPreviousBilanMissing] = useState(initialPreviousBilanMissing)
 
   // Modals state
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false)
@@ -56,15 +57,10 @@ export default function DepensesClient({
   const [cancelTarget, setCancelTarget] = useState<Expense | null>(null)
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null)
 
-  const canClose = ['super_admin', 'gerant'].includes(userRole)
+  // Le bilan hebdomadaire est fait par la caissière le dimanche (dernier jour du cycle)
+  const isClosingDue = isWeeklyClosingDue(cycle.end_date, new Date())
+  const canClose = ['super_admin', 'gerant', 'vendeur'].includes(userRole) && isClosingDue
   const canManageBudget = ['super_admin', 'gerant'].includes(userRole)
-
-  // Détection du dimanche ou lundi pour la clôture
-  const now = new Date()
-  const isSundayOrMonday = now.getDay() === 0 || now.getDay() === 1
-
-  // Détection si la date de fin du cycle est déjà passée
-  const isPastCycleUnclosed = new Date(cycle.end_date) < now
 
   // Rafraîchissement complet après mutation
   const refreshData = async () => {
@@ -74,10 +70,10 @@ export default function DepensesClient({
       setExpenses(res.expenses || [])
       setTopUps(res.topUps || [])
       setCashInDrawer(res.availableCashInDrawer || 0)
-      setWeekSales(res.totalWeekCashSales || 0)
       if (res.org_weekly_budget) {
         setOrgBudget(res.org_weekly_budget)
       }
+      setPreviousBilanMissing(!!res.previousBilanMissing)
     }
     startTransition(() => {
       router.refresh()
@@ -99,11 +95,7 @@ export default function DepensesClient({
       </div>
 
       {/* 2. Cockpit Jauge & Solde Restant */}
-      <BudgetHeroGauge
-        cycle={cycle}
-        isPastCycleUnclosed={isPastCycleUnclosed}
-        onOpenClosingModal={() => setIsClosingOpen(true)}
-      />
+      <BudgetHeroGauge cycle={cycle} previousBilanMissing={previousBilanMissing} />
 
       {/* 3. Actions Rapides Tactiles (48px) */}
       <QuickActionsBar
@@ -114,7 +106,7 @@ export default function DepensesClient({
         onOpenBudgetSettings={() => setIsBudgetSettingsOpen(true)}
         canClose={canClose}
         canManageBudget={canManageBudget}
-        isSundayOrMonday={isSundayOrMonday}
+        isClosingDue={isClosingDue}
       />
 
       {/* 4. Cartes KPI (Alloué, Dépensé, Rallonges, Moyenne/Jour) */}
@@ -167,8 +159,6 @@ export default function DepensesClient({
         cycle={cycle}
         expenses={expenses}
         topUps={topUps}
-        totalWeekCashSales={weekSales}
-        orgWeeklyBudget={orgBudget}
         onCycleClosed={refreshData}
       />
 
