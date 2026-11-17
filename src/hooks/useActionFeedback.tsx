@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { createSingleFlight } from '@/lib/domain/single-flight'
 import { ActionFeedbackModal, SessionFeedbackData } from '@/components/ui/ActionFeedback'
 
 export type ActionState = 'idle' | 'loading' | 'success' | 'error'
@@ -31,12 +32,14 @@ export function useActionFeedback() {
         setIsMounted(true)
     }, [])
 
-    const execute = async <T,>(
+    // Verrou synchrone : un second appel pendant un envoi en cours est ignoré
+    // (le test sur `state` lisait une valeur figée dans la fermeture du rendu).
+    const flightRef = useRef(createSingleFlight())
+
+    const executeUnguarded = async <T,>(
         action: () => Promise<T>,
         options?: ActionFeedbackOptions<T>
     ) => {
-        if (state === 'loading') return
-
         setState('loading')
         setErrorMsg(null)
 
@@ -113,6 +116,13 @@ export function useActionFeedback() {
                 setState('idle')
             }, 3000)
         }
+    }
+
+    const execute = async <T,>(
+        action: () => Promise<T>,
+        options?: ActionFeedbackOptions<T>
+    ) => {
+        await flightRef.current.run(() => executeUnguarded(action, options))
     }
 
     const renderFeedback = () => {

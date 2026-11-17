@@ -65,7 +65,7 @@ const PAYMENT_METHODS = [
 ]
 
 export default function NewOrderModal({ open, onClose, currency, organizationId }: Props) {
-    const { execute, isPending, renderFeedback } = useActionFeedback()
+    const { execute, isPending, isSuccess, renderFeedback } = useActionFeedback()
     const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
     // Identifiant de la commande : généré UNE fois à l'ouverture (clé d'idempotence).
@@ -1498,7 +1498,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                     <div style={{ padding: '10px 16px', borderTop: '1.5px solid var(--color-border)', display: 'flex', gap: '8px', background: 'var(--color-lift)', position: 'sticky', bottom: 0 }}>
                         <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1, minHeight: '44px', height: '44px' }}>Annuler</button>
                         <button type="submit" className="btn-primary"
-                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate}
+                            disabled={isPending || isSuccess || !clientName.trim() || orderItems.length === 0 || !pickupDate}
                             style={{ flex: 2, minHeight: '44px', height: '44px' }}>
                             {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
                             {isPending ? 'Création en cours…' : 'Créer la commande'}
