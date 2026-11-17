@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { createSingleFlight } from '@/lib/domain/single-flight'
 import { ActionFeedbackModal, SessionFeedbackData } from '@/components/ui/ActionFeedback'
 
 export type ActionState = 'idle' | 'loading' | 'success' | 'error'
 
 export interface ActionFeedbackOptions<T = unknown> {
-    successMessage?: string
+    successMessage?: string | ((result: T) => string)
     type?: 'simple' | 'summary' | 'toast' | 'modal'
     modalTitle?: string
     modalDescription?: string
@@ -31,12 +32,14 @@ export function useActionFeedback() {
         setIsMounted(true)
     }, [])
 
-    const execute = async <T,>(
+    // Verrou synchrone : un second appel pendant un envoi en cours est ignoré
+    // (le test sur `state` lisait une valeur figée dans la fermeture du rendu).
+    const flightRef = useRef(createSingleFlight())
+
+    const executeUnguarded = async <T,>(
         action: () => Promise<T>,
         options?: ActionFeedbackOptions<T>
     ) => {
-        if (state === 'loading') return
-
         setState('loading')
         setErrorMsg(null)
 
@@ -65,8 +68,11 @@ export function useActionFeedback() {
                     }
                 }
 
+                const successMessage = typeof options?.successMessage === 'function'
+                    ? options.successMessage(result)
+                    : options?.successMessage
                 setModalConfig({
-                    title: options?.successMessage || 'Opération réussie !',
+                    title: successMessage || 'Opération réussie !',
                     description: options?.modalDescription,
                     type: 'simple',
                     onClose: closeHandler
@@ -110,6 +116,13 @@ export function useActionFeedback() {
                 setState('idle')
             }, 3000)
         }
+    }
+
+    const execute = async <T,>(
+        action: () => Promise<T>,
+        options?: ActionFeedbackOptions<T>
+    ) => {
+        await flightRef.current.run(() => executeUnguarded(action, options))
     }
 
     const renderFeedback = () => {

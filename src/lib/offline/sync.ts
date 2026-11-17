@@ -20,6 +20,8 @@ import { encaisserTransaction } from '@/lib/actions/caisse'
 import { createOrder } from '@/lib/actions/orders'
 import { createClient } from '@/lib/supabase/client'
 import type { OrderFormValues } from '@/lib/schemas/order.schema'
+import { isTransientSyncError } from '@/lib/domain/sync-errors'
+import { provisionalOrderRef } from '@/lib/domain/order-number'
 
 export type SyncResult = {
   syncedTransactions: number
@@ -28,6 +30,8 @@ export type SyncResult = {
   syncedOrders: number
   failedOrders: number
   deadOrders: number  // commandes > MAX_RETRIES, nécessitent attention manuelle
+  /** Référence provisoire (LOC-…) → numéro définitif attribué par la base */
+  syncedOrderRefs: Array<{ ref: string; orderNumber: string | null }>
 }
 
 /**
@@ -41,7 +45,8 @@ export async function syncPendingData(): Promise<SyncResult> {
     deadTransactions: 0,
     syncedOrders: 0,
     failedOrders: 0,
-    deadOrders: 0
+    deadOrders: 0,
+    syncedOrderRefs: []
   }
 
   // 0. Only refresh session when network is available — calling refreshSession()
@@ -77,22 +82,27 @@ export async function syncPendingData(): Promise<SyncResult> {
     }
   }))
 
-  // 2. Synchroniser les commandes
-  const pendingOrders = await getPendingOrders()
+  // 2. Synchroniser les commandes, UNE PAR UNE dans l'ordre chronologique de saisie :
+  //    les numéros définitifs sont attribués par la base dans l'ordre d'arrivée, ils
+  //    doivent donc suivre l'ordre dans lequel le caissier a pris les commandes.
+  const pendingOrders = (await getPendingOrders()).slice().sort(
+    (a, b) => a.createdAt.localeCompare(b.createdAt) || (a.offlineId ?? 0) - (b.offlineId ?? 0)
+  )
 
-  await Promise.allSettled(pendingOrders.map(async (order) => {
+  for (const order of pendingOrders) {
     if ((order.retryCount ?? 0) >= MAX_OFFLINE_RETRIES) {
       result.deadOrders++
-      return
+      continue
     }
 
     const res = await syncSingleOrder(order)
     if (res.success) {
       result.syncedOrders++
+      result.syncedOrderRefs.push({ ref: provisionalOrderRef(order.id), orderNumber: res.orderNumber ?? null })
     } else {
       result.failedOrders++
     }
-  }))
+  }
 
   return result
 }
@@ -116,24 +126,23 @@ export async function syncSingleTransaction(
       return { success: true }
     } else {
       console.warn('[Sync] Transaction rejetée par le serveur:', res.error)
-      await updatePendingTransactionRetry(tx.offlineId!, res.error)
+      await updatePendingTransactionRetry(tx.offlineId!, res.error, !isTransientSyncError(res.error))
       return { success: false, error: res.error }
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error('[Sync] Erreur réseau sur transaction:', errMsg)
-    await updatePendingTransactionRetry(tx.offlineId!, errMsg)
+    await updatePendingTransactionRetry(tx.offlineId!, errMsg, !isTransientSyncError(errMsg))
     return { success: false, error: errMsg }
   }
 }
 
 export async function syncSingleOrder(
   order: PendingOrder
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; orderNumber?: string | null }> {
   try {
-    const year = new Date().getFullYear()
-    const rand = Math.floor(1000 + Math.random() * 9000)
-
+    // Le numéro définitif est attribué par la base : le même id rejoué renvoie
+    // la même commande, sans nouveau numéro ni doublon.
     const subtotal = order.items.reduce((sum: number, i: { quantity: number; unit_price: number }) => sum + i.quantity * i.unit_price, 0)
     const discountAmount = order.discount_amount ?? 0
     const totalAmount = Math.max(0, subtotal - discountAmount)
@@ -145,7 +154,6 @@ export async function syncSingleOrder(
 
     const res = await createOrder({
       id: order.id,    // UUID client-side → idempotence
-      order_number: `CMD-${year}-${rand}`,
       status: 'confirmed',
       priority: order.priority,
       customer_name: order.customer_name,
@@ -173,16 +181,18 @@ export async function syncSingleOrder(
 
     if (!res.error) {
       await removePendingOrder(order.offlineId!)
-      return { success: true }
+      const orderNumber = (res as { data?: { order_number?: string | null } }).data?.order_number ?? null
+      return { success: true, orderNumber }
     } else {
       console.warn('[Sync] Commande rejetée par le serveur:', res.error)
-      await updatePendingOrderRetry(order.offlineId!, res.error)
+      // Erreur temporaire (caisse fermée, session expirée…) : on garde les essais
+      await updatePendingOrderRetry(order.offlineId!, res.error, !isTransientSyncError(res.error))
       return { success: false, error: res.error }
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error('[Sync] Erreur réseau sur commande:', errMsg)
-    await updatePendingOrderRetry(order.offlineId!, errMsg)
+    await updatePendingOrderRetry(order.offlineId!, errMsg, !isTransientSyncError(errMsg))
     return { success: false, error: errMsg }
   }
 }
