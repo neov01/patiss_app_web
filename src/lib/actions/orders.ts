@@ -166,8 +166,21 @@ export async function createOrder(input: unknown) {
             const isDuplicate = error.message?.includes('duplicate key') || 
                                 (error as { code?: string }).code === '23505'
             if (isDuplicate) {
-                // Déjà traité en base, on considère cela comme un succès
-                return { data: { id: formData.id } }
+                // Un 23505 n'est un succès que s'il s'agit d'un rejeu du même id
+                // (idempotence). Sinon (ex. collision de order_number), la commande
+                // n'existe PAS en base : on remonte l'erreur au lieu d'un faux succès.
+                if (formData.id) {
+                    const { data: existing, error: lookupError } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .eq('id', formData.id)
+                        .eq('organization_id', context.organizationId)
+                        .maybeSingle()
+                    if (!lookupError && existing) {
+                        return { data: existing }
+                    }
+                }
+                return { error: "Ce numéro de commande est déjà utilisé : la commande n'a pas été enregistrée. Veuillez réessayer." }
             }
             return { error: error.message || 'Erreur lors de la création de la commande' }
         }
