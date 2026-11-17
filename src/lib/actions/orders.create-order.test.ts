@@ -124,3 +124,100 @@ describe('createOrder — numéro attribué par la base (cause P1, correction C5
         expect(args.p_order).not.toHaveProperty('order_number')
     })
 })
+
+// ── C4 : journalisation structurée, corrélée à l'identifiant de commande ──
+
+type LogLine = { event: string; orderId?: string; organizationId?: string; userId?: string; step?: string; code?: string; reason?: string; orderNumber?: string; durationMs?: number }
+
+function collectLogs(spies: Array<ReturnType<typeof vi.spyOn>>): LogLine[] {
+    return spies
+        .flatMap(spy => spy.mock.calls)
+        .map(call => call[0])
+        .filter((first): first is string => typeof first === 'string' && first.startsWith('{'))
+        .map(first => JSON.parse(first) as LogLine)
+}
+
+describe('createOrder — journalisation (cause P6, correction C4)', () => {
+    let info: ReturnType<typeof vi.spyOn>
+    let warn: ReturnType<typeof vi.spyOn>
+    let error: ReturnType<typeof vi.spyOn>
+    const logs = () => collectLogs([info, warn, error])
+
+    beforeEach(() => {
+        rpc.mockReset()
+        maybeSingle.mockReset()
+        info = vi.spyOn(console, 'info').mockImplementation(() => {})
+        warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        error = vi.spyOn(console, 'error').mockImplementation(() => {})
+        // Les espions des tests précédents conservent leurs appels : repartir de zéro
+        info.mockClear()
+        warn.mockClear()
+        error.mockClear()
+    })
+
+    it("journalise « reçue » puis « enregistrée » avec l'id, le numéro et la durée", async () => {
+        rpc.mockResolvedValue({ data: { order: { id: ORDER_ID, order_number: 'CMD-CAK-2026-000001' } }, error: null })
+
+        await createOrder(validInput())
+
+        const lines = logs()
+        expect(lines.map(l => l.event)).toEqual(['order.create.received', 'order.create.saved'])
+        expect(lines[1]).toMatchObject({
+            orderId: ORDER_ID,
+            organizationId: 'org-1',
+            userId: 'user-1',
+            orderNumber: 'CMD-CAK-2026-000001',
+        })
+        expect(typeof lines[1].durationMs).toBe('number')
+    })
+
+    it("n'écrit jamais le nom, le téléphone ni les montants dans les journaux", async () => {
+        rpc.mockResolvedValue({ data: { order: { id: ORDER_ID, order_number: 'CMD-CAK-2026-000001' } }, error: null })
+
+        await createOrder(validInput())
+
+        const raw = JSON.stringify(logs())
+        expect(raw).not.toContain('Cliente Test')
+        expect(raw).not.toContain('0102030405')
+        expect(raw).not.toContain('10000')
+    })
+
+    it("journalise un échec de la base avec le code et la raison", async () => {
+        rpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'La caisse est fermée.' } })
+
+        const result = await createOrder(validInput())
+
+        expect(result).toHaveProperty('error')
+        const failed = logs().find(l => l.event === 'order.create.failed')
+        expect(failed).toMatchObject({ orderId: ORDER_ID, step: 'rpc', code: '42501', reason: 'La caisse est fermée.' })
+    })
+
+    it('journalise une collision (23505) sans commande existante comme un échec', async () => {
+        rpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "orders_order_number_key"' } })
+        maybeSingle.mockResolvedValue({ data: null, error: null })
+
+        await createOrder(validInput())
+
+        expect(logs().find(l => l.event === 'order.create.failed')).toMatchObject({ orderId: ORDER_ID, code: '23505' })
+    })
+
+    it('journalise un rejeu (23505 avec commande existante) comme « replayed »', async () => {
+        rpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "orders_pkey"' } })
+        maybeSingle.mockResolvedValue({ data: { id: ORDER_ID, order_number: 'CMD-CAK-2026-000001' }, error: null })
+
+        await createOrder(validInput())
+
+        expect(logs().map(l => l.event)).toContain('order.create.replayed')
+        expect(logs().map(l => l.event)).not.toContain('order.create.failed')
+    })
+
+    it('journalise un rejet de validation avec l\'id de commande', async () => {
+        const { items: _items, ...withoutItems } = validInput()
+        void _items
+
+        const result = await createOrder(withoutItems)
+
+        expect(result).toHaveProperty('error')
+        expect(logs().find(l => l.event === 'order.create.rejected')).toMatchObject({ orderId: ORDER_ID, step: 'validation' })
+    })
+})
