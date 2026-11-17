@@ -50,7 +50,10 @@ BEGIN
   FOR r IN
     SELECT id, name FROM public.organizations
     WHERE order_code IS NULL
-    ORDER BY created_at NULLS LAST, id
+    -- La pâtisserie la plus active choisit son code en premier (elle obtient
+    -- le code « propre » sans suffixe en cas de nom proche d'une autre).
+    ORDER BY (SELECT count(*) FROM public.orders o WHERE o.organization_id = organizations.id) DESC,
+             created_at NULLS LAST, id
   LOOP
     base := upper(left(regexp_replace(coalesce(r.name, ''), '[^A-Za-z0-9]', '', 'g'), 3));
     IF length(base) < 2 THEN
