@@ -67,6 +67,7 @@ describe('createOrder — erreur 23505 (cause P1)', () => {
     beforeEach(() => {
         rpc.mockReset()
         maybeSingle.mockReset()
+        maybeSingle.mockResolvedValue({ data: null, error: null }) // défaut : relecture sans résultat
         vi.spyOn(console, 'error').mockImplementation(() => {})
     })
 
@@ -104,6 +105,7 @@ describe('createOrder — numéro attribué par la base (cause P1, correction C5
     beforeEach(() => {
         rpc.mockReset()
         maybeSingle.mockReset()
+        maybeSingle.mockResolvedValue({ data: null, error: null }) // défaut : relecture sans résultat
     })
 
     it("accepte une commande sans order_number (le client n'en fabrique plus)", async () => {
@@ -148,6 +150,7 @@ describe('createOrder — journalisation (cause P6, correction C4)', () => {
     beforeEach(() => {
         rpc.mockReset()
         maybeSingle.mockReset()
+        maybeSingle.mockResolvedValue({ data: null, error: null }) // défaut : relecture sans résultat
         info = vi.spyOn(console, 'info').mockImplementation(() => {})
         warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
         error = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -230,6 +233,7 @@ describe('createOrder — rejeu : commande complète renvoyée', () => {
     beforeEach(() => {
         rpc.mockReset()
         maybeSingle.mockReset()
+        maybeSingle.mockResolvedValue({ data: null, error: null }) // défaut : relecture sans résultat
         selectColumns.mockReset()
         vi.spyOn(console, 'error').mockImplementation(() => {})
         vi.spyOn(console, 'info').mockImplementation(() => {})
