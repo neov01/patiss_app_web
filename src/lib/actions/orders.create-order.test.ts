@@ -97,3 +97,30 @@ describe('createOrder — erreur 23505 (cause P1)', () => {
         expect(result).toHaveProperty('error')
     })
 })
+
+describe('createOrder — numéro attribué par la base (cause P1, correction C5)', () => {
+    beforeEach(() => {
+        rpc.mockReset()
+        maybeSingle.mockReset()
+    })
+
+    it("accepte une commande sans order_number (le client n'en fabrique plus)", async () => {
+        rpc.mockResolvedValue({ data: { order: { id: ORDER_ID, order_number: 'CMD-BAB-2026-000001' } }, error: null })
+        const { order_number: _omit, ...withoutNumber } = validInput()
+        void _omit
+
+        const result = await createOrder(withoutNumber)
+
+        expect(result).not.toHaveProperty('error')
+        expect(result).toHaveProperty('data')
+    })
+
+    it("n'envoie jamais le numéro fourni par le client à la RPC", async () => {
+        rpc.mockResolvedValue({ data: { order: { id: ORDER_ID, order_number: 'CMD-BAB-2026-000001' } }, error: null })
+
+        await createOrder(validInput()) // contient encore order_number (ancien client en cache)
+
+        const args = rpc.mock.calls[0][1] as { p_order: Record<string, unknown> }
+        expect(args.p_order).not.toHaveProperty('order_number')
+    })
+})

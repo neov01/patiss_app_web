@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
+import { provisionalOrderRef } from '@/lib/domain/order-number'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
@@ -67,8 +68,11 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     const { execute, isPending, renderFeedback } = useActionFeedback()
     const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
-    // Auto Order Number
-    const [orderNumber, setOrderNumber] = useState('')
+    // Identifiant de la commande : généré UNE fois à l'ouverture (clé d'idempotence).
+    // Le numéro définitif est attribué par la base à l'enregistrement ; en attendant
+    // on affiche une référence provisoire dérivée de cet identifiant.
+    const [draftOrderId, setDraftOrderId] = useState('')
+    const orderNumber = draftOrderId ? provisionalOrderRef(draftOrderId) : ''
     
     // Header States
     const [status, setStatus] = useState('confirmed')
@@ -139,9 +143,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
     useEffect(() => {
         if (open) {
             creationStartedAtRef.current = Date.now()
-            const year = new Date().getFullYear()
-            const rand = Math.floor(1000 + Math.random() * 9000)
-            setOrderNumber(`CMD-${year}-${rand}`)
+            setDraftOrderId(crypto.randomUUID())
         } else {
             creationStartedAtRef.current = null
         }
@@ -485,7 +487,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
 
             if (isOffline) {
                 await saveOrderOffline({
-                    id: crypto.randomUUID(),
+                    id: draftOrderId,
                     customer_name: clientName,
                     customer_contact: clientPhone,
                     pickup_date: pickupDeliveryDate,
@@ -521,8 +523,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             }
 
             const result = await createOrder({
-                id: crypto.randomUUID(),
-                order_number: orderNumber,
+                id: draftOrderId,
                 status,
                 priority,
                 customer_id: crmCustomerId || undefined,
@@ -575,9 +576,12 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             return result
         }, {
             type: 'toast',
-            successMessage: isOffline 
-                ? `Commande #${orderNumber} enregistrée en local (hors-ligne)` 
-                : `Commande #${orderNumber} créée avec succès`,
+            successMessage: (res: unknown) => {
+                const finalNumber = (res as { data?: { order_number?: string | null } })?.data?.order_number
+                return isOffline
+                    ? `Commande ${orderNumber} enregistrée en local (hors-ligne) — numéro définitif attribué à la synchronisation`
+                    : `Commande ${finalNumber || orderNumber} créée avec succès`
+            },
             onSuccess: () => {
                 handleClose()
             }
@@ -607,7 +611,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                         {/* Titre & ID */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Nouvelle commande</h2>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600, background: 'var(--color-well)', padding: '2px 8px', borderRadius: '6px' }}>#{orderNumber}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600, background: 'var(--color-well)', padding: '2px 8px', borderRadius: '6px' }} title="Le numéro définitif est attribué à l'enregistrement">Réf. {orderNumber}</span>
                         </div>
                         
                         {/* Contrôles d'en-tête (Statut, Priorité, Fermeture) */}

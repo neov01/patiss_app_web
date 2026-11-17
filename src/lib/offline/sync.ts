@@ -131,9 +131,8 @@ export async function syncSingleOrder(
   order: PendingOrder
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const year = new Date().getFullYear()
-    const rand = Math.floor(1000 + Math.random() * 9000)
-
+    // Le numéro définitif est attribué par la base : le même id rejoué renvoie
+    // la même commande, sans nouveau numéro ni doublon.
     const subtotal = order.items.reduce((sum: number, i: { quantity: number; unit_price: number }) => sum + i.quantity * i.unit_price, 0)
     const discountAmount = order.discount_amount ?? 0
     const totalAmount = Math.max(0, subtotal - discountAmount)
@@ -145,7 +144,6 @@ export async function syncSingleOrder(
 
     const res = await createOrder({
       id: order.id,    // UUID client-side → idempotence
-      order_number: `CMD-${year}-${rand}`,
       status: 'confirmed',
       priority: order.priority,
       customer_name: order.customer_name,

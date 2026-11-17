@@ -285,11 +285,8 @@ export default function CustomerIntelligenceModal({
   const handleConfirmQuickOrder = async (product: Product) => {
     if (!customer) return;
 
-    const orderNumber = `CMD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    
     const orderData = {
       id: crypto.randomUUID(),
-      order_number: orderNumber,
       customer_name: customer.name,
       customer_contact: customer.phone || customer.email || "",
       pickup_date: new Date().toISOString(),

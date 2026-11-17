@@ -7,7 +7,7 @@ import { ActionFeedbackModal, SessionFeedbackData } from '@/components/ui/Action
 export type ActionState = 'idle' | 'loading' | 'success' | 'error'
 
 export interface ActionFeedbackOptions<T = unknown> {
-    successMessage?: string
+    successMessage?: string | ((result: T) => string)
     type?: 'simple' | 'summary' | 'toast' | 'modal'
     modalTitle?: string
     modalDescription?: string
@@ -65,8 +65,11 @@ export function useActionFeedback() {
                     }
                 }
 
+                const successMessage = typeof options?.successMessage === 'function'
+                    ? options.successMessage(result)
+                    : options?.successMessage
                 setModalConfig({
-                    title: options?.successMessage || 'Opération réussie !',
+                    title: successMessage || 'Opération réussie !',
                     description: options?.modalDescription,
                     type: 'simple',
                     onClose: closeHandler

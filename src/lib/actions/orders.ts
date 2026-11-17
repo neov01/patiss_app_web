@@ -126,7 +126,7 @@ export async function createOrder(input: unknown) {
         const { data, error } = await (supabase as unknown as CreateOrderRpcClient).rpc('create_order_atomic', {
             p_order: {
                 id: formData.id ?? null,
-                order_number: formData.order_number,
+                // order_number volontairement absent : attribué par la base, sans trou
                 customer_id: formData.customer_id ?? null,
                 customer_name: formData.customer_name,
                 customer_contact: formData.customer_contact ?? null,
