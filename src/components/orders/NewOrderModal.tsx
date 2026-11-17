@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
 import { provisionalOrderRef } from '@/lib/domain/order-number'
+import { uploadOrderImage } from '@/lib/actions/order-images'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
@@ -421,25 +422,27 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
         const creationDurationSeconds = Math.max(0, Math.round((creationCompletedAtMs - creationStartedAtMs) / 1000))
 
         await execute(async () => {
-            // Fonction interne d'upload d'une image d'article
-            const uploadImage = async (file: File): Promise<string | undefined> => {
+            // Envoi de l'image d'un article, via le serveur (le navigateur n'a pas de
+            // session Supabase en mode kiosque). Un échec n'est JAMAIS silencieux :
+            // l'erreur remonte, la commande n'est pas envoyée et le panier est conservé.
+            const uploadImage = async (file: File): Promise<string> => {
+                let compressed: Blob
                 try {
-                    const compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
-                    const supabase = createSupabaseClient()
-                    const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-                    
-                    const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, compressed, {
-                        contentType: 'image/webp',
-                        upsert: true
-                    })
-                    
-                    if (uploadError) throw uploadError
-                    const { data: { publicUrl } } = supabase.storage.from('order-images').getPublicUrl(filePath)
-                    return publicUrl
-                } catch (err) {
-                    console.error("Image upload failed:", err)
-                    return undefined
+                    compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
+                } catch {
+                    throw new Error("La photo n'a pas pu être préparée. Retirez-la pour enregistrer la commande sans image.")
                 }
+                if (compressed.size > 1_000_000) {
+                    throw new Error("La photo est trop lourde. Choisissez-en une plus petite ou retirez-la pour enregistrer la commande sans image.")
+                }
+
+                const form = new FormData()
+                form.set('file', new File([compressed], 'commande.webp', { type: compressed.type || 'image/webp' }))
+                const uploaded = await uploadOrderImage(form)
+                if ('error' in uploaded) {
+                    throw new Error(`${uploaded.error} Réessayez, ou retirez la photo pour enregistrer la commande sans image.`)
+                }
+                return uploaded.url
             }
 
             // Uploader l'image du premier article si elle existe
@@ -447,10 +450,8 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             const itemsWithUrls = [...orderItems]
             if (itemsWithUrls[0]?.imageFile) {
                 const url = await uploadImage(itemsWithUrls[0].imageFile)
-                if (url) {
-                    firstImageUrl = url
-                    itemsWithUrls[0] = { ...itemsWithUrls[0], imageUrl: url }
-                }
+                firstImageUrl = url
+                itemsWithUrls[0] = { ...itemsWithUrls[0], imageUrl: url }
             }
 
             // Construire le JSON structuré des notes et images pour chaque article
