@@ -204,9 +204,15 @@ export async function removePendingTransaction(offlineId: number): Promise<void>
   })
 }
 
+/**
+ * Enregistre la dernière erreur. `countAttempt = false` pour une erreur
+ * temporaire (réseau, session, caisse fermée) : l'élément reste en attente
+ * sans consommer ses essais.
+ */
 export async function updatePendingTransactionRetry(
   offlineId: number,
-  error: string
+  error: string,
+  countAttempt: boolean = true
 ): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('pendingTransactions', 'readwrite')
@@ -217,10 +223,12 @@ export async function updatePendingTransactionRetry(
     getReq.onsuccess = () => {
       const record: PendingTransaction = getReq.result
       if (!record) { resolve(); return }
-      record.retryCount = (record.retryCount ?? 0) + 1
       record.lastError = error
-      if (record.retryCount >= MAX_OFFLINE_RETRIES) {
-        record.failedAt = new Date().toISOString()
+      if (countAttempt) {
+        record.retryCount = (record.retryCount ?? 0) + 1
+        if (record.retryCount >= MAX_OFFLINE_RETRIES) {
+          record.failedAt = new Date().toISOString()
+        }
       }
       store.put(record)
       tx.oncomplete = () => resolve()
@@ -301,9 +309,11 @@ export async function removePendingOrder(offlineId: number): Promise<void> {
   })
 }
 
+/** Voir updatePendingTransactionRetry : `countAttempt = false` pour une erreur temporaire. */
 export async function updatePendingOrderRetry(
   offlineId: number,
-  error: string
+  error: string,
+  countAttempt: boolean = true
 ): Promise<void> {
   const db = await openDB()
   const tx = db.transaction('pendingOrders', 'readwrite')
@@ -314,10 +324,12 @@ export async function updatePendingOrderRetry(
     getReq.onsuccess = () => {
       const record: PendingOrder = getReq.result
       if (!record) { resolve(); return }
-      record.retryCount = (record.retryCount ?? 0) + 1
       record.lastError = error
-      if (record.retryCount >= MAX_OFFLINE_RETRIES) {
-        record.failedAt = new Date().toISOString()
+      if (countAttempt) {
+        record.retryCount = (record.retryCount ?? 0) + 1
+        if (record.retryCount >= MAX_OFFLINE_RETRIES) {
+          record.failedAt = new Date().toISOString()
+        }
       }
       store.put(record)
       tx.oncomplete = () => resolve()
