@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Cause P1 : une collision de order_number (23505) ne doit JAMAIS être
 // renvoyée comme un succès tant que la commande n'existe pas en base.
 
-const { rpc, maybeSingle } = vi.hoisted(() => ({
+const { rpc, maybeSingle, selectColumns } = vi.hoisted(() => ({
     rpc: vi.fn(),
     maybeSingle: vi.fn(),
+    selectColumns: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
@@ -17,9 +18,10 @@ vi.mock('@/lib/auth/organization-context', () => {
     const supabase = {
         rpc,
         from: () => ({
-            select: () => ({
-                eq: () => ({ eq: () => ({ maybeSingle }), maybeSingle }),
-            }),
+            select: (columns: string) => {
+                selectColumns(columns)
+                return { eq: () => ({ eq: () => ({ maybeSingle }), maybeSingle }) }
+            },
         }),
     }
     return {
@@ -219,5 +221,28 @@ describe('createOrder — journalisation (cause P6, correction C4)', () => {
 
         expect(result).toHaveProperty('error')
         expect(logs().find(l => l.event === 'order.create.rejected')).toMatchObject({ orderId: ORDER_ID, step: 'validation' })
+    })
+})
+
+// ── Compatibilité avec l'injection de la commande dans la liste (OrdersClient) ──
+
+describe('createOrder — rejeu : commande complète renvoyée', () => {
+    beforeEach(() => {
+        rpc.mockReset()
+        maybeSingle.mockReset()
+        selectColumns.mockReset()
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        vi.spyOn(console, 'info').mockImplementation(() => {})
+    })
+
+    it("relit la commande existante avec ses lignes et ses paiements, comme le chemin normal", async () => {
+        rpc.mockResolvedValue({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "orders_pkey"' } })
+        maybeSingle.mockResolvedValue({ data: { id: ORDER_ID, order_items: [], order_payments: [] }, error: null })
+
+        await createOrder(validInput())
+
+        const columns = String(selectColumns.mock.calls[0]?.[0] ?? '')
+        expect(columns).toContain('order_items')
+        expect(columns).toContain('order_payments')
     })
 })

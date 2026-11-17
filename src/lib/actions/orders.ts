@@ -192,7 +192,7 @@ export async function createOrder(input: unknown) {
                 if (formData.id) {
                     const { data: existing, error: lookupError } = await supabase
                         .from('orders')
-                        .select('*')
+                        .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
                         .eq('id', formData.id)
                         .eq('organization_id', context.organizationId)
                         .maybeSingle()
