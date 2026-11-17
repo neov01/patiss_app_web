@@ -12,7 +12,7 @@ DO $$
 DECLARE
   v_org_a  UUID;
   v_org_b  UUID;
-  n1 TEXT; n2 TEXT; n3 TEXT; nb1 TEXT;
+  n1 TEXT; n2 TEXT; n3 TEXT; n4 TEXT; nb1 TEXT;
   v_year INT := EXTRACT(YEAR FROM (now() AT TIME ZONE 'UTC'))::int;
 BEGIN
   SELECT id INTO v_org_a FROM public.organizations ORDER BY created_at NULLS LAST, id LIMIT 1;
@@ -67,6 +67,14 @@ BEGIN
   END IF;
   IF has_table_privilege('authenticated', 'public.order_number_counters', 'SELECT,INSERT,UPDATE,DELETE') THEN
     RAISE EXCEPTION 'order_number_counters ne doit pas être accessible aux rôles applicatifs';
+  END IF;
+
+  -- 7. Un numéro déjà occupé (saisi à la main) est sauté, sans bloquer la création
+  INSERT INTO public.orders (id, organization_id, customer_name, pickup_date, total_amount, order_number)
+  VALUES (gen_random_uuid(), v_org_a, 'Import manuel', now(), 1000, 'CMD-TSA-' || v_year || '-000004');
+  n4 := public.next_order_number(v_org_a);
+  IF n4 <> 'CMD-TSA-' || v_year || '-000005' THEN
+    RAISE EXCEPTION 'Le numéro occupé n''a pas été sauté (obtenu: %)', n4;
   END IF;
 
   RAISE NOTICE 'TOUS LES TESTS OK';

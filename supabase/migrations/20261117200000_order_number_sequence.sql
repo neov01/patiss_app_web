@@ -89,8 +89,10 @@ SET search_path = public
 AS $$
 DECLARE
   v_year  INTEGER := EXTRACT(YEAR FROM (now() AT TIME ZONE 'UTC'))::integer;
-  v_code  TEXT;
-  v_value INTEGER;
+  v_code     TEXT;
+  v_value    INTEGER;
+  v_number   TEXT;
+  v_attempts INTEGER := 0;
 BEGIN
   SELECT NULLIF(upper(trim(order_code)), '')
   INTO v_code
@@ -107,14 +109,29 @@ BEGIN
     v_code := upper(substr(replace(p_organization_id::text, '-', ''), 1, 6));
   END IF;
 
-  INSERT INTO public.order_number_counters AS c (organization_id, year, last_value)
-  VALUES (p_organization_id, v_year, 1)
-  ON CONFLICT (organization_id, year)
-  DO UPDATE SET last_value = c.last_value + 1
-  RETURNING c.last_value INTO v_value;
+  -- Un numéro déjà utilisé (ex. saisi à la main lors d'un import historique)
+  -- est sauté : sans cela la création échouerait à chaque essai, le compteur
+  -- étant annulé avec la transaction.
+  LOOP
+    v_attempts := v_attempts + 1;
+    IF v_attempts > 1000 THEN
+      RAISE EXCEPTION 'Aucun numéro de commande libre trouvé'
+        USING ERRCODE = '55000';
+    END IF;
 
-  RETURN 'CMD-' || v_code || '-' || v_year::text || '-' ||
-         CASE WHEN v_value < 1000000 THEN lpad(v_value::text, 6, '0') ELSE v_value::text END;
+    INSERT INTO public.order_number_counters AS c (organization_id, year, last_value)
+    VALUES (p_organization_id, v_year, 1)
+    ON CONFLICT (organization_id, year)
+    DO UPDATE SET last_value = c.last_value + 1
+    RETURNING c.last_value INTO v_value;
+
+    v_number := 'CMD-' || v_code || '-' || v_year::text || '-' ||
+                CASE WHEN v_value < 1000000 THEN lpad(v_value::text, 6, '0') ELSE v_value::text END;
+
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM public.orders WHERE order_number = v_number);
+  END LOOP;
+
+  RETURN v_number;
 END;
 $$;
 
