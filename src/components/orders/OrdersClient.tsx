@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
@@ -102,6 +102,44 @@ const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: s
     SOLDEE: { label: 'Soldé', bg: 'var(--color-badge-success-bg)', text: 'var(--color-badge-success-text)', icon: CheckCircle2 },
 }
 
+// --- Filtres "À traiter" ---
+// Regroupe les nombreux libellés historiques de paiement en 3 familles simples.
+type PaymentBucket = 'unpaid' | 'deposit' | 'paid'
+type PaymentFilter = 'all' | PaymentBucket
+
+const PAID_STATUSES = new Set(['paid', 'SOLDEE', 'overpaid'])
+const DEPOSIT_STATUSES = new Set(['deposit_paid', 'partial', 'PARTIEL'])
+
+// Même règle que les badges : tout ce qui n'est ni soldé ni acompte est affiché « Impayé ».
+function getPaymentBucket(status: string | null | undefined): PaymentBucket {
+    if (status && PAID_STATUSES.has(status)) return 'paid'
+    if (status && DEPOSIT_STATUSES.has(status)) return 'deposit'
+    return 'unpaid'
+}
+
+function isSameLocalDay(value: string | null | undefined, ref: Date): boolean {
+    if (!value) return false
+    const d = new Date(value)
+    return !isNaN(d.getTime()) && d.toDateString() === ref.toDateString()
+}
+
+const PAYMENT_FILTERS: { id: PaymentFilter; label: string }[] = [
+    { id: 'all', label: 'Tous' },
+    { id: 'unpaid', label: 'Impayé' },
+    { id: 'deposit', label: 'Acompte' },
+    { id: 'paid', label: 'Soldé' },
+]
+
+type QuickFilters = { pickupToday: boolean; createdToday: boolean; notCollected: boolean; crm: boolean }
+const NO_QUICK_FILTERS: QuickFilters = { pickupToday: false, createdToday: false, notCollected: false, crm: false }
+
+const QUICK_FILTERS: { id: keyof QuickFilters; label: string }[] = [
+    { id: 'pickupToday', label: 'Retrait aujourd\'hui' },
+    { id: 'createdToday', label: 'Créées aujourd\'hui' },
+    { id: 'notCollected', label: 'Non retirées' },
+    { id: 'crm', label: 'Clients CRM' },
+]
+
 function formatPickupDate(date: Date): string {
     if (isNaN(date.getTime())) return 'Non définie'
     const day = date.getDate()
@@ -166,9 +204,13 @@ export default function OrdersClient({
 
     // --- États Commandes actives ("À traiter") ---
     const [localOrders, setLocalOrders] = useState(orders)
-    const [paymentFilter, setPaymentFilter] = useState('all')
-    const [pickupToday, setPickupToday] = useState(false)
-    const [createdToday, setCreatedToday] = useState(false)
+    const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
+    const [quickFilters, setQuickFilters] = useState<QuickFilters>(NO_QUICK_FILTERS)
+    const hasTodoFilters = paymentFilter !== 'all' || Object.values(quickFilters).some(Boolean)
+    const resetTodoFilters = () => {
+        setPaymentFilter('all')
+        setQuickFilters(NO_QUICK_FILTERS)
+    }
 
     // Synchronisation des commandes actives reçues du serveur
     useEffect(() => {
@@ -195,34 +237,34 @@ export default function OrdersClient({
     const [showFiltersDrawer, setShowFiltersDrawer] = useState(false)
     const [showNumpad, setShowNumpad] = useState(false)
 
-    // --- États Recherche Universelle ---
-    const [searchHistoryOrders, setSearchHistoryOrders] = useState<OrderWithItems[]>([])
-    const [searchHistoryLoading, setSearchHistoryLoading] = useState(false)
+    // --- États Recherche Universelle Multi-Statuts ---
+    const [searchServerOrders, setSearchServerOrders] = useState<OrderWithItems[]>([])
+    const [searchServerLoading, setSearchServerLoading] = useState(false)
 
     const isSearching = search.trim().length >= 2
 
-    // --- Logique de Recherche Universelle dans l'Historique (Debounced) ---
+    // --- Logique de Recherche Universelle (Debounced) ---
     useEffect(() => {
         if (!isSearching) {
-            setSearchHistoryOrders([])
+            setSearchServerOrders([])
             return
         }
 
         const timer = setTimeout(async () => {
-            setSearchHistoryLoading(true)
+            setSearchServerLoading(true)
             try {
                 const result = await getHistoricalOrders({
                     page: 1,
-                    pageSize: 30,
+                    pageSize: 50,
                     searchQuery: search
                 })
                 if ('orders' in result && result.orders) {
-                    setSearchHistoryOrders(result.orders as unknown as OrderWithItems[])
+                    setSearchServerOrders(result.orders as unknown as OrderWithItems[])
                 }
             } catch (err) {
-                console.error("Erreur recherche historique:", err)
+                console.error("Erreur recherche universelle:", err)
             } finally {
-                setSearchHistoryLoading(false)
+                setSearchServerLoading(false)
             }
         }, 300)
 
@@ -333,54 +375,36 @@ export default function OrdersClient({
     }, [activeTab, histPeriod, histStartDate, histEndDate, histPaymentMethod, histAmount, search])
 
     // --- Filtrage Local "À traiter" ---
-    const filteredTodo = useMemo(() => {
-        let result = localOrders
-
-        // Filtre paiement
-        if (paymentFilter === 'solde') {
-            result = result.filter(o => o.payment_status === 'paid' || o.payment_status === 'SOLDEE')
-        } else if (paymentFilter === 'acompte') {
-            result = result.filter(o => ['deposit_paid', 'partial', 'PARTIEL'].includes(o.payment_status || ''))
-        } else if (paymentFilter === 'paid_not_delivered') {
-            result = result.filter(o =>
-                (o.payment_status === 'paid' || o.payment_status === 'SOLDEE') &&
-                o.status !== 'delivered' && o.status !== 'completed'
-            )
-        } else if (paymentFilter === 'crm') {
-            result = result.filter(o => !!o.customer_id)
-        }
-
-        // Filtre Retraits du Jour
-        if (pickupToday) {
-            const todayStr = new Date().toDateString()
-            result = result.filter(o => {
-                const d = new Date(o.pickup_date)
-                return !isNaN(d.getTime()) && d.toDateString() === todayStr
-            })
-        }
-
-        // Filtre Créées ce Jour
-        if (createdToday) {
-            const todayStr = new Date().toDateString()
-            result = result.filter(o => {
-                if (!o.created_at) return false
-                const d = new Date(o.created_at)
-                return !isNaN(d.getTime()) && d.toDateString() === todayStr
-            })
-        }
-
-        // Recherche locale sur les commandes à traiter
-        if (isSearching) {
-            const q = search.toLowerCase()
-            result = result.filter(o => 
+    // 1) Raccourcis cumulables (ET) + recherche, 2) puis une seule famille de paiement.
+    // Les compteurs du sélecteur de paiement reflètent l'étape 1.
+    const todoBeforePayment = useMemo(() => {
+        const now = new Date()
+        const q = search.toLowerCase()
+        return localOrders.filter(o => {
+            if (quickFilters.pickupToday && !isSameLocalDay(o.pickup_date, now)) return false
+            if (quickFilters.createdToday && !isSameLocalDay(o.created_at, now)) return false
+            if (quickFilters.notCollected && (o.status === 'delivered' || o.status === 'completed')) return false
+            if (quickFilters.crm && !o.customer_id) return false
+            if (isSearching && !(
                 o.customer_name.toLowerCase().includes(q) ||
                 (o.customer_contact && o.customer_contact.toLowerCase().includes(q)) ||
                 (o.order_number && o.order_number.toLowerCase().includes(q))
-            )
-        }
+            )) return false
+            return true
+        })
+    }, [localOrders, quickFilters, search, isSearching])
 
-        return result
-    }, [localOrders, paymentFilter, pickupToday, createdToday, search, isSearching])
+    const paymentCounts = useMemo(() => {
+        const c: Record<PaymentFilter, number> = { all: todoBeforePayment.length, unpaid: 0, deposit: 0, paid: 0 }
+        todoBeforePayment.forEach(o => { c[getPaymentBucket(o.payment_status)]++ })
+        return c
+    }, [todoBeforePayment])
+
+    const filteredTodo = useMemo(() => (
+        paymentFilter === 'all'
+            ? todoBeforePayment
+            : todoBeforePayment.filter(o => getPaymentBucket(o.payment_status) === paymentFilter)
+    ), [todoBeforePayment, paymentFilter])
 
     // Compteurs pour les badges d'onglets
     const counts = useMemo(() => {
@@ -390,6 +414,41 @@ export default function OrdersClient({
             vitrine: vitrineCount
         }
     }, [localOrders, historyCount, vitrineCount])
+
+    // Statuts considérés comme "Actifs" (À traiter)
+    const ACTIVE_STATUS_SET = useMemo(() => new Set([
+        'pending', 'production', 'ready', 'confirmed', 'in_preparation', 
+        'awaiting_pickup', 'in_production', 'draft'
+    ]), [])
+
+    // Commandes actives trouvées (Locales + Serveur dédoublonnées)
+    const searchActiveOrders = useMemo(() => {
+        const map = new Map<string, OrderWithItems>()
+        // 1. D'abord les commandes locales actives correspondantes
+        filteredTodo.forEach(o => map.set(o.id, o))
+        // 2. Ensuite les commandes actives renvoyées par le serveur
+        searchServerOrders
+            .filter(o => ACTIVE_STATUS_SET.has(o.status))
+            .forEach(o => map.set(o.id, o))
+        return Array.from(map.values())
+    }, [filteredTodo, searchServerOrders, ACTIVE_STATUS_SET])
+
+    // Commandes passées trouvées (Livrées, terminées ou annulées)
+    const searchPastOrders = useMemo(() => {
+        return searchServerOrders.filter(o => !ACTIVE_STATUS_SET.has(o.status))
+    }, [searchServerOrders, ACTIVE_STATUS_SET])
+
+    // Injection réactive instantanée d'une nouvelle commande (Zéro Latence)
+    const handleOrderCreated = useCallback((newOrder: Record<string, unknown>) => {
+        if (!newOrder || !newOrder.id) return
+        const orderTyped = newOrder as unknown as OrderWithItems
+        setLocalOrders(prev => {
+            const exists = prev.some(o => o.id === orderTyped.id)
+            if (exists) return prev.map(o => o.id === orderTyped.id ? orderTyped : o)
+            return [orderTyped, ...prev]
+        })
+        setActiveTab('todo')
+    }, [])
 
     // --- Actions ───
     async function handleStatusChange(orderId: string, nextStatus: string) {
@@ -535,7 +594,7 @@ export default function OrdersClient({
                     </h1>
                     <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.875rem' }}>
                         {isSearching ? (
-                            `Recherche universelle : ${filteredTodo.length} actives, ${searchHistoryOrders.length} passées`
+                            `Recherche universelle : ${searchActiveOrders.length} active${searchActiveOrders.length > 1 ? 's' : ''}, ${searchPastOrders.length} passée${searchPastOrders.length > 1 ? 's' : ''}`
                         ) : activeTab === 'todo' ? (
                             `${filteredTodo.length} commande${filteredTodo.length > 1 ? 's' : ''} à traiter`
                         ) : (
@@ -616,15 +675,16 @@ export default function OrdersClient({
                     {/* Section Actives */}
                     <div>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            ⚡ Commandes actives ({filteredTodo.length})
+                            ⚡ Commandes actives ({searchActiveOrders.length})
+                            {searchServerLoading && <Loader2 size={16} className="animate-spin" />}
                         </h2>
-                        {filteredTodo.length === 0 ? (
+                        {searchActiveOrders.length === 0 ? (
                             <div className="card" style={{ padding: '30px 16px', textAlign: 'center', color: 'var(--color-muted)' }}>
                                 Aucun résultat actif pour &ldquo;{search}&rdquo;
                             </div>
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-                                {filteredTodo.map(order => renderActiveCard(order))}
+                                {searchActiveOrders.map(order => renderActiveCard(order))}
                             </div>
                         )}
                     </div>
@@ -632,21 +692,21 @@ export default function OrdersClient({
                     {/* Section Historique */}
                     <div>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px', color: 'var(--color-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            📜 Historique des commandes ({searchHistoryOrders.length})
-                            {searchHistoryLoading && <Loader2 size={16} className="animate-spin" />}
+                            📜 Historique des commandes ({searchPastOrders.length})
+                            {searchServerLoading && <Loader2 size={16} className="animate-spin" />}
                         </h2>
-                        {searchHistoryLoading && searchHistoryOrders.length === 0 ? (
+                        {searchServerLoading && searchPastOrders.length === 0 ? (
                             <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
                                 <Loader2 size={32} className="animate-spin" color="var(--color-secondary)" />
                             </div>
-                        ) : searchHistoryOrders.length === 0 ? (
+                        ) : searchPastOrders.length === 0 ? (
                             <div className="card" style={{ padding: '30px 16px', textAlign: 'center', color: 'var(--color-muted)' }}>
                                 Aucun résultat dans l&apos;historique pour &ldquo;{search}&rdquo;
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {renderHistoryHeader()}
-                                {searchHistoryOrders.map(order => renderHistoryRow(order))}
+                                {searchPastOrders.map(order => renderHistoryRow(order))}
                             </div>
                         )}
                     </div>
@@ -740,62 +800,73 @@ export default function OrdersClient({
                     {activeTab === 'todo' ? (
                         /* --- VUE À TRAITER (GRILLE D'ACTION) --- */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {/* Filtres rapides à traiter */}
+                            {/* Filtres « À traiter » : paiement (choix unique) + raccourcis cumulables */}
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                {[
-                                    { id: 'all', label: 'Tous paiements' },
-                                    { id: 'solde', label: '✓ Soldé' },
-                                    { id: 'acompte', label: '💳 Acompte restant' },
-                                    { id: 'paid_not_delivered', label: '💰 Soldées non retirées' },
-                                    { id: 'crm', label: '🎯 Clients CRM' },
-                                ].map(f => (
-                                    <button key={f.id}
-                                        onClick={() => setPaymentFilter(f.id)}
-                                        style={{
-                                            padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '99px',
-                                            border: paymentFilter === f.id ? 'none' : '1.5px solid var(--color-border)',
-                                            background: paymentFilter === f.id ? 'var(--color-primary)' : 'transparent',
-                                            color: paymentFilter === f.id ? 'white' : 'var(--color-muted)',
-                                            cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s'
-                                        }}
+                                <div role="radiogroup" aria-label="Filtrer par paiement" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', padding: '4px', borderRadius: '99px', background: 'var(--color-surface-variant)' }}>
+                                    {PAYMENT_FILTERS.map(f => {
+                                        const active = paymentFilter === f.id
+                                        const danger = f.id === 'unpaid'
+                                        return (
+                                            <button key={f.id}
+                                                role="radio"
+                                                aria-checked={active}
+                                                onClick={() => setPaymentFilter(f.id)}
+                                                style={{
+                                                    minHeight: '40px', padding: '0 16px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '99px', border: 'none',
+                                                    background: active ? (danger ? 'var(--color-error)' : 'var(--color-primary)') : 'transparent',
+                                                    color: active ? 'white' : (danger ? 'var(--color-error)' : 'var(--color-text)'),
+                                                    cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                {f.label}
+                                                <span style={{ fontSize: '0.7rem', fontWeight: 800, opacity: active ? 0.9 : 0.6 }}>{paymentCounts[f.id]}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+
+                                {QUICK_FILTERS.map(f => {
+                                    const active = quickFilters[f.id]
+                                    return (
+                                        <button key={f.id}
+                                            aria-pressed={active}
+                                            onClick={() => setQuickFilters(prev => ({ ...prev, [f.id]: !prev[f.id] }))}
+                                            style={{
+                                                minHeight: '40px', padding: '0 14px', fontSize: '0.8rem', fontWeight: 700, borderRadius: '99px',
+                                                border: active ? '1.5px solid var(--color-secondary)' : '1.5px solid var(--color-border)',
+                                                background: active ? 'var(--color-secondary)' : 'transparent',
+                                                color: active ? 'white' : 'var(--color-muted)',
+                                                cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            {active && <CheckCircle2 size={14} />}
+                                            {f.label}
+                                        </button>
+                                    )
+                                })}
+
+                                {hasTodoFilters && (
+                                    <button
+                                        onClick={resetTodoFilters}
+                                        style={{ minHeight: '40px', padding: '0 10px', fontSize: '0.8rem', fontWeight: 700, border: 'none', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer', textDecoration: 'underline' }}
                                     >
-                                        {f.label}
+                                        Effacer les filtres
                                     </button>
-                                ))}
-
-                                <div style={{ width: '1.5px', height: '16px', background: 'var(--color-border)', margin: '0 4px' }} />
-
-                                <button
-                                    onClick={() => setPickupToday(!pickupToday)}
-                                    style={{
-                                        padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '99px',
-                                        border: pickupToday ? 'none' : '1.5px solid var(--color-border)',
-                                        background: pickupToday ? 'var(--color-secondary)' : 'transparent',
-                                        color: pickupToday ? 'white' : 'var(--color-muted)',
-                                        cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.15s'
-                                    }}
-                                >
-                                    📅 Retraits du Jour
-                                </button>
-                                <button
-                                    onClick={() => setCreatedToday(!createdToday)}
-                                    style={{
-                                        padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '99px',
-                                        border: createdToday ? 'none' : '1.5px solid var(--color-border)',
-                                        background: createdToday ? 'var(--color-secondary)' : 'transparent',
-                                        color: createdToday ? 'white' : 'var(--color-muted)',
-                                        cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.15s'
-                                    }}
-                                >
-                                    📝 Créées ce Jour
-                                </button>
+                                )}
                             </div>
 
                             {/* Grille de commandes à traiter */}
                             {filteredTodo.length === 0 ? (
                                 <div className="card" style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-muted)' }}>
                                     <ShoppingBag size={40} style={{ margin: '0 auto 16px', opacity: 0.4 }} />
-                                    <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Aucune commande à traiter</p>
+                                    <p style={{ fontWeight: 600, margin: '0 0 8px' }}>
+                                        {hasTodoFilters ? 'Aucune commande ne correspond à ces filtres' : 'Aucune commande à traiter'}
+                                    </p>
+                                    {hasTodoFilters && (
+                                        <button className="btn-secondary" onClick={resetTodoFilters} style={{ marginTop: '8px' }}>
+                                            Effacer les filtres
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
@@ -1373,6 +1444,7 @@ export default function OrdersClient({
                 products={products}
                 currency={currency}
                 organizationId={organizationId}
+                onOrderCreated={handleOrderCreated}
             />
 
             {/* --- DRAWER DÉTAIL COMMANDE --- */}
