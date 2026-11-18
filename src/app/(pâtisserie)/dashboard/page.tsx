@@ -4,6 +4,7 @@ import AIAssistant from '@/components/dashboard/AIAssistant'
 import DashboardNewOrderButton from '@/components/dashboard/DashboardNewOrderButton'
 import DashboardPeriodFilter from '@/components/dashboard/DashboardPeriodFilter'
 import TodoStrip from '@/components/dashboard/TodoStrip'
+import DashboardAutoRefresh from '@/components/dashboard/DashboardAutoRefresh'
 import ChartCard, { ChartEmpty } from '@/components/dashboard/charts/ChartCard'
 import CumulativeRevenueChart from '@/components/dashboard/charts/CumulativeRevenueChart'
 import PaymentDonut from '@/components/dashboard/charts/PaymentDonut'
@@ -162,9 +163,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     {isManager && (
                         <p style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '6px 0 0', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)' }}>
                             <span aria-hidden="true" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)' }} />
-                            En direct · mis à jour à {updatedAt}
+                            Actualisé toutes les 30 s · dernière mise à jour à {updatedAt}
                         </p>
                     )}
+                    {isManager && <DashboardAutoRefresh />}
                 </div>
                 {/* Pill session + Bouton Nouvelle Commande — visibles pour les rôles autorisés */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

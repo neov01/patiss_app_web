@@ -37,7 +37,7 @@ Le tableau de bord ne répond pas à la question du gérant le matin : « qu'est
 
 - Titre « Bonjour, {prénom} », sans emoji. Sous-titre inchangé (date · organisation).
 - À droite, inchangés : `SessionPill` et `DashboardNewOrderButton`.
-- Indicateur « En direct · mis à jour à HH:MM » (point vert plus texte, pas seulement la couleur). L'heure est celle du rendu serveur ; elle change à chaque `router.refresh()` déclenché par `RealtimeSync`.
+- Indicateur « Actualisé toutes les 30 s · dernière mise à jour à HH:MM » (point vert plus texte, pas seulement la couleur). L'heure est celle du rendu serveur ; elle change à chaque rafraîchissement (voir 5.4).
 - Les filtres se replient dans un seul bouton « Période : Aujourd'hui ▾ » qui ouvre un petit panneau : sélecteur de période (Aujourd'hui / 7 derniers jours / 30 derniers jours) et champ « Client ». Le changement de période s'applique immédiatement (navigation avec `?period=`), sans bouton « Filtrer ». Le champ client s'applique par Entrée. Les paramètres d'URL `period` et `client` restent les mêmes qu'aujourd'hui.
 
 ### 3.2 Bandeau « À faire maintenant »
@@ -147,9 +147,13 @@ La carte CA s'appuie aujourd'hui sur le RPC `get_daily_metrics` (`ca_encaisse`) 
 - s'ils sont égaux, garder le RPC pour la carte ;
 - s'ils diffèrent (remboursements, acomptes, ventes historiques), **ne pas trancher seul** : présenter l'écart à l'utilisateur et choisir avec lui la source commune avant de modifier la carte.
 
-### 5.4 Temps réel
+### 5.4 Actualisation (décision du 2026-11-18)
 
-Aucune nouvelle infrastructure. `RealtimeSync` (monté dans `src/app/(pâtisserie)/layout.tsx`) appelle déjà `router.refresh()` à chaque changement sur `orders` et `transactions` de l'organisation ; le composant serveur recalcule alors toutes les séries. Le composant client de la courbe doit conserver son état de survol sans erreur quand ses props changent.
+Le temps réel Supabase n'est pas actif en production : la publication `supabase_realtime` ne contient aucune table, donc `RealtimeSync` ne reçoit jamais d'événement (constaté avec une vente test sur « test 2 »).
+
+Décision : pas de migration. Le composant client `DashboardAutoRefresh` appelle `router.refresh()` toutes les 30 secondes quand l'onglet est visible, et immédiatement au retour sur l'onglet si la dernière actualisation date de plus de 30 secondes. Décalage maximal : 30 secondes. Le composant client de la courbe doit conserver son état de survol sans erreur quand ses props changent.
+
+Activer le vrai temps réel reste possible plus tard (ajout de `transactions` et `orders` à la publication, anti-rebond dans `RealtimeSync`, abonnement limité aux écrans qui en ont besoin) : coût Supabase nul au volume actuel, mais changement de base de production et rafraîchissement de tous les écrans ouverts à chaque événement.
 
 ## 6. Gestion des erreurs et cas limites
 
@@ -164,7 +168,7 @@ Aucune nouvelle infrastructure. `RealtimeSync` (monté dans `src/app/(pâtisseri
 - `npm run lint` sans nouvelle erreur, typage `tsc --noEmit` propre sur les fichiers touchés.
 - Contrôle navigateur sur « test 2 », desktop 1280×800 et mobile 375×812 :
   - le premier chiffre est visible sans défiler sur mobile ;
-  - une vente test en caisse fait bouger la courbe, les barres, le top produits, l'anneau et l'heure « mis à jour à » sans recharger la page ;
+  - après une vente test en caisse, la courbe, les barres, le top produits, l'anneau et l'heure de mise à jour changent en moins de 30 secondes sans recharger la page ;
   - le point final de la courbe égale la carte CA (voir 5.3) ;
   - aucune ligne « cash » séparée d'« Espèces » ;
   - états vides : organisation sans vente du jour.
