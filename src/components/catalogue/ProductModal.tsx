@@ -14,7 +14,7 @@ import { useActionFeedback } from '@/hooks/useActionFeedback'
 import TouchInput from '@/components/ui/TouchInput'
 import TouchSelect from '@/components/ui/TouchSelect'
 import { compressImage } from '@/lib/utils/image-compression'
-import { createClient as createSupabaseClient } from '@/lib/supabase/client'
+import { uploadProductImage } from '@/lib/actions/product-images'
 import ImageCropper from '@/components/ui/ImageCropper'
 
 type ProductCategory = ProductFormValues['category']
@@ -153,19 +153,16 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
       if (imageFile) {
         try {
           const compressed = await compressImage(imageFile, { maxWidth: 800, quality: 0.75 })
-          const supabase = createSupabaseClient()
-          const filePath = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-          const { error: uploadError } = await supabase.storage
-            .from('product-images')
-            .upload(filePath, compressed, { contentType: 'image/webp', upsert: true })
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(filePath)
-            finalImageUrl = urlData.publicUrl
+          const form = new FormData()
+          form.set('file', new File([compressed], 'produit.webp', { type: compressed.type || 'image/webp' }))
+          const uploaded = await uploadProductImage(form)
+          if ('url' in uploaded) {
+            finalImageUrl = uploaded.url
           } else {
-            toast.error('Upload de la photo échoué — produit enregistré sans image.')
+            toast.error(`${uploaded.error} Produit enregistré sans image.`)
           }
         } catch {
-          // continue without image
+          toast.error('Upload de la photo échoué — produit enregistré sans image.')
         }
       } else if (imagePreview && productToEdit?.image_url) {
         // Keep existing image if no new file was selected
