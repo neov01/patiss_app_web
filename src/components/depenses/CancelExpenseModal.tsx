@@ -78,37 +78,37 @@ export default function CancelExpenseModal({
         }}
         className="overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-[#BA1A1A]" />
-            <h3 className="text-base font-bold text-[#1A1C1A] font-display">
+            <AlertCircle className="w-5 h-5 text-[color:var(--color-error)]" />
+            <h3 className="text-base font-bold text-[color:var(--color-text)] font-display">
               Annuler une dépense
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-[#83746B] hover:text-[#1A1C1A] rounded-full"
+            className="p-1.5 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] rounded-full"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleConfirm} className="p-5 space-y-4">
-          <div className="p-3 bg-[#F5EEE4] rounded-xl text-xs space-y-1">
-            <div className="flex justify-between font-bold text-[#1A1C1A]">
+          <div className="p-3 bg-[var(--color-well)] rounded-xl text-xs space-y-1">
+            <div className="flex justify-between font-bold text-[color:var(--color-text)]">
               <span>{expense.description}</span>
-              <span className="text-[#BA1A1A]">
+              <span className="text-[color:var(--color-error)]">
                 -{formatMoney(Number(expense.amount))} {currency}
               </span>
             </div>
-            <p className="text-[11px] text-[#51443C]">
+            <p className="text-[11px] text-[color:var(--color-muted)]">
               L'annulation recréditera automatiquement {formatMoney(Number(expense.amount))} {currency} dans l'enveloppe de la semaine.
             </p>
           </div>
 
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Motif de l'annulation (obligatoire) *
             </label>
             <textarea
@@ -118,12 +118,12 @@ export default function CancelExpenseModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               style={{
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '12px',
                 border: '1px solid rgba(131, 116, 107, 0.2)',
                 padding: '10px 14px',
                 fontSize: '13px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 width: '100%',
               }}
             />
@@ -137,12 +137,12 @@ export default function CancelExpenseModal({
               style={{
                 height: '46px',
                 borderRadius: '9999px',
-                backgroundColor: '#F5EEE4',
-                color: '#51443C',
+                backgroundColor: 'var(--color-well)',
+                color: 'var(--color-muted)',
                 border: 'none',
                 padding: '0 20px',
               }}
-              className="text-xs font-bold hover:bg-[#E0D8CE]"
+              className="text-xs font-bold hover:bg-[var(--color-surface-variant)]"
             >
               Annuler
             </button>
@@ -153,7 +153,7 @@ export default function CancelExpenseModal({
               style={{
                 height: '46px',
                 borderRadius: '9999px',
-                backgroundColor: isSubmitting || !reason.trim() ? '#83746B' : '#BA1A1A',
+                backgroundColor: isSubmitting || !reason.trim() ? 'var(--color-muted)' : 'var(--color-error)',
                 color: '#FFFFFF',
                 border: 'none',
               }}

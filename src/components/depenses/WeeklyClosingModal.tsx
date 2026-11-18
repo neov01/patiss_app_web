@@ -144,12 +144,12 @@ export default function WeeklyClosingModal({
         className="flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
           <div className="flex items-center gap-2.5">
             <div
               style={{
-                backgroundColor: '#F5EEE4',
-                color: '#815431',
+                backgroundColor: 'var(--color-well)',
+                color: 'var(--color-primary)',
                 borderRadius: '10px',
                 padding: '8px',
               }}
@@ -157,10 +157,10 @@ export default function WeeklyClosingModal({
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-[#1A1C1A] font-display">
+              <h3 className="text-lg font-bold text-[color:var(--color-text)] font-display">
                 Bilan de la semaine
               </h3>
-              <p className="text-xs text-[#51443C]">
+              <p className="text-xs text-[color:var(--color-muted)]">
                 Recharge de l&apos;enveloppe prise dans le tiroir, puis ouverture de la semaine suivante
               </p>
             </div>
@@ -168,7 +168,7 @@ export default function WeeklyClosingModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-[#83746B] hover:text-[#1A1C1A] hover:bg-[#F5EEE4] rounded-full transition-colors"
+            className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] hover:bg-[var(--color-well)] rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -179,7 +179,7 @@ export default function WeeklyClosingModal({
           {/* 1. Résumé Chiffré de la Semaine */}
           <div
             style={{
-              backgroundColor: '#F5EEE4',
+              backgroundColor: 'var(--color-well)',
               borderRadius: '16px',
               padding: '16px',
               border: '1px solid rgba(131, 116, 107, 0.15)',
@@ -187,43 +187,43 @@ export default function WeeklyClosingModal({
             className="grid grid-cols-3 gap-3 text-center"
           >
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#51443C] block">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[color:var(--color-muted)] block">
                 Total Alloué
               </span>
-              <span className="text-base font-black text-[#1A1C1A] font-display">
+              <span className="text-base font-black text-[color:var(--color-text)] font-display">
                 {formatMoney(totalAllocated)} {currency}
               </span>
               {topUps.length > 0 && (
-                <span className="text-[10px] text-[#4B6450] block mt-0.5 font-medium">
+                <span className="text-[10px] text-[color:var(--color-secondary)] block mt-0.5 font-medium">
                   dont {topUps.length} rallonge{topUps.length > 1 ? 's' : ''}
                 </span>
               )}
             </div>
 
             <div className="border-x border-[rgba(131,116,107,0.2)] px-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#51443C] block">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[color:var(--color-muted)] block">
                 Total Dépensé
               </span>
-              <span className="text-base font-black text-[#991B1B] font-display">
+              <span className="text-base font-black text-[color:var(--color-badge-danger-text)] font-display">
                 -{formatMoney(totalSpent)} {currency}
               </span>
-              <span className="text-[10px] text-[#51443C] block mt-0.5 font-medium">
+              <span className="text-[10px] text-[color:var(--color-muted)] block mt-0.5 font-medium">
                 {expenses.filter((e) => !e.is_cancelled).length} achats
               </span>
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#51443C] block">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[color:var(--color-muted)] block">
                 Solde Restant
               </span>
               <span
                 className={`text-base font-black font-display ${
-                  currentBalance < 0 ? 'text-[#BA1A1A]' : 'text-[#4B6450]'
+                  currentBalance < 0 ? 'text-[color:var(--color-error)]' : 'text-[color:var(--color-secondary)]'
                 }`}
               >
                 {formatMoney(currentBalance)} {currency}
               </span>
-              <span className="text-[10px] text-[#51443C] block mt-0.5 font-medium">
+              <span className="text-[10px] text-[color:var(--color-muted)] block mt-0.5 font-medium">
                 au dimanche soir
               </span>
             </div>
@@ -232,22 +232,22 @@ export default function WeeklyClosingModal({
           {/* 2. Ventilation des dépenses par poste */}
           {categoryBreakdown.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#51443C]">
-                <PieChart className="w-3.5 h-3.5 text-[#815431]" />
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
+                <PieChart className="w-3.5 h-3.5 text-[color:var(--color-primary)]" />
                 <span>Répartition des dépenses de la semaine</span>
               </div>
               <div className="space-y-1.5 bg-[#FFFFFF] p-3 rounded-xl border border-[rgba(131,116,107,0.12)]">
                 {categoryBreakdown.map((cat) => (
                   <div key={cat.key} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#1A1C1A]">
+                      <span className="font-semibold text-[color:var(--color-text)]">
                         {cat.config.shortLabel}
                       </span>
-                      <span className="font-bold text-[#51443C]">
+                      <span className="font-bold text-[color:var(--color-muted)]">
                         {formatMoney(cat.total)} {currency} ({cat.percentage.toFixed(0)}%)
                       </span>
                     </div>
-                    <div className="h-2 w-full bg-[#F5EEE4] rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-[var(--color-well)] rounded-full overflow-hidden">
                       <div
                         style={{
                           width: `${cat.percentage}%`,
@@ -264,25 +264,25 @@ export default function WeeklyClosingModal({
 
           {/* 3. Bilan : recharge et espèces de la semaine */}
           {isLoadingPreview && (
-            <div className="flex items-center gap-2 text-sm text-[#51443C]">
+            <div className="flex items-center gap-2 text-sm text-[color:var(--color-muted)]">
               <Loader2 className="w-4 h-4 animate-spin" /> Préparation du bilan…
             </div>
           )}
           {previewError && (
-            <p className="flex items-start gap-1.5 text-sm font-semibold text-[#BA1A1A]">
+            <p className="flex items-start gap-1.5 text-sm font-semibold text-[color:var(--color-error)]">
               <AlertTriangle className="w-4 h-4 shrink-0" /> {previewError}
             </p>
           )}
           {preview && <WeeklyBilanSummary preview={preview} currency={currency} />}
           {blockingReason && (
-            <p className="flex items-start gap-1.5 rounded-xl bg-[#FEF3C7] border border-[#FDE68A] p-3 text-sm font-semibold text-[#92400E]">
+            <p className="flex items-start gap-1.5 rounded-xl bg-[var(--color-badge-warning-bg)] border border-[#FDE68A] p-3 text-sm font-semibold text-[color:var(--color-badge-warning-text)]">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {blockingReason}
             </p>
           )}
         </div>
 
         {/* Actions Footer */}
-        <div className="p-4 border-t border-[rgba(131,116,107,0.15)] bg-[#FDFBF7] flex items-center gap-3">
+        <div className="p-4 border-t border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)] flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -290,12 +290,12 @@ export default function WeeklyClosingModal({
             style={{
               height: '48px',
               borderRadius: '9999px',
-              backgroundColor: '#F5EEE4',
-              color: '#51443C',
+              backgroundColor: 'var(--color-well)',
+              color: 'var(--color-muted)',
               border: 'none',
               padding: '0 20px',
             }}
-            className="text-sm font-bold hover:bg-[#E0D8CE] transition-all"
+            className="text-sm font-bold hover:bg-[var(--color-surface-variant)] transition-all"
           >
             Annuler
           </button>
@@ -307,7 +307,7 @@ export default function WeeklyClosingModal({
             style={{
               height: '48px',
               borderRadius: '9999px',
-              backgroundColor: canSubmit ? '#815431' : '#83746B',
+              backgroundColor: canSubmit ? 'var(--color-primary)' : 'var(--color-muted)',
               color: '#FFFFFF',
               border: 'none',
             }}

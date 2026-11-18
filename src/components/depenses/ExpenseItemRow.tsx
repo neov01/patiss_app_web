@@ -96,29 +96,29 @@ export default function ExpenseItemRow({
             </span>
 
             {/* Heure */}
-            <span className="text-[11px] text-[#51443C] flex items-center gap-1 font-medium">
-              <Clock className="w-3 h-3 text-[#83746B]" />
+            <span className="text-[11px] text-[color:var(--color-muted)] flex items-center gap-1 font-medium">
+              <Clock className="w-3 h-3 text-[color:var(--color-muted)]" />
               {timeStr}
             </span>
 
             {/* Auteur */}
             {expense.profiles?.full_name && (
-              <span className="text-[11px] text-[#51443C] flex items-center gap-1 font-medium">
-                <User className="w-3 h-3 text-[#83746B]" />
+              <span className="text-[11px] text-[color:var(--color-muted)] flex items-center gap-1 font-medium">
+                <User className="w-3 h-3 text-[color:var(--color-muted)]" />
                 {expense.profiles.full_name}
               </span>
             )}
 
             {/* Badge mode de paiement */}
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#F5EEE4] text-[#815431]">
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[var(--color-well)] text-[color:var(--color-primary)]">
               {expense.payment_method}
             </span>
           </div>
 
           {/* Motif principal */}
           <h4
-            className={`text-sm font-bold text-[#1A1C1A] leading-snug break-words ${
-              expense.is_cancelled ? 'line-through text-[#83746B]' : ''
+            className={`text-sm font-bold text-[color:var(--color-text)] leading-snug break-words ${
+              expense.is_cancelled ? 'line-through text-[color:var(--color-muted)]' : ''
             }`}
           >
             {expense.description}
@@ -126,7 +126,7 @@ export default function ExpenseItemRow({
 
           {/* Motif d'annulation si applicable */}
           {expense.is_cancelled && (
-            <div className="mt-1 text-xs text-[#991B1B] bg-[#FEE2E2] px-2 py-1 rounded-md inline-flex items-center gap-1">
+            <div className="mt-1 text-xs text-[color:var(--color-badge-danger-text)] bg-[var(--color-badge-danger-bg)] px-2 py-1 rounded-md inline-flex items-center gap-1">
               <XCircle className="w-3.5 h-3.5 shrink-0" />
               <span>
                 Annulée : <em>{expense.cancellation_reason || 'Erreur de saisie'}</em>
@@ -142,14 +142,14 @@ export default function ExpenseItemRow({
         {expense.receipt_url ? (
           <button
             onClick={() => onPreviewReceipt(expense.receipt_url!)}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#4B6450] bg-[#CDEAD0] hover:bg-[#b8dec0] rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[color:var(--color-secondary)] bg-[var(--color-secondary-container)] hover:bg-[#b8dec0] rounded-lg transition-colors"
             title="Voir le reçu / ticket"
           >
             <Camera className="w-3.5 h-3.5" />
             <span>Reçu</span>
           </button>
         ) : (
-          <span className="text-[11px] text-[#83746B] italic hidden sm:inline">
+          <span className="text-[11px] text-[color:var(--color-muted)] italic hidden sm:inline">
             Sans reçu
           </span>
         )}
@@ -158,7 +158,7 @@ export default function ExpenseItemRow({
         <div className="text-right">
           <div
             className={`text-base font-black tracking-tight font-display ${
-              expense.is_cancelled ? 'text-[#83746B] line-through' : 'text-[#BA1A1A]'
+              expense.is_cancelled ? 'text-[color:var(--color-muted)] line-through' : 'text-[color:var(--color-error)]'
             }`}
           >
             -{formatMoney(Number(expense.amount))} <span className="text-xs font-bold">{currency}</span>
@@ -169,7 +169,7 @@ export default function ExpenseItemRow({
         {!expense.is_cancelled && (
           <button
             onClick={() => onCancelRequest(expense)}
-            className="p-2 text-[#83746B] hover:text-[#BA1A1A] hover:bg-[#FEE2E2] rounded-lg transition-colors"
+            className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-error)] hover:bg-[var(--color-badge-danger-bg)] rounded-lg transition-colors"
             title="Annuler cette dépense"
           >
             <XCircle className="w-4 h-4" />

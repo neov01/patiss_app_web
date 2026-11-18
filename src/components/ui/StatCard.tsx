@@ -18,7 +18,7 @@ interface StatCardProps {
 
 export default function StatCard({
     title, value, subtitle, trend, trendLabel,
-    icon: Icon, iconColor = 'var(--color-primary)', onClick, loading, accent = 'var(--color-primary)',
+    icon: Icon, iconColor = 'var(--color-primary)', onClick, loading,
     style, className,
 }: StatCardProps) {
     if (loading) {
@@ -33,9 +33,9 @@ export default function StatCard({
 
     const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus
     
-    // Semantic colors for badges
-    const badgeBg = trend === 'up' ? 'var(--color-secondary-container)' : trend === 'down' ? 'var(--color-error-container)' : 'var(--color-surface-container-high)'
-    const badgeText = trend === 'up' ? 'var(--color-on-secondary-container)' : trend === 'down' ? 'var(--color-on-error-container)' : 'var(--color-on-surface-variant)'
+    // Couleurs sémantiques des badges (tokens définis dans globals.css)
+    const badgeBg = trend === 'up' ? 'var(--color-badge-success-bg)' : trend === 'down' ? 'var(--color-badge-danger-bg)' : 'var(--color-well)'
+    const badgeText = trend === 'up' ? 'var(--color-badge-success-text)' : trend === 'down' ? 'var(--color-badge-danger-text)' : 'var(--color-muted)'
 
     return (
         <div
@@ -45,8 +45,7 @@ export default function StatCard({
                 cursor: onClick ? 'pointer' : 'default', 
                 padding: '24px',
                 position: 'relative',
-                overflow: 'hidden',
-                background: 'var(--color-surface-container-lowest)',
+                background: 'var(--color-lift)',
                 border: 'none',
                 ...style 
             }}
@@ -74,10 +73,10 @@ export default function StatCard({
             </div>
             
             <div style={{ position: 'relative', zIndex: 1 }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-outline)', marginBottom: '4px', textTransform: 'none' }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-muted)', marginBottom: '4px', textTransform: 'none' }}>
                     {title}
                 </p>
-                <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--color-text)', fontFamily: 'var(--font-display)', margin: 0, lineHeight: 1.2 }}>
+                <h3 style={{ fontSize: '1.875rem', fontWeight: 800, color: 'var(--color-text)', fontFamily: 'var(--font-display)', margin: 0, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
                     {value}
                 </h3>
                 {subtitle && (
@@ -86,19 +85,6 @@ export default function StatCard({
                     </p>
                 )}
             </div>
-
-            {/* Accent blob */}
-            <div style={{ 
-                position: 'absolute', 
-                bottom: '-16px', 
-                right: '-16px', 
-                width: '96px', 
-                height: '96px', 
-                background: `${accent}08`, 
-                borderRadius: '50%',
-                filter: 'blur(32px)',
-                transition: 'background 0.3s'
-            }} className="accent-blob" />
         </div>
     )
 }

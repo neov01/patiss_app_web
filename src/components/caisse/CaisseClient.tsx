@@ -4,6 +4,9 @@
 import { useState, useEffect, useRef, useOptimistic, useTransition, useMemo } from 'react'
 import SessionPill from '@/components/layout/SessionPill'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
+import ProductPlate from '@/components/ui/ProductPlate'
+import { getMascotImagePath } from '@/lib/domain/mascot'
 import { useSession } from '@/components/layout/SessionMaster'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -17,7 +20,6 @@ import {
     Plus,
     CreditCard,
     DollarSign,
-    Box,
     Loader2,
     UserCheck,
     BadgeCheck,
@@ -163,6 +165,7 @@ export default function CaisseClient({
                     name: p.name,
                     selling_price: p.selling_price,
                     stock_qty: p.current_stock ?? 0,
+                    image_url: p.image_url ?? null,
                     quantity: 0
                 })
             }
@@ -413,6 +416,10 @@ export default function CaisseClient({
             }))
         }
         
+        // Récap affiché à la fin du paiement : montant, puis monnaie à rendre si espèces
+        const paymentRecap = `${totalAEncaisser.toLocaleString('fr-FR')} ${currency}` +
+            (monnaieARendre > 0 ? `\nRendre ${monnaieARendre.toLocaleString('fr-FR')} ${currency}` : `\n${primaryMethod}`)
+
         // MODE OFFLINE : sauvegarder en IndexedDB
         if (isOffline) {
             await execute(
@@ -421,7 +428,10 @@ export default function CaisseClient({
                     return { success: true }
                 },
                 {
-                    successMessage: "Enregistré en local (hors-ligne) ✓",
+                    successMessage: "Enregistré en local (hors-ligne)",
+                    modalDescription: paymentRecap,
+                    celebrate: true,
+                    durationMs: monnaieARendre > 0 ? 5000 : 2800,
                     type: 'simple',
                     onSuccess: () => {
                         viderPanier()
@@ -435,7 +445,10 @@ export default function CaisseClient({
         await execute(
             async () => encaisserTransaction(payload),
             {
-                successMessage: "Encaissé avec succès !",
+                successMessage: "Encaissé !",
+                modalDescription: paymentRecap,
+                celebrate: true,
+                durationMs: monnaieARendre > 0 ? 5000 : 2800,
                 type: 'simple',
                 onSuccess: () => {
                     viderPanier()
@@ -475,7 +488,7 @@ export default function CaisseClient({
                                     cursor: 'pointer',
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     background: 'transparent',
-                                    color: '#9C8070',
+                                    color: 'var(--color-muted)',
                                 }}
                             >
                                 🛒 Enregistrer une vente
@@ -494,7 +507,7 @@ export default function CaisseClient({
                                     cursor: 'pointer',
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     background: 'white',
-                                    color: '#2D1B0E',
+                                    color: 'var(--color-text)',
                                     boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
                                 }}
                             >
@@ -539,7 +552,7 @@ export default function CaisseClient({
                                             cursor: 'pointer',
                                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                             background: 'white',
-                                            color: '#2D1B0E',
+                                            color: 'var(--color-text)',
                                             boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
                                         }}
                                     >
@@ -559,7 +572,7 @@ export default function CaisseClient({
                                             cursor: 'pointer',
                                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                             background: 'transparent',
-                                            color: '#9C8070',
+                                            color: 'var(--color-muted)',
                                         }}
                                     >
                                         📜 Historique des sessions
@@ -569,10 +582,10 @@ export default function CaisseClient({
                         )}
                 
                 {/* 1. TOPBAR */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div className="caisse-topbar">
                     <div>
-                        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#2D1B0E' }}>Caisse — Vente</h1>
-                        <p style={{ margin: '4px 0 0', color: '#9C8070', fontSize: '0.9rem' }}>
+                        <h1 className="caisse-topbar-title">Caisse — Vente</h1>
+                        <p style={{ margin: '4px 0 0', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
                             {(() => {
                                 const today = new Date();
                                 return !isNaN(today.getTime()) ? format(today, 'EEEE d MMMM yyyy', { locale: fr }) : '';
@@ -580,14 +593,14 @@ export default function CaisseClient({
                         </p>
                     </div>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="caisse-topbar-actions">
                         {isOffline && (
                             <div style={{ 
                                 padding: '6px 12px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: 600,
                                 background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)',
                                 display: 'flex', alignItems: 'center', gap: '6px'
                             }}>
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-badge-warning-accent)' }} />
                                 Mode hors-ligne
                             </div>
                         )}
@@ -596,8 +609,8 @@ export default function CaisseClient({
                                 onClick={requestPersistence}
                                 title="Le stockage local n'est pas sécurisé contre la purge automatique du système. Cliquez pour sécuriser."
                                 style={{
-                                    padding: '6px 12px', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
-                                    background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5',
+                                    padding: '6px 12px', minHeight: '40px', whiteSpace: 'nowrap', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
+                                    background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', border: '1px solid var(--color-badge-danger-accent)',
                                     display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'
                                 }}
                             >
@@ -615,9 +628,9 @@ export default function CaisseClient({
                         style={{
                             flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600,
                             cursor: 'pointer', transition: 'all 0.15s',
-                            background: caisseMode === 'commande' ? '#2C1A0E' : 'white',
-                            color: caisseMode === 'commande' ? 'white' : '#2C1A0E',
-                            border: caisseMode === 'commande' ? '1px solid #2C1A0E' : '1px solid #E5DDD5',
+                            background: caisseMode === 'commande' ? 'var(--color-text)' : 'white',
+                            color: caisseMode === 'commande' ? 'white' : 'var(--color-text)',
+                            border: caisseMode === 'commande' ? '1px solid var(--color-text)' : '1px solid var(--color-border)',
                         }}
                     >
                         Commande
@@ -627,9 +640,9 @@ export default function CaisseClient({
                         style={{
                             flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600,
                             cursor: 'pointer', transition: 'all 0.15s',
-                            background: caisseMode === 'vitrine' ? '#2C1A0E' : 'white',
-                            color: caisseMode === 'vitrine' ? 'white' : '#2C1A0E',
-                            border: caisseMode === 'vitrine' ? '1px solid #2C1A0E' : '1px solid #E5DDD5',
+                            background: caisseMode === 'vitrine' ? 'var(--color-text)' : 'white',
+                            color: caisseMode === 'vitrine' ? 'white' : 'var(--color-text)',
+                            border: caisseMode === 'vitrine' ? '1px solid var(--color-text)' : '1px solid var(--color-border)',
                         }}
                     >
                         Vitrine
@@ -639,32 +652,33 @@ export default function CaisseClient({
                 {/* 2. METRIQUES */}
                 <div className="metrics-container" style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>{"Ventes aujourd'hui"}</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2D1B0E' }}>{initialCmdCount + initialVitrineCount}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#C4836A', marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>{"Ventes aujourd'hui"}</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text)' }}>{initialCmdCount + initialVitrineCount}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-primary)', marginTop: '4px' }}>
                             {initialCmdCount} commandes · {initialVitrineCount} vitrine
                         </div>
                     </div>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Recettes du jour</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2D1B0E' }}>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>Recettes du jour</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text)' }}>
                             {initialCA.toLocaleString('fr-FR')} {currency}
                         </div>
                     </div>
                     <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: '#9C8070', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-badge-success-accent)' }}>{readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length}</div>
                     </div>
                 </div>
 
                 {caisseMode === 'commande' && <>{/* 3.1 COMMANDES PRÊTES */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShoppingBag size={18} color="#C4836A" /> Prêtes à encaisser
+                    <ShoppingBag size={18} color="var(--color-primary)" /> Prêtes à encaisser
                 </h2>
                 {readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length === 0 ? (
-                    <div style={{ background: 'white', padding: '32px', borderRadius: '16px', textAlign: 'center', color: '#9C8070', border: '1px solid var(--color-caisse-border)', marginBottom: '32px' }}>
-                        <Clock size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-                        <p>Aucune commande prête en attente.</p>
+                    <div className="caisse-empty" style={{ marginBottom: '32px' }}>
+                        <Image src={getMascotImagePath('happy')} alt="" width={64} height={64} className="caisse-empty-art" />
+                        <p className="caisse-empty-title">Rien à remettre pour l&apos;instant</p>
+                        <p className="caisse-empty-hint">Les commandes prêtes apparaîtront ici.</p>
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '32px' }}>
@@ -675,29 +689,29 @@ export default function CaisseClient({
                                 <button key={order.id} onClick={() => chargerCommande(order)}
                                     style={{
                                         background: 'white', padding: '16px', borderRadius: '16px',
-                                        border: '1px solid var(--color-caisse-border)', borderLeft: isUrgent ? '4px solid #F59E0B' : '1px solid #FDE8DB',
+                                        border: '1px solid var(--color-caisse-border)', borderLeft: isUrgent ? '4px solid var(--color-badge-warning-accent)' : '1px solid var(--color-caisse-border)',
                                         textAlign: 'left', cursor: 'pointer', transition: 'transform 0.1s, box-shadow 0.1s'
                                     }}
                                     className="card-clickable"
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
-                                            <span style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '1.05rem' }}>{order.customer_name}</span>
+                                            <span style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: '1.05rem' }}>{order.customer_name}</span>
                                             {order.customer_id && (
                                                 <span title="Client CRM identifié" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'var(--color-badge-crm-bg)', color: 'var(--color-badge-crm-text)', borderRadius: '99px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700 }}>
                                                     <BadgeCheck size={11} /> CRM
                                                 </span>
                                             )}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#C4836A', flexShrink: 0 }}>
+                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-primary)', flexShrink: 0 }}>
                                             {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: '#9C8070', marginBottom: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {order.order_items.map((i: any) => i.products?.name).join(' · ')}
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-caisse-bg)', paddingTop: '12px' }}>
-                                        <span style={{ fontSize: '0.75rem', color: '#9C8070' }}>Reste à payer</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>Reste à payer</span>
                                         <span style={{ fontWeight: 800, color: 'var(--color-caisse-accent)' }}>{Number(order.balance).toLocaleString('fr-FR')} {currency}</span>
                                     </div>
                                 </button>
@@ -711,7 +725,7 @@ export default function CaisseClient({
                     <Clock size={18} color="var(--color-muted)" /> Pipeline du jour
                 </h2>
                 {readyOrders.filter(o => ['pending', 'production', 'confirmed', 'in_preparation'].includes(o.status)).length === 0 ? (
-                    <div style={{ background: 'white', padding: '16px', borderRadius: '16px', textAlign: 'center', color: 'var(--color-muted)', border: '1px solid #E5E7EB', marginBottom: '32px', fontSize: '0.9rem' }}>
+                    <div style={{ background: 'white', padding: '16px', borderRadius: '16px', textAlign: 'center', color: 'var(--color-muted)', border: '1px solid var(--color-border)', marginBottom: '32px', fontSize: '0.9rem' }}>
                         Aucune commande en cours de production.
                     </div>
                 ) : (
@@ -721,14 +735,14 @@ export default function CaisseClient({
                             return (
                                 <div key={order.id}
                                     style={{
-                                        background: '#F9FAFB', padding: '12px', borderRadius: '12px',
-                                        border: '1px dashed #E5E7EB', opacity: 0.8,
+                                        background: 'var(--color-well)', padding: '12px', borderRadius: '12px',
+                                        border: '1px dashed var(--color-border)', opacity: 0.8,
                                         display: 'flex', flexDirection: 'column', gap: '6px',
                                         minWidth: '200px', flex: '0 0 auto', scrollSnapAlign: 'start'
                                     }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.85rem' }}>{order.customer_name}</div>
+                                        <div style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: '0.85rem' }}>{order.customer_name}</div>
                                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)' }}>
                                             {!isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--'}
                                         </div>
@@ -752,39 +766,28 @@ export default function CaisseClient({
 
                 {caisseMode === 'vitrine' && <>{/* 4. VENTE VITRINE */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Store size={18} color="#C4836A" /> Vente Rapide — {(bestSellers && bestSellers.length > 0) ? 'Best-Sellers' : 'Catalogue'}
+                    <Store size={18} color="var(--color-primary)" /> Vente Rapide — {(bestSellers && bestSellers.length > 0) ? 'Best-Sellers' : 'Catalogue'}
                 </h2>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                <div className="quick-sale-grid">
                     {displayBestSellers.map(bs => {
                         const stockQty = bs.stock_qty !== undefined ? bs.stock_qty : (bs.current_stock ?? 0)
+                        const inCart = optimisticPanier.find(l => l.product_id === bs.id && !l.fromCmd)?.qty ?? 0
                         return (
-                            <button key={bs.id} onClick={() => addToCart({
+                            <button key={bs.id} type="button" className="product-tile" aria-label={`Ajouter ${bs.name} au panier, ${bs.selling_price.toLocaleString('fr-FR')} ${currency}`} onClick={() => addToCart({
                                 id: bs.id,
                                 name: bs.name,
                                 selling_price: bs.selling_price,
                                 stock_qty: stockQty,
-                            })}
-                                style={{
-                                    background: 'white', padding: '12px', borderRadius: '16px', border: '1px solid var(--color-caisse-border)',
-                                    textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center'
-                                }}
-                                className="card-clickable"
-                            >
-                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FEF3EC', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
-                                    <Box size={20} color="var(--color-caisse-accent)" />
+                            })}>
+                                <ProductPlate name={bs.name} imageUrl={bs.image_url}>
+                                    {inCart > 0 && <span className="product-tile-qty">×{inCart}</span>}
+                                </ProductPlate>
+                                <div className="product-tile-body">
+                                    <span className="product-tile-name">{bs.name}</span>
+                                    {stockQty < 3 && <span className="product-tile-stock">Plus que {stockQty}</span>}
+                                    <span className="product-tile-price">{bs.selling_price.toLocaleString('fr-FR')}<span className="product-tile-cur">{currency}</span></span>
                                 </div>
-                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#2D1B0E', marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                    {bs.name}
-                                </div>
-                                <div style={{ fontWeight: 800, color: '#C4836A', fontSize: '0.9rem', marginTop: 'auto' }}>
-                                    {bs.selling_price.toLocaleString('fr-FR')} {currency}
-                                </div>
-                                {stockQty < 3 && (
-                                    <div style={{ fontSize: '0.7rem', color: '#F59E0B', fontWeight: 600, marginTop: '4px' }}>
-                                        Plus que {stockQty}
-                                    </div>
-                                )}
                             </button>
                         )
                     })}
@@ -798,11 +801,14 @@ export default function CaisseClient({
 
                 {/* 5. HISTORIQUE */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Clock size={18} color="#C4836A" /> Historique récent
+                    <Clock size={18} color="var(--color-primary)" /> Historique récent
                 </h2>
                 <div style={{ background: 'white', borderRadius: '16px', border: '1px solid var(--color-caisse-border)', overflow: 'hidden' }}>
                     {initialHistory.length === 0 ? (
-                        <div style={{ padding: '24px', textAlign: 'center', color: '#9C8070', fontSize: '0.85rem' }}>{"Aucune transaction aujourd'hui"}</div>
+                        <div className="caisse-empty is-bare">
+                            <p className="caisse-empty-title">Aucune vente pour le moment</p>
+                            <p className="caisse-empty-hint">La première vente du jour s&apos;affichera ici.</p>
+                        </div>
                     ) : (
                         initialHistory.map((t, i) => {
                             const hasMultiPayments = t.payments && t.payments.length > 1;
@@ -823,21 +829,21 @@ export default function CaisseClient({
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <div style={{ fontWeight: 700, color: '#2D1B0E', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                         <span>{t.client_name}</span>
                                                         {t.order_number && (
-                                                            <span style={{ color: '#C4836A', fontSize: '0.8rem', fontWeight: 700, background: '#FEF3EC', padding: '1px 6px', borderRadius: '4px' }}>
+                                                            <span style={{ color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 700, background: 'var(--color-well)', padding: '1px 6px', borderRadius: '4px' }}>
                                                                 #{t.order_number}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '2px' }}>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '2px' }}>
                                                         Commande · {t.items_summary || `${t.nb_items} article${t.nb_items > 1 ? 's' : ''}`}
                                                     </div>
                                                 </div>
                                             </div>
                                             {/* Montant total cumulé de la transaction (acompte + solde) */}
-                                            <div style={{ fontWeight: 800, color: '#2D1B0E', fontSize: '1.05rem' }}>
+                                            <div style={{ fontWeight: 800, color: 'var(--color-text)', fontSize: '1.05rem' }}>
                                                 {totalEncaisse.toLocaleString('fr-FR')} {currency}
                                             </div>
                                         </div>
@@ -855,7 +861,7 @@ export default function CaisseClient({
                                             {sortedPayments.map((p) => (
                                                 <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070', fontWeight: 600 }}>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600 }}>
                                                             {(() => {
                                                                 const date = new Date(p.created_at);
                                                                 return !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
@@ -873,11 +879,11 @@ export default function CaisseClient({
                                                             </span>
                                                         )}
 
-                                                        <span style={{ fontSize: '0.75rem', color: '#9C8070' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
                                                             · {p.payment_method}
                                                         </span>
                                                     </div>
-                                                    <div style={{ fontWeight: 700, color: p.label_type === 'SOLDE' ? '#10B981' : '#2D1B0E', fontSize: '0.85rem' }}>
+                                                    <div style={{ fontWeight: 700, color: p.label_type === 'SOLDE' ? 'var(--color-badge-success-text)' : 'var(--color-text)', fontSize: '0.85rem' }}>
                                                         {Number(p.amount).toLocaleString('fr-FR')} {currency}
                                                     </div>
                                                 </div>
@@ -897,14 +903,14 @@ export default function CaisseClient({
                                                 </div>
                                             )}
                                             <div>
-                                                <div style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                     <span>{t.client_name}</span>
                                                     {t.order_number ? (
-                                                        <span style={{ color: '#C4836A', fontSize: '0.75rem', fontWeight: 700, background: '#FEF3EC', padding: '1px 6px', borderRadius: '4px' }}>
+                                                        <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 700, background: 'var(--color-well)', padding: '1px 6px', borderRadius: '4px' }}>
                                                             #{t.order_number}
                                                         </span>
                                                     ) : (
-                                                        <span style={{ color: '#6B7280', fontSize: '0.75rem', fontWeight: 700, background: '#F3F4F6', padding: '1px 6px', borderRadius: '4px' }} title="Référence de transaction">
+                                                        <span style={{ color: 'var(--color-muted)', fontSize: '0.75rem', fontWeight: 700, background: 'var(--color-well)', padding: '1px 6px', borderRadius: '4px' }} title="Référence de transaction">
                                                             #VIT-{t.id.slice(0, 8).toUpperCase()}
                                                         </span>
                                                     )}
@@ -919,12 +925,12 @@ export default function CaisseClient({
                                                         </span>
                                                     )}
                                                     {(!t.is_order) && (
-                                                        <span style={{ background: '#F3F4F6', color: '#4B5563', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
+                                                        <span style={{ background: 'var(--color-well)', color: 'var(--color-muted)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>
                                                             Vitrine
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div style={{ fontSize: '0.75rem', color: '#9C8070', marginTop: '4px' }}>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '4px' }}>
                                                     {(() => {
                                                         const date = new Date(t.created_at);
                                                         const timeStr = !isNaN(date.getTime()) ? format(date, 'HH:mm') : '--:--';
@@ -935,7 +941,7 @@ export default function CaisseClient({
                                                 </div>
                                             </div>
                                         </div>
-                                        <div style={{ fontWeight: 700, color: (p && p.label_type === 'SOLDE') ? '#10B981' : '#2D1B0E' }}>
+                                        <div style={{ fontWeight: 700, color: (p && p.label_type === 'SOLDE') ? 'var(--color-badge-success-text)' : 'var(--color-text)' }}>
                                             {Number(p ? p.amount : 0).toLocaleString('fr-FR')} {currency}
                                         </div>
                                     </div>
@@ -951,15 +957,15 @@ export default function CaisseClient({
             <div className="caisse-cart-column" style={{ background: 'white', borderLeft: '1.5px solid var(--color-caisse-border)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 
                 {/* Header Panier */}
-                <div style={{ padding: '20px', borderBottom: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#2D1B0E', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="caisse-cart-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                             <ShoppingBag size={20} color="var(--color-caisse-accent)" /> Panier en cours
                         </h2>
                         {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} isFloating={true} />}
                     </div>
                     
-                    <div style={{ marginBottom: '16px' }}>
+                    <div>
                         <CRMSelector
                             selectedCustomer={activeClient ? { id: activeCustomerId || '', name: activeClient } : null}
                             onCustomerSelected={(id, name, phone) => {
@@ -972,12 +978,15 @@ export default function CaisseClient({
                     </div>
                 </div>
 
+                {/* Corps défilant : lignes + totaux + ventilation */}
+                <div className="caisse-cart-body">
                 {/* Lignes Panier */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+                <div className="caisse-cart-lines" style={{ padding: '20px' }}>
                     {optimisticPanier.length === 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9C8070', opacity: 0.6 }}>
-                            <ShoppingBag size={48} style={{ marginBottom: '16px' }} />
-                            <p style={{ fontWeight: 600 }}>Panier vide</p>
+                        <div className="caisse-empty is-bare" style={{ minHeight: '180px', justifyContent: 'center' }}>
+                            <Image src={getMascotImagePath('greeting')} alt="" width={72} height={72} className="caisse-empty-art" />
+                            <p className="caisse-empty-title">Panier vide</p>
+                            <p className="caisse-empty-hint">Touchez un produit pour l&apos;ajouter.</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -985,12 +994,12 @@ export default function CaisseClient({
                                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                            <span style={{ fontWeight: 600, color: '#2D1B0E', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--color-text)', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                 {line.nom}
                                             </span>
-                                            {line.fromCmd && <span style={{ background: '#E0E7FF', color: '#4338CA', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>CMD</span>}
+                                            {line.fromCmd && <span style={{ background: 'var(--color-badge-production-bg)', color: 'var(--color-badge-production-text)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700 }}>CMD</span>}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: '#9C8070' }}>{line.prix.toLocaleString('fr-FR')} {currency} / u</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>{line.prix.toLocaleString('fr-FR')} {currency} / u</div>
                                     </div>
                                     
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
@@ -1002,7 +1011,7 @@ export default function CaisseClient({
                                             }}
                                             onRemove={() => removeItem(idx)}
                                         />
-                                        <div style={{ width: '80px', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: '#2D1B0E' }}>
+                                        <div style={{ minWidth: '80px', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                                             {(line.qty * line.prix).toLocaleString('fr-FR')} {currency}
                                         </div>
                                     </div>
@@ -1012,26 +1021,24 @@ export default function CaisseClient({
                     )}
                 </div>
 
-                {/* Footer Panier */}
-                <div style={{ padding: '20px', borderTop: '1px solid #FDE8DB', background: 'var(--color-caisse-well)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-muted)' }}>
-                        <span>Sous-total</span>
-                        <span style={{ fontWeight: 600, color: '#2D1B0E' }}>{sousTotal.toLocaleString('fr-FR')} {currency}</span>
-                    </div>
-                    {acompte > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-badge-success-accent)' }}>
-                            <span>Acompte versé</span>
-                            <span style={{ fontWeight: 600 }}>- {acompte.toLocaleString('fr-FR')} {currency}</span>
+                {/* Totaux et ventilation du paiement (défilent avec les lignes) */}
+                <div className="caisse-cart-payment" style={{ padding: '20px 20px 4px', borderTop: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
+                    <div className="cart-totals">
+                        <div className="cart-totals-cells">
+                            <div className="cart-totals-cell"><span>Articles</span><strong>{optimisticPanier.reduce((s, l) => s + l.qty, 0)}</strong></div>
+                            <div className="cart-totals-cell"><span>Sous-total</span><strong>{sousTotal.toLocaleString('fr-FR')}</strong></div>
+                            {acompte > 0 && <div className="cart-totals-cell is-deposit"><span>Acompte</span><strong>− {acompte.toLocaleString('fr-FR')}</strong></div>}
                         </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '1.4rem', color: '#2D1B0E', fontWeight: 800, marginTop: '12px', paddingTop: '12px', borderTop: '1.5px dashed #E5E7EB' }}>
-                        <span>À encaisser</span>
-                        <span style={{ color: totalAEncaisser > 0 ? 'var(--color-caisse-accent)' : 'var(--color-badge-success-accent)' }}>{totalAEncaisser.toLocaleString('fr-FR')} {currency}</span>
+                        <div className="cart-totals-summary">
+                            <span className="cart-totals-label">À encaisser</span>
+                            <span className={`cart-totals-amount${totalAEncaisser === 0 && optimisticPanier.length > 0 ? ' is-paid' : ''}`} aria-live="polite">{totalAEncaisser.toLocaleString('fr-FR')}<small>{currency}</small></span>
+                            <span className="cart-totals-hint">{totalAEncaisser === 0 && optimisticPanier.length > 0 ? 'Commande réglée' : `Montants en ${currency}`}</span>
+                        </div>
                     </div>
 
                     {/* Modes de paiement — Ventilation (masqué si commande déjà soldée) */}
                     {totalAEncaisser > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#9C8070', marginBottom: '4px' }}>Répartition du paiement</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-muted)', marginBottom: '4px' }}>Répartition du paiement</div>
 
                         {/* Lignes de paiement existantes */}
                         {Object.entries(activePayments).map(([method, amount]) => {
@@ -1243,6 +1250,11 @@ export default function CaisseClient({
                         </div>
                     )}
 
+                </div>
+                </div>
+
+                {/* Barre d'action figée : toujours accessible */}
+                <div className="caisse-cart-actions" style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
                     <button
                         className="btn-primary"
                         onClick={handleEncaisser}
@@ -1262,7 +1274,7 @@ export default function CaisseClient({
                         }
                     </button>
                     {optimisticPanier.length > 0 && (
-                        <button onClick={viderPanier} className="btn-secondary" style={{ width: '100%', color: '#9C8070' }}>
+                        <button onClick={viderPanier} className="btn-secondary" style={{ width: '100%', color: 'var(--color-muted)' }}>
                             Vider le panier
                         </button>
                     )}
@@ -1364,14 +1376,30 @@ export default function CaisseClient({
                         flex-direction: column !important;
                     }
 
-                    /* Figer le header et le footer du panier, et ne laisser scroller que les articles */
-                    .caisse-cart-column > div:first-child,
-                    .caisse-cart-column > div:last-child {
+                    /* En-tête et barre d'action figés ; tout le reste (lignes,
+                       totaux, ventilation) défile dans un seul corps. */
+                    .caisse-cart-header,
+                    .caisse-cart-actions {
                         flex-shrink: 0 !important;
                     }
-                    .caisse-cart-column > div:nth-child(2) {
-                        flex-shrink: 1 !important;
-                        min-height: 0 !important;
+                    .caisse-cart-body {
+                        flex: 1 1 auto;
+                        min-height: 0;
+                        overflow-y: auto;
+                        overscroll-behavior: contain;
+                        display: flex;
+                        flex-direction: column;
+                        background: var(--color-caisse-well);
+                    }
+                    .caisse-cart-lines {
+                        background: white;
+                        flex-shrink: 0;
+                    }
+                    .caisse-cart-payment {
+                        flex: 1 0 auto;
+                    }
+                    .caisse-cart-actions {
+                        box-shadow: 0 -6px 16px -10px rgba(26, 28, 26, 0.25);
                     }
                 }
                 

@@ -115,12 +115,12 @@ export default function TopUpModal({
         className="flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
           <div className="flex items-center gap-2.5">
             <div
               style={{
-                backgroundColor: '#CDEAD0',
-                color: '#4B6450',
+                backgroundColor: 'var(--color-secondary-container)',
+                color: 'var(--color-secondary)',
                 borderRadius: '10px',
                 padding: '8px',
               }}
@@ -128,10 +128,10 @@ export default function TopUpModal({
               <Zap className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-[#1A1C1A] font-display">
+              <h3 className="text-lg font-bold text-[color:var(--color-text)] font-display">
                 Rallonge Exceptionnelle
               </h3>
-              <p className="text-xs text-[#51443C]">
+              <p className="text-xs text-[color:var(--color-muted)]">
                 Injection de liquidités pour le budget de la semaine
               </p>
             </div>
@@ -139,7 +139,7 @@ export default function TopUpModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-[#83746B] hover:text-[#1A1C1A] hover:bg-[#F5EEE4] rounded-full transition-colors"
+            className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] hover:bg-[var(--color-well)] rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -148,7 +148,7 @@ export default function TopUpModal({
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* 1. Choix de la Source */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-2">
               Source de la rallonge *
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -158,9 +158,9 @@ export default function TopUpModal({
                 style={{
                   padding: '12px',
                   borderRadius: '12px',
-                  backgroundColor: isCaisseSource ? '#4B6450' : '#F5EEE4',
-                  color: isCaisseSource ? '#FFFFFF' : '#1A1C1A',
-                  border: isCaisseSource ? '2px solid #4B6450' : '1px solid rgba(131, 116, 107, 0.15)',
+                  backgroundColor: isCaisseSource ? 'var(--color-secondary)' : 'var(--color-well)',
+                  color: isCaisseSource ? '#FFFFFF' : 'var(--color-text)',
+                  border: isCaisseSource ? '2px solid var(--color-secondary)' : '1px solid rgba(131, 116, 107, 0.15)',
                 }}
                 className="flex flex-col items-start gap-1 text-left transition-all active:scale-[0.98]"
               >
@@ -168,7 +168,7 @@ export default function TopUpModal({
                   <Store className="w-4 h-4" />
                   <span>Caisse du jour</span>
                 </div>
-                <span className={`text-[11px] ${isCaisseSource ? 'text-white/80' : 'text-[#51443C]'}`}>
+                <span className={`text-[11px] ${isCaisseSource ? 'text-white/80' : 'text-[color:var(--color-muted)]'}`}>
                   Espèces disponibles : <strong>{formatMoney(availableCashInDrawer)} {currency}</strong>
                 </span>
               </button>
@@ -179,9 +179,9 @@ export default function TopUpModal({
                 style={{
                   padding: '12px',
                   borderRadius: '12px',
-                  backgroundColor: !isCaisseSource ? '#815431' : '#F5EEE4',
-                  color: !isCaisseSource ? '#FFFFFF' : '#1A1C1A',
-                  border: !isCaisseSource ? '2px solid #815431' : '1px solid rgba(131, 116, 107, 0.15)',
+                  backgroundColor: !isCaisseSource ? 'var(--color-primary)' : 'var(--color-well)',
+                  color: !isCaisseSource ? '#FFFFFF' : 'var(--color-text)',
+                  border: !isCaisseSource ? '2px solid var(--color-primary)' : '1px solid rgba(131, 116, 107, 0.15)',
                 }}
                 className="flex flex-col items-start gap-1 text-left transition-all active:scale-[0.98]"
               >
@@ -189,7 +189,7 @@ export default function TopUpModal({
                   <UserCheck className="w-4 h-4" />
                   <span>Apport externe</span>
                 </div>
-                <span className={`text-[11px] ${!isCaisseSource ? 'text-white/80' : 'text-[#51443C]'}`}>
+                <span className={`text-[11px] ${!isCaisseSource ? 'text-white/80' : 'text-[color:var(--color-muted)]'}`}>
                   Fonds propres / Gérant (hors tiroir-caisse)
                 </span>
               </button>
@@ -198,7 +198,7 @@ export default function TopUpModal({
 
           {/* Statut caisse du jour */}
           {isCaisseSource && !hasOpenSalesSession && (
-            <div className="p-3 rounded-xl bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-[var(--color-badge-danger-bg)] border border-[#FECACA] text-[color:var(--color-badge-danger-text)] text-xs flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>
                 Attention : Aucune session de caisse n'est ouverte aujourd'hui. Vous devez d'abord ouvrir la caisse dans le module Caisse ou opter pour un « Apport externe ».
@@ -208,7 +208,7 @@ export default function TopUpModal({
 
           {/* 2. Saisie du Montant */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Montant de la rallonge ({currency}) *
             </label>
             <TouchInput
@@ -220,15 +220,15 @@ export default function TopUpModal({
                 height: '50px',
                 fontSize: '20px',
                 fontWeight: 'bold',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '12px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 textAlign: 'left',
               }}
             />
 
             {isExceedingCashInDrawer && (
-              <div className="mt-2 p-2.5 rounded-lg bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-xs flex items-center gap-2">
+              <div className="mt-2 p-2.5 rounded-lg bg-[var(--color-badge-danger-bg)] border border-[#FECACA] text-[color:var(--color-badge-danger-text)] text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
                   Le montant demandé ({formatMoney(amount)} {currency}) dépasse les espèces physiques actuellement en caisse ({formatMoney(availableCashInDrawer)} {currency}).
@@ -239,7 +239,7 @@ export default function TopUpModal({
 
           {/* 3. Motif obligatoire */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Motif de la rallonge *
             </label>
             <input
@@ -250,20 +250,20 @@ export default function TopUpModal({
               onChange={(e) => setReason(e.target.value)}
               style={{
                 height: '48px',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '12px',
                 border: '1px solid rgba(131, 116, 107, 0.2)',
                 padding: '0 16px',
                 fontSize: '14px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 width: '100%',
               }}
             />
           </div>
 
           {/* Explication comptable & traçabilité */}
-          <div className="p-3 rounded-xl bg-[#F5EEE4] border border-[rgba(131,116,107,0.15)] text-[11px] text-[#51443C] flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 shrink-0 text-[#815431] mt-0.5" />
+          <div className="p-3 rounded-xl bg-[var(--color-well)] border border-[rgba(131,116,107,0.15)] text-[11px] text-[color:var(--color-muted)] flex items-start gap-2">
+            <HelpCircle className="w-4 h-4 shrink-0 text-[color:var(--color-primary)] mt-0.5" />
             <span>
               {isCaisseSource
                 ? 'Une sortie de caisse officielle ("SORTIE_CAISSE") sera débitée du tiroir des ventes du jour pour que le comptage physique du soir soit exact au centime près.'
@@ -280,12 +280,12 @@ export default function TopUpModal({
               style={{
                 height: '48px',
                 borderRadius: '9999px',
-                backgroundColor: '#F5EEE4',
-                color: '#51443C',
+                backgroundColor: 'var(--color-well)',
+                color: 'var(--color-muted)',
                 border: 'none',
                 padding: '0 20px',
               }}
-              className="text-sm font-bold hover:bg-[#E0D8CE] transition-all"
+              className="text-sm font-bold hover:bg-[var(--color-surface-variant)] transition-all"
             >
               Annuler
             </button>
@@ -296,7 +296,7 @@ export default function TopUpModal({
               style={{
                 height: '48px',
                 borderRadius: '9999px',
-                backgroundColor: isSubmitting || amount <= 0 || (isCaisseSource && isExceedingCashInDrawer) ? '#83746B' : '#4B6450',
+                backgroundColor: isSubmitting || amount <= 0 || (isCaisseSource && isExceedingCashInDrawer) ? 'var(--color-muted)' : 'var(--color-secondary)',
                 color: '#FFFFFF',
                 border: 'none',
               }}

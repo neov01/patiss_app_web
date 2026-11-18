@@ -96,7 +96,7 @@ export default function AdminUsersClient({ users }: { users: AdminUserRow[] }) {
                       minHeight: '32px',
                       padding: '0 12px',
                       fontSize: '0.8rem',
-                      color: u.is_active ? '#4C9E6A' : 'var(--color-muted)',
+                      color: u.is_active ? 'var(--color-success)' : 'var(--color-muted)',
                     }}
                   >
                     {u.is_active ? 'Actif' : 'Inactif'}

@@ -35,7 +35,7 @@ export default async function DepensesPage() {
           <h2 className="text-lg font-bold text-red-700 font-display">
             Impossible de charger la régie de dépenses
           </h2>
-          <p className="text-sm text-[#51443C] mt-2">
+          <p className="text-sm text-[color:var(--color-muted)] mt-2">
             {result.error || 'Erreur inconnue lors du chargement de l’enveloppe hebdomadaire.'}
           </p>
         </div>

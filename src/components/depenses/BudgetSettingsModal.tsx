@@ -96,21 +96,21 @@ export default function BudgetSettingsModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[rgba(131,116,107,0.1)] bg-[#FAF5EB]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#EADDD7] flex items-center justify-center text-[#815431]">
+            <div className="w-10 h-10 rounded-full bg-[#EADDD7] flex items-center justify-center text-[color:var(--color-primary)]">
               <SlidersHorizontal className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#2C2420]">
+              <h2 className="text-lg font-bold text-[color:var(--color-text)]">
                 Budget de régie hebdomadaire
               </h2>
-              <p className="text-xs text-[#83746B]">
+              <p className="text-xs text-[color:var(--color-muted)]">
                 Enveloppe par défaut pour les dépenses quotidiennes
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#83746B] hover:bg-[#EADDD7] transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[color:var(--color-muted)] hover:bg-[#EADDD7] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -120,17 +120,17 @@ export default function BudgetSettingsModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
           {/* Montant Cible */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#51443C]">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
               Montant de l'enveloppe ({currency})
             </label>
             <TouchInput
               value={budgetStr}
               onChange={setBudgetStr}
               placeholder="150000"
-              className="w-full text-2xl font-black text-[#2C2420] tracking-tight bg-white border-2 border-[rgba(131,116,107,0.2)] focus:border-[#815431] rounded-2xl h-14 px-4 shadow-inner"
+              className="w-full text-2xl font-black text-[color:var(--color-text)] tracking-tight bg-white border-2 border-[rgba(131,116,107,0.2)] focus:border-[color:var(--color-primary)] rounded-2xl h-14 px-4 shadow-inner"
             />
-            <p className="text-xs text-[#83746B] flex items-center gap-1.5 pt-0.5">
-              <Info className="w-3.5 h-3.5 shrink-0 text-[#815431]" />
+            <p className="text-xs text-[color:var(--color-muted)] flex items-center gap-1.5 pt-0.5">
+              <Info className="w-3.5 h-3.5 shrink-0 text-[color:var(--color-primary)]" />
               Sera la valeur de référence pour chaque nouvelle semaine.
             </p>
           </div>
@@ -140,28 +140,28 @@ export default function BudgetSettingsModal({
             onClick={() => setAdjustActiveCycle(!adjustActiveCycle)}
             className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex items-start gap-3.5 ${
               adjustActiveCycle
-                ? 'bg-[#F5EEE4] border-[#815431] shadow-xs'
+                ? 'bg-[var(--color-well)] border-[color:var(--color-primary)] shadow-xs'
                 : 'bg-white border-[rgba(131,116,107,0.15)] hover:border-[rgba(131,116,107,0.3)]'
             }`}
           >
             <div
               className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                 adjustActiveCycle
-                  ? 'bg-[#815431] text-white'
+                  ? 'bg-[var(--color-primary)] text-white'
                   : 'border-2 border-[rgba(131,116,107,0.3)] bg-white'
               }`}
             >
               {adjustActiveCycle && <Check className="w-4 h-4 stroke-[3]" />}
             </div>
             <div className="space-y-1">
-              <span className="text-sm font-bold text-[#2C2420] block">
+              <span className="text-sm font-bold text-[color:var(--color-text)] block">
                 Répercuter la différence immédiatement sur la semaine en cours
               </span>
-              <p className="text-xs text-[#83746B] leading-relaxed">
+              <p className="text-xs text-[color:var(--color-muted)] leading-relaxed">
                 {diff !== 0 ? (
                   <>
                     Modifie le solde restant de la semaine actuelle de{' '}
-                    <strong className={diff > 0 ? 'text-[#2E7D32]' : 'text-[#C62828]'}>
+                    <strong className={diff > 0 ? 'text-[#2E7D32]' : 'text-[color:var(--color-error)]'}>
                       {diff > 0 ? '+' : ''}{formatMoney(diff)} {currency}
                     </strong>
                     .
@@ -175,20 +175,20 @@ export default function BudgetSettingsModal({
 
           {/* Simulation d'impact visuelle */}
           <div className="bg-[#FAF5EB] rounded-2xl p-4 border border-[rgba(131,116,107,0.12)] space-y-2.5">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#83746B]">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
               Aperçu de l'impact
             </h4>
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="bg-white p-3 rounded-xl border border-[rgba(131,116,107,0.1)]">
-                <span className="text-[11px] font-semibold text-[#83746B] block">
+                <span className="text-[11px] font-semibold text-[color:var(--color-muted)] block">
                   Budget de référence
                 </span>
-                <span className="text-base font-extrabold text-[#2C2420] block pt-0.5">
+                <span className="text-base font-extrabold text-[color:var(--color-text)] block pt-0.5">
                   {formatMoney(newBudget)} {currency}
                 </span>
               </div>
               <div className="bg-white p-3 rounded-xl border border-[rgba(131,116,107,0.1)]">
-                <span className="text-[11px] font-semibold text-[#83746B] block">
+                <span className="text-[11px] font-semibold text-[color:var(--color-muted)] block">
                   Solde semaine {adjustActiveCycle ? 'ajusté' : 'inchangé'}
                 </span>
                 <span
@@ -196,10 +196,10 @@ export default function BudgetSettingsModal({
                     adjustActiveCycle
                       ? projectedBalance >= 0
                         ? 'text-[#2E7D32]'
-                        : 'text-[#C62828]'
+                        : 'text-[color:var(--color-error)]'
                       : activeCycleBalance >= 0
-                      ? 'text-[#2C2420]'
-                      : 'text-[#C62828]'
+                      ? 'text-[color:var(--color-text)]'
+                      : 'text-[color:var(--color-error)]'
                   }`}
                 >
                   {formatMoney(adjustActiveCycle ? projectedBalance : activeCycleBalance)}{' '}
@@ -215,7 +215,7 @@ export default function BudgetSettingsModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 font-bold text-sm text-[#51443C] bg-[#EADDD7]/60 hover:bg-[#EADDD7] active:scale-[0.98] transition-all"
+              className="flex-1 font-bold text-sm text-[color:var(--color-muted)] bg-[#EADDD7]/60 hover:bg-[#EADDD7] active:scale-[0.98] transition-all"
               style={{
                 height: '48px',
                 borderRadius: '9999px',
@@ -227,7 +227,7 @@ export default function BudgetSettingsModal({
             <button
               type="submit"
               disabled={isSubmitting || newBudget <= 0}
-              className="flex-1 font-bold text-sm text-white bg-[#815431] hover:bg-[#6e4627] active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 font-bold text-sm text-white bg-[var(--color-primary)] hover:bg-[#6e4627] active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
                 height: '48px',
                 borderRadius: '9999px',

@@ -38,6 +38,57 @@
   --color-badge-danger-bg:            #FEE2E2;
   --color-badge-danger-text:          #991B1B;
   --color-badge-danger-accent:        #DC2626;
+
+  /* ── Palette Tailwind réalignée sur la charte « Atelier gourmand » ──
+     Les classes slate-*, gray-* et rose-* (CRM, clients) tombaient sur des gris
+     bleutés froids. On les redéfinit ici en neutres chauds : tout composant qui
+     les utilise suit la charte sans être modifié. slate-400 reste ≥ 4,5:1 sur blanc. */
+  --color-slate-50:  #FAF7F2;
+  --color-slate-100: #F5EEE4;
+  --color-slate-200: #E6D8CA;
+  --color-slate-300: #D5C3B8;
+  --color-slate-400: #7A6B62;
+  --color-slate-500: #6B5B52;
+  --color-slate-600: #51443C;
+  --color-slate-700: #3F342D;
+  --color-slate-800: #2A2420;
+  --color-slate-900: #1A1C1A;
+
+  --color-gray-50:  #FAF7F2;
+  --color-gray-100: #F5EEE4;
+  --color-gray-200: #E6D8CA;
+  --color-gray-300: #D5C3B8;
+  --color-gray-400: #7A6B62;
+  --color-gray-500: #6B5B52;
+  --color-gray-600: #51443C;
+  --color-gray-700: #3F342D;
+  --color-gray-800: #2A2420;
+  --color-gray-900: #1A1C1A;
+
+  /* Info (palier Basic, indicateurs neutres) : teal de la charte */
+  --color-info:    #2F6671;
+  --color-info-bg: #DCEAEC;
+  /* Doré « VIP » */
+  --color-gold:    #B57C1E;
+
+  /* rose-* → rampe terracotta (primary = rose-600) */
+  --color-rose-50:  #FBF3EC;
+  --color-rose-100: #F4E4D6;
+  --color-rose-200: #E8C9AE;
+  --color-rose-300: #D9A67F;
+  --color-rose-400: #C08A63;
+  --color-rose-500: #A06A45;
+  --color-rose-600: #815431;
+  --color-rose-700: #663D1C;
+
+  /* emerald-* → rampe sauge (succès), cohérente avec --color-secondary */
+  --color-emerald-50:  #F1F7F2;
+  --color-emerald-100: #CDEAD0;
+  --color-emerald-200: #B1CEB5;
+  --color-emerald-500: #5F8266;
+  --color-emerald-600: #4B6450;
+  --color-emerald-700: #3D5442;
+  --color-emerald-800: #344C39;
 }
 
 :root {
@@ -298,3 +349,219 @@ h1, h2, h3, h4, .font-display {
 .btn-ghost:hover .logout-icon {
   transform: translateX(-3px);
 }
+
+/* ── Caisse : grille « Vente rapide » (étiquette de vitrine) ── */
+.quick-sale-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.product-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: #FFFFFF;
+  border: 1px solid #E6D8CA;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  min-height: 48px;
+  box-shadow: 0 2px 8px rgba(45, 27, 14, 0.06);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+.product-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(45, 27, 14, 0.12), 0 4px 8px rgba(45, 27, 14, 0.08);
+}
+.product-tile:active { transform: scale(0.98); }
+.product-tile:focus-visible { outline: 3px solid rgba(129, 84, 49, 0.45); outline-offset: 2px; }
+.product-tile-plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background-image: repeating-linear-gradient(115deg, rgba(129, 84, 49, 0.035) 0 2px, transparent 2px 7px);
+}
+.product-tile-plate[data-tone="0"] { background-color: #F1E3D5; color: #815431; }
+.product-tile-plate[data-tone="1"] { background-color: #CDEAD0; color: #3D5442; }
+.product-tile-plate[data-tone="2"] { background-color: #E0D8CE; color: #51443C; }
+.product-tile-plate[data-tone="3"] { background-color: #DCEAEC; color: #2F6671; }
+.product-tile-initial {
+  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.product-tile-qty {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: #815431;
+  color: #FFFFFF;
+  font: 800 13px/28px Inter, system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(45, 27, 14, 0.2);
+}
+.product-tile-body { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; flex: 1; }
+.product-tile-name {
+  font: 600 15px/20px Inter, system-ui, sans-serif;
+  color: #1A1C1A;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.product-tile-price {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 26px;
+  letter-spacing: -0.02em;
+  color: #1A1C1A;
+  font-variant-numeric: tabular-nums;
+}
+.product-tile-cur { font: 700 12px/16px Inter, system-ui, sans-serif; letter-spacing: 0.02em; color: #51443C; }
+.product-tile-stock {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: #FEF3C7;
+  color: #92400E;
+  font: 700 12px/16px Inter, system-ui, sans-serif;
+}
+.product-tile-stock::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #B45309; }
+@media (max-width: 640px) {
+  .quick-sale-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .product-tile-plate { aspect-ratio: 16 / 10; }
+  .product-tile-initial { font-size: 34px; }
+  .product-tile-body { padding: 10px 12px 12px; }
+  .product-tile-price { font-size: 20px; line-height: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-tile { transition: none; }
+  .product-tile:hover, .product-tile:active { transform: none; }
+}
+
+/* ── Caisse : récapitulatif « À encaisser » ── */
+.cart-totals { margin-bottom: 20px; }
+.cart-totals-cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: #E6D8CA;
+  border: 1px solid #E6D8CA;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cart-totals-cell { background: #FFFFFF; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; }
+.cart-totals-cell span { font: 700 12px/16px Inter, system-ui, sans-serif; letter-spacing: 0.02em; color: #51443C; }
+.cart-totals-cell strong {
+  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 22px;
+  color: #1A1C1A;
+  font-variant-numeric: tabular-nums;
+}
+.cart-totals-cell.is-deposit strong { color: #3D5442; }
+.cart-totals-summary { margin-top: 14px; display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 4px 12px; }
+.cart-totals-label { font: 800 18px/24px Manrope, Inter, system-ui, sans-serif; color: #1A1C1A; letter-spacing: -0.01em; }
+.cart-totals-amount {
+  grid-row: span 2;
+  font-family: Manrope, Inter, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 38px;
+  line-height: 42px;
+  letter-spacing: -0.03em;
+  color: #815431;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cart-totals-amount.is-paid { color: #3D5442; }
+.cart-totals-amount small { font: 700 14px/20px Inter, system-ui, sans-serif; color: #51443C; margin-left: 4px; }
+.cart-totals-hint { font: 500 12px/16px Inter, system-ui, sans-serif; color: #51443C; }
+
+/* ── Caisse : états vides (Croustik, ton chaleureux, textes lisibles AA) ── */
+.caisse-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 28px 20px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #E6D8CA;
+  border-radius: 16px;
+}
+.caisse-empty.is-bare { background: transparent; border: 0; padding: 20px; }
+.caisse-empty-art { margin-bottom: 8px; height: auto; }
+.caisse-empty-title { margin: 0; font-family: var(--font-display, Manrope), sans-serif; font-weight: 800; font-size: 1rem; color: #1A1C1A; }
+.caisse-empty-hint { margin: 0; font-size: 0.85rem; color: #51443C; }
+
+/* ── Caisse : en-tête (titre, date, état du stockage, session) ── */
+.caisse-topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.caisse-topbar-title { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--color-text); white-space: nowrap; }
+.caisse-topbar-actions { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .caisse-topbar { flex-direction: column; align-items: stretch; margin-bottom: 16px; }
+  .caisse-topbar-actions > * { max-width: 100%; }
+}
+
+/* Photo produit : recouvre le monogramme, qui reste le repli (image absente ou hors-ligne) */
+.product-tile-photo { object-fit: cover; }
+.product-tile-qty { z-index: 1; }
+
+/* ── Tuile produit : variante catalogue (non cliquable, actions sur la plaque) ── */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+.product-tile.is-static { cursor: default; }
+.product-tile.is-static:hover { transform: none; box-shadow: 0 2px 8px rgba(45, 27, 14, 0.06); }
+.product-tile.is-static:active { transform: none; }
+.product-tile-actions { position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; gap: 6px; }
+.product-tile-action {
+  width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.95); color: #51443C;
+  box-shadow: 0 2px 6px rgba(45, 27, 14, 0.18);
+}
+.product-tile-action:hover { background: #FFFFFF; color: #1A1C1A; }
+.product-tile-action:focus-visible { outline: 3px solid rgba(129, 84, 49, 0.45); outline-offset: 2px; }
+.product-tile-action:disabled { opacity: 0.6; cursor: wait; }
+.product-tile-action.is-ok { color: #065F46; }
+.product-tile-action.is-danger { color: #991B1B; }
+.product-tile-stock.is-ok { background: #CDEAD0; color: #3D5442; }
+.product-tile-stock.is-ok::before { background: #4B6450; }
+
+.product-tile.is-out { opacity: 0.6; cursor: not-allowed; }
+.product-tile.is-out:hover { transform: none; box-shadow: 0 2px 8px rgba(45, 27, 14, 0.06); }
+/* Les actions du catalogue occupent le haut de la plaque : le monogramme descend un peu */
+.product-tile.is-static .product-tile-initial { margin-top: 32px; }
+
+/* ── Clôture de caisse : récapitulatif de la journée (lecture seule) ── */
+.closing-recap { margin: 0 0 20px; padding: 12px 16px; text-align: left; background: #F5EEE4; border-radius: 14px; }
+.closing-recap-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid #E6D8CA; }
+.closing-recap-row:last-of-type { border-bottom: 0; }
+.closing-recap-row dt { margin: 0; font: 600 14px/20px Inter, system-ui, sans-serif; color: #51443C; }
+.closing-recap-row dd { margin: 0; font: 800 17px/22px Manrope, Inter, system-ui, sans-serif; color: #1A1C1A; font-variant-numeric: tabular-nums; }
+.closing-recap-row dd small { font: 700 12px/16px Inter, system-ui, sans-serif; color: #51443C; }
+.closing-recap-row.is-key dt { color: #1A1C1A; font-weight: 800; }
+.closing-recap-row.is-key dd { font-size: 22px; line-height: 26px; color: #815431; }
+.closing-recap-row.is-warn dd { color: #92400E; }
+.closing-recap-hint { margin: 8px 0 0; font: 400 13px/18px Inter, system-ui, sans-serif; color: #51443C; }

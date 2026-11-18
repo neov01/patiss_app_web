@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
             textAlign: 'center',
           }}
         >
-          <AlertTriangle size={32} color="#D94F38" />
+          <AlertTriangle size={32} color="var(--color-error)" />
           <div>
             <p style={{ fontWeight: 700, marginBottom: '4px' }}>Une erreur est survenue</p>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-on-surface-variant)', maxWidth: '320px' }}>

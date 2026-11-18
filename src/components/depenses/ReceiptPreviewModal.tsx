@@ -28,8 +28,8 @@ export default function ReceiptPreviewModal({
         }}
         className="flex flex-col animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
-          <h3 className="text-base font-bold text-[#1A1C1A] font-display">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
+          <h3 className="text-base font-bold text-[color:var(--color-text)] font-display">
             Justificatif de dépense
           </h3>
           <div className="flex items-center gap-1">
@@ -37,21 +37,21 @@ export default function ReceiptPreviewModal({
               href={receiptUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-[#83746B] hover:text-[#1A1C1A] rounded-full hover:bg-[#F5EEE4]"
+              className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] rounded-full hover:bg-[var(--color-well)]"
               title="Ouvrir en taille réelle"
             >
               <ExternalLink className="w-4 h-4" />
             </a>
             <button
               onClick={onClose}
-              className="p-2 text-[#83746B] hover:text-[#1A1C1A] rounded-full hover:bg-[#F5EEE4]"
+              className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] rounded-full hover:bg-[var(--color-well)]"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="p-4 bg-[#F5EEE4] flex items-center justify-center max-h-[75vh] overflow-auto">
+        <div className="p-4 bg-[var(--color-well)] flex items-center justify-center max-h-[75vh] overflow-auto">
           <img
             src={receiptUrl}
             alt="Ticket de caisse"
@@ -65,12 +65,12 @@ export default function ReceiptPreviewModal({
             style={{
               height: '40px',
               borderRadius: '9999px',
-              backgroundColor: '#815431',
+              backgroundColor: 'var(--color-primary)',
               color: '#FFFFFF',
               border: 'none',
               padding: '0 24px',
             }}
-            className="text-xs font-bold shadow-xs hover:bg-[#C08A63] transition-colors"
+            className="text-xs font-bold shadow-xs hover:bg-[var(--color-primary-container)] transition-colors"
           >
             Fermer l'aperçu
           </button>

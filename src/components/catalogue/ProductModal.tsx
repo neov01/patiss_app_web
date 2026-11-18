@@ -244,7 +244,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                   style={{
                     paddingLeft: '40px',
                     borderColor: errors.name ? 'var(--color-error)' : productId ? 'var(--color-primary)' : undefined,
-                    background: productId ? '#FDF8F3' : undefined,
+                    background: productId ? 'var(--color-caisse-bg)' : undefined,
                     fontWeight: productId ? 700 : undefined,
                   }}
                 />
@@ -263,11 +263,11 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
               </div>
               {!productId && filteredExisting.length > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, marginTop: '4px', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: '#fff', boxShadow: 'var(--shadow-md)', overflow: 'hidden' }}>
-                  <div style={{ padding: '6px 12px', background: 'var(--color-cream, #F5EEE4)', borderBottom: '1px solid var(--color-border)', fontSize: '0.65rem', fontWeight: 800, color: 'var(--color-muted)' }}>PRODUITS EXISTANTS</div>
+                  <div style={{ padding: '6px 12px', background: 'var(--color-cream, var(--color-well))', borderBottom: '1px solid var(--color-border)', fontSize: '0.65rem', fontWeight: 800, color: 'var(--color-muted)' }}>PRODUITS EXISTANTS</div>
                   {filteredExisting.map(p => (
                     <div key={p.id} onClick={() => selectExistingProduct(p)}
                       style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                      onMouseEnter={(e: MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = '#FDF8F3'}
+                      onMouseEnter={(e: MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = 'var(--color-caisse-bg)'}
                       onMouseLeave={(e: MouseEvent<HTMLDivElement>) => e.currentTarget.style.background = '#fff'}
                     >
                       <div>
@@ -299,7 +299,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
             {productToEdit && (
               <div>
                 <label className="label">Nom</label>
-                <input {...register('name')} readOnly className="input" style={{ background: '#F3F4F6', fontWeight: 700 }} />
+                <input {...register('name')} readOnly className="input" style={{ background: 'var(--color-well)', fontWeight: 700 }} />
               </div>
             )}
 
@@ -321,7 +321,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       ]}
                       title="Catégorie de vente"
                       placeholder="Catégorie…"
-                      style={{ background: locked ? '#F3F4F6' : undefined }}
+                      style={{ background: locked ? 'var(--color-well)' : undefined }}
                       hasError={!!errors.category}
                     />
                   )}
@@ -342,7 +342,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
                         borderRadius: 'var(--radius-sm)', border: '1.5px solid',
                         borderColor: type === val ? 'var(--color-primary)' : 'var(--color-border)',
-                        background: type === val ? '#FDE8E0' : locked ? '#F3F4F6' : 'var(--color-lift)',
+                        background: type === val ? '#FDE8E0' : locked ? 'var(--color-well)' : 'var(--color-lift)',
                         cursor: locked ? 'not-allowed' : 'pointer',
                         fontSize: '0.75rem', fontWeight: 700, height: '100%',
                         color: type === val ? 'var(--color-primary)' : 'var(--color-muted)',
@@ -368,7 +368,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       allowDecimal={true}
                       title="Prix de vente"
                       placeholder="0"
-                      style={{ background: locked ? '#F3F4F6' : undefined, fontSize: '1.1rem', fontWeight: 800 }}
+                      style={{ background: locked ? 'var(--color-well)' : undefined, fontSize: '1.1rem', fontWeight: 800 }}
                       hasError={!!errors.sellingPrice}
                     />
                   )}
@@ -404,7 +404,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       allowDecimal={true}
                       title="Coût d'achat"
                       placeholder="0"
-                      style={{ background: locked ? '#F3F4F6' : undefined }}
+                      style={{ background: locked ? 'var(--color-well)' : undefined }}
                       hasError={!!errors.purchaseCost}
                     />
                   )}
@@ -450,7 +450,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
                       </div>
                     </div>
                   ) : (
-                    <div style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--color-well, #F5EEE4)', color: 'var(--color-muted)', transition: 'all 0.2s' }}>
+                    <div style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--color-well, var(--color-well))', color: 'var(--color-muted)', transition: 'all 0.2s' }}>
                       <ImageIcon size={22} style={{ opacity: 0.4, flexShrink: 0 }} />
                       <div>
                         <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>Ajouter une photo</div>
@@ -470,7 +470,7 @@ export default function ProductModal({ open, onClose, availableIngredients, exis
 
             {/* Composition ingrédients (Fait Maison, compact) */}
             {(!isStockOnly) && type === 'maison' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--color-well, #F5EEE4)', padding: '12px', borderRadius: 'var(--radius-md)', border: `1.5px solid ${errors.composition ? 'var(--color-error)' : 'var(--color-border)'}` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--color-well, var(--color-well))', padding: '12px', borderRadius: 'var(--radius-md)', border: `1.5px solid ${errors.composition ? 'var(--color-error)' : 'var(--color-border)'}` }}>
                 <label className="label" style={{ margin: 0 }}>Composition <span style={{ fontWeight: 400, color: 'var(--color-muted)', fontSize: '0.78rem' }}>(optionnel)</span></label>
                 {fields.map((field, index) => (
                   <div key={field.id} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

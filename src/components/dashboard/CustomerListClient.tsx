@@ -5,7 +5,7 @@ import {
   Search, Trophy, AlertTriangle, UserCheck, Star, Users,
   Crown, MessageSquare, Plus, Download,
   Calendar, XCircle,
-  ArrowUpRight, ArrowDownRight, ChevronRight,
+  ChevronRight,
   Check, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { format } from "date-fns";
@@ -178,6 +178,16 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
     }
   };
 
+
+  // Indicateurs calculés sur les données réelles (aucun historique n'est disponible pour une tendance)
+  const kpi = {
+    withPurchases: initialCustomers.filter(c => c.frequency > 0).length,
+    championPct: initialCustomers.length > 0
+      ? Math.round((initialCustomers.filter(c => c.rfm_segment === "Champion").length / initialCustomers.length) * 100) : 0,
+    atRiskPct: initialCustomers.length > 0
+      ? Math.round((initialCustomers.filter(c => c.rfm_segment === "À Risque").length / initialCustomers.length) * 100) : 0,
+    totalSpent: initialCustomers.reduce((acc, c) => acc + c.monetary, 0),
+  }
   return (
     <div className="space-y-6">
       {/* Status Header Badge + Actions */}
@@ -207,10 +217,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
               <Users size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
-            <ArrowUpRight size={12} />
-            <span>+2.4%</span>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.withPurchases} avec au moins un achat</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
@@ -225,10 +232,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
               <Trophy size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
-            <ArrowUpRight size={12} />
-            <span>+5% ce mois</span>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.championPct}% de la clientèle</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
@@ -243,10 +247,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
               <AlertTriangle size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 w-fit px-2 py-0.5 rounded-full">
-            <ArrowDownRight size={12} />
-            <span>-1.2%</span>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.atRiskPct}% de la clientèle</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
@@ -263,10 +264,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
               <Crown size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
-            <ArrowUpRight size={12} />
-            <span>+3.8%</span>
-          </div>
+          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">Cumul : {kpi.totalSpent.toLocaleString('fr-FR')} CFA</p>
         </div>
       </div>
 

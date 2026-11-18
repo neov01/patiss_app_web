@@ -24,23 +24,23 @@ export default function WeeklyBilanSummary({ preview, currency }: Props) {
 
   return (
     <div className="space-y-3 text-left">
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#815431]">
+      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[color:var(--color-primary)]">
         <Wallet className="w-4 h-4" />
         <span>
           Bilan de la semaine du {formatDay(preview.startDate)} au {formatDay(preview.endDate)}
         </span>
       </div>
 
-      <div className="rounded-2xl border border-[rgba(131,116,107,0.2)] bg-[#FDFBF7] divide-y divide-[rgba(131,116,107,0.12)]">
+      <div className="rounded-2xl border border-[rgba(131,116,107,0.2)] bg-[var(--color-caisse-bg)] divide-y divide-[rgba(131,116,107,0.12)]">
         <Row label="Reste dans l'enveloppe" value={`${formatMoney(preview.currentBalance)} ${currency}`} />
         <div className="flex items-baseline justify-between gap-3 px-4 py-3">
-          <span className="text-sm font-bold text-[#1A1C1A]">
+          <span className="text-sm font-bold text-[color:var(--color-text)]">
             Recharge à prendre dans le tiroir
-            <span className="block text-[11px] font-medium text-[#51443C]">
+            <span className="block text-[11px] font-medium text-[color:var(--color-muted)]">
               pour remettre l&apos;enveloppe à {formatMoney(preview.budget)} {currency}
             </span>
           </span>
-          <span className="text-xl font-black text-[#815431] font-display whitespace-nowrap">
+          <span className="text-xl font-black text-[color:var(--color-primary)] font-display whitespace-nowrap">
             {formatMoney(preview.recharge)} {currency}
           </span>
         </div>
@@ -56,18 +56,18 @@ export default function WeeklyBilanSummary({ preview, currency }: Props) {
       </div>
 
       {preview.isCashSufficient ? (
-        <p className="flex items-center gap-1.5 text-xs font-semibold text-[#4B6450]">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--color-secondary)]">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           Les espèces de la semaine couvrent la recharge.
         </p>
       ) : (
-        <p className="flex items-start gap-1.5 text-xs font-semibold text-[#BA1A1A]">
+        <p className="flex items-start gap-1.5 text-xs font-semibold text-[color:var(--color-error)]">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           Attention : il manque environ {formatMoney(shortfall)} {currency} d&apos;espèces pour couvrir la recharge.
         </p>
       )}
 
-      <p className="text-[11px] text-[#51443C]">
+      <p className="text-[11px] text-[color:var(--color-muted)]">
         La recharge sera enregistrée comme une <strong>sortie de caisse</strong> dans la journée en cours.
       </p>
     </div>
@@ -77,8 +77,8 @@ export default function WeeklyBilanSummary({ preview, currency }: Props) {
 function Row({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
-      <span className="text-xs text-[#51443C]">{label}</span>
-      <span className={`text-sm whitespace-nowrap ${strong ? 'font-black text-[#1A1C1A]' : 'font-bold text-[#1A1C1A]'}`}>
+      <span className="text-xs text-[color:var(--color-muted)]">{label}</span>
+      <span className={`text-sm whitespace-nowrap ${strong ? 'font-black text-[color:var(--color-text)]' : 'font-bold text-[color:var(--color-text)]'}`}>
         {value}
       </span>
     </div>

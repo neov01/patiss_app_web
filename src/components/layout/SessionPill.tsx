@@ -22,10 +22,10 @@ export default function SessionPill() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: isOpen ? '#e6f4ea' : '#fce8e6',
-                border: isOpen ? '1.5px solid #34a853' : '1.5px solid #ea4335',
+                background: isOpen ? 'var(--color-session-open-bg)' : 'var(--color-session-closed-bg)',
+                border: isOpen ? '1.5px solid var(--color-session-open-border)' : '1.5px solid var(--color-session-closed-border)',
                 borderRadius: '99px',
-                padding: '5px 6px 5px 10px',
+                padding: '4px 4px 4px 10px',
                 flexShrink: 0,
                 pointerEvents: 'auto',
             }}>
@@ -45,7 +45,7 @@ export default function SessionPill() {
                     <span style={{
                         fontSize: '0.78rem',
                         fontWeight: 700,
-                        color: isOpen ? '#137333' : '#b31412',
+                        color: isOpen ? 'var(--color-session-open-text)' : 'var(--color-session-closed-text)',
                         whiteSpace: 'nowrap',
                     }}>
                         {isOpen ? 'Boutique ouverte' : 'Boutique fermée'}
@@ -60,12 +60,14 @@ export default function SessionPill() {
                     onClick={handleToggle}
                     disabled={loading || (isOpen && !canCloseSession)}
                     style={{
-                        background: isOpen ? '#ea4335' : '#34a853',
+                        background: isOpen ? 'var(--color-badge-danger-accent)' : 'var(--color-secondary)',
                         color: 'white',
                         border: 'none',
-                        padding: '4px 12px',
+                        padding: '0 18px',
+                        minWidth: '96px',
+                        justifyContent: 'center',
                         borderRadius: '99px',
-                        fontSize: '0.75rem',
+                        fontSize: '0.85rem',
                         fontWeight: 800,
                         cursor: loading || (isOpen && !canCloseSession) ? 'not-allowed' : 'pointer',
                         display: 'flex',
@@ -75,7 +77,7 @@ export default function SessionPill() {
                         whiteSpace: 'nowrap',
                         transition: 'opacity 0.2s, transform 0.1s',
                         lineHeight: 1,
-                        height: '26px',
+                        height: '48px',
                     }}
                     onMouseDown={e => { if (!loading) e.currentTarget.style.transform = 'scale(0.94)' }}
                     onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}

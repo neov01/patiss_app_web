@@ -33,24 +33,24 @@ export default function ConfirmModal({
     switch (variant) {
       case 'success':
         return {
-          icon: <CheckCircle2 size={32} color="#10B981" />,
-          buttonBg: '#10B981',
-          buttonHover: '#059669',
-          lightBg: '#ECFDF5'
+          icon: <CheckCircle2 size={32} color="var(--color-badge-success-accent)" />,
+          buttonBg: 'var(--color-badge-success-accent)',
+          buttonHover: 'var(--color-badge-success-accent)',
+          lightBg: 'var(--color-badge-success-soft-bg)'
         }
       case 'warning':
         return {
-          icon: <AlertCircle size={32} color="#F59E0B" />,
-          buttonBg: '#F59E0B',
-          buttonHover: '#D97706',
+          icon: <AlertCircle size={32} color="var(--color-badge-warning-accent)" />,
+          buttonBg: 'var(--color-badge-warning-accent)',
+          buttonHover: 'var(--color-badge-warning-accent)',
           lightBg: '#FFFBEB'
         }
       default: // danger
         return {
-          icon: <AlertCircle size={32} color="#EF4444" />,
-          buttonBg: '#EF4444',
-          buttonHover: '#DC2626',
-          lightBg: '#FEF2F2'
+          icon: <AlertCircle size={32} color="var(--color-error)" />,
+          buttonBg: 'var(--color-error)',
+          buttonHover: 'var(--color-badge-danger-accent)',
+          lightBg: 'var(--color-badge-danger-bg)'
         }
     }
   }
@@ -144,7 +144,7 @@ export default function ConfirmModal({
         <p style={{ 
           fontSize: '0.95rem', 
           lineHeight: '1.5', 
-          color: '#6B7280', 
+          color: 'var(--color-muted)', 
           marginBottom: '32px',
           padding: '0 10px'
         }}>
@@ -190,7 +190,7 @@ export default function ConfirmModal({
               color: '#fff',
               cursor: 'pointer',
               transition: 'all 0.15s',
-              boxShadow: `0 4px 12px ${styles.buttonBg}40`,
+              boxShadow: `0 4px 12px color-mix(in srgb, ${styles.buttonBg} 25%, transparent)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'

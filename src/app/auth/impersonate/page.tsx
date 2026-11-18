@@ -50,12 +50,12 @@ export default function ImpersonatePage() {
 
     if (status === 'error') {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: '#FDF8F3' }}>
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-caisse-bg)' }}>
                 <div style={{ fontSize: '2rem' }}>❌</div>
-                <h2 style={{ fontWeight: 800, color: '#D94F38', margin: 0 }}>Impersonation échouée</h2>
+                <h2 style={{ fontWeight: 800, color: 'var(--color-error)', margin: 0 }}>Impersonation échouée</h2>
                 <p style={{ color: 'var(--color-muted)', textAlign: 'center', maxWidth: '400px' }}>{errorMsg}</p>
                 <button onClick={() => router.push('/admin')}
-                    style={{ padding: '12px 24px', borderRadius: '12px', background: '#815431', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '12px 24px', borderRadius: '12px', background: 'var(--color-primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
                     Retour Super Admin
                 </button>
             </div>
@@ -63,8 +63,8 @@ export default function ImpersonatePage() {
     }
 
     return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: '#FDF8F3' }}>
-            <Loader2 size={36} style={{ color: '#815431', animation: 'spin 1s linear infinite' }} />
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'var(--color-caisse-bg)' }}>
+            <Loader2 size={36} style={{ color: 'var(--color-primary)', animation: 'spin 1s linear infinite' }} />
             <p style={{ fontWeight: 700, color: 'var(--color-muted)' }}>Connexion au compte client en cours…</p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>

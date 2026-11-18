@@ -266,7 +266,7 @@ export function CRMSelector({ onCustomerSelected, selectedCustomer, onClear }: C
                         <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>{c.phone}</div>
                       </div>
                       {(c.loyalty_points ?? 0) > 0 && (
-                        <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '99px', fontWeight: 700 }}>
+                        <span style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '99px', fontWeight: 700 }}>
                           ★ {c.loyalty_points}
                         </span>
                       )}

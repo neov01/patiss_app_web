@@ -113,7 +113,7 @@ function StatCard({
                 }}>
                     <Icon size={20} />
                 </div>
-                <span style={{ color: '#8E6B55', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ color: 'var(--color-muted)', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {label}
                 </span>
             </div>
@@ -149,7 +149,7 @@ function LeaderboardTable({
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
                         <thead>
-                            <tr style={{ background: '#FFF8F3', color: '#8E6B55', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <tr style={{ background: 'var(--color-caisse-bg)', color: 'var(--color-muted)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 <th style={{ textAlign: 'left', padding: '12px 18px' }}>Nom</th>
                                 <th style={{ textAlign: 'right', padding: '12px 18px' }}>Commandes</th>
                                 <th style={{ textAlign: 'right', padding: '12px 18px' }}>Moyenne</th>
@@ -266,16 +266,16 @@ export default async function OrderCreationStatsPage() {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '14px',
             }}>
-                <div style={{ background: '#FFF8F3', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
-                    <p style={{ margin: 0, color: '#8E6B55', fontWeight: 850 }}>Plus rapide</p>
+                <div style={{ background: 'var(--color-caisse-bg)', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
+                    <p style={{ margin: 0, color: 'var(--color-muted)', fontWeight: 850 }}>Plus rapide</p>
                     <strong style={{ display: 'block', marginTop: 6, color: 'var(--color-text)', fontSize: '1.4rem' }}>{formatDuration(minDuration)}</strong>
                 </div>
-                <div style={{ background: '#FFF8F3', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
-                    <p style={{ margin: 0, color: '#8E6B55', fontWeight: 850 }}>Plus long</p>
+                <div style={{ background: 'var(--color-caisse-bg)', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
+                    <p style={{ margin: 0, color: 'var(--color-muted)', fontWeight: 850 }}>Plus long</p>
                     <strong style={{ display: 'block', marginTop: 6, color: 'var(--color-text)', fontSize: '1.4rem' }}>{formatDuration(maxDuration)}</strong>
                 </div>
-                <div style={{ background: '#FFF8F3', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
-                    <p style={{ margin: 0, color: '#8E6B55', fontWeight: 850 }}>Pâtisseries actives</p>
+                <div style={{ background: 'var(--color-caisse-bg)', border: '1px solid #F0E2D8', borderRadius: '20px', padding: '18px' }}>
+                    <p style={{ margin: 0, color: 'var(--color-muted)', fontWeight: 850 }}>Pâtisseries actives</p>
                     <strong style={{ display: 'block', marginTop: 6, color: 'var(--color-text)', fontSize: '1.4rem' }}>{byOrg.length}</strong>
                 </div>
             </section>

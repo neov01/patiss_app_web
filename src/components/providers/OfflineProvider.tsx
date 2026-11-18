@@ -279,8 +279,8 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            background: deadCount > 0 ? '#FEE2E2' : (isOffline ? '#FEF3C7' : '#DBEAFE'),
-            border: deadCount > 0 ? '2px solid #EF4444' : (isOffline ? '2px solid #F59E0B' : '2px solid #3B82F6'),
+            background: deadCount > 0 ? 'var(--color-badge-danger-bg)' : (isOffline ? 'var(--color-badge-warning-bg)' : 'var(--color-badge-production-bg)'),
+            border: deadCount > 0 ? '2px solid var(--color-error)' : (isOffline ? '2px solid var(--color-badge-warning-accent)' : '2px solid var(--color-badge-crm-text)'),
             borderRadius: '16px',
             padding: '12px 20px',
             display: 'flex',
@@ -292,7 +292,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
             animation: 'pulse 2s infinite',
             fontSize: '0.85rem',
             fontWeight: 700,
-            color: deadCount > 0 ? '#991B1B' : (isOffline ? '#92400E' : '#1E40AF')
+            color: deadCount > 0 ? 'var(--color-badge-danger-text)' : (isOffline ? 'var(--color-badge-warning-text)' : 'var(--color-badge-production-text)')
           }}
         >
           <span style={{ fontSize: '1.1rem' }}>

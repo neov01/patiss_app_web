@@ -34,7 +34,7 @@ export default function CustomerNotes({
           value={localNotes}
           onChange={(e) => setLocalNotes(e.target.value)}
           placeholder="Ex: Préfère les baguettes bien cuites, vient souvent avec ses enfants le samedi..."
-          className="w-full min-h-[180px] p-5 rounded-2xl border-2 border-slate-50 bg-[#FDFDFB] text-slate-700 text-sm font-bold focus:outline-none focus:border-[#DC5F4A]/20 transition-all resize-none placeholder:text-slate-300"
+          className="w-full min-h-[180px] p-5 rounded-2xl border-2 border-slate-50 bg-[#FDFDFB] text-slate-700 text-sm font-bold focus:outline-none focus:border-[color:var(--color-primary)]/20 transition-all resize-none placeholder:text-slate-300"
         />
         <div className="flex justify-end mt-4">
           <button

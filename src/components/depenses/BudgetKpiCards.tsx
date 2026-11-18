@@ -40,13 +40,13 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
         className="flex flex-col justify-between"
       >
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#51443C]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
             Enveloppe Allouée
           </span>
           <div
             style={{
-              backgroundColor: '#F5EEE4',
-              color: '#815431',
+              backgroundColor: 'var(--color-well)',
+              color: 'var(--color-primary)',
               borderRadius: '10px',
               padding: '6px',
             }}
@@ -55,10 +55,10 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
           </div>
         </div>
         <div>
-          <div className="text-xl md:text-2xl font-black text-[#1A1C1A] tracking-tight font-display">
-            {formatMoney(Number(cycle.total_allocated))} <span className="text-sm font-bold text-[#815431]">{currency}</span>
+          <div className="text-xl md:text-2xl font-black text-[color:var(--color-text)] tracking-tight font-display">
+            {formatMoney(Number(cycle.total_allocated))} <span className="text-sm font-bold text-[color:var(--color-primary)]">{currency}</span>
           </div>
-          <p className="text-[11px] text-[#51443C] mt-1 font-medium">
+          <p className="text-[11px] text-[color:var(--color-muted)] mt-1 font-medium">
             Base fixe : {formatMoney(Number(cycle.initial_budget))} {currency}
           </p>
         </div>
@@ -76,13 +76,13 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
         className="flex flex-col justify-between"
       >
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#51443C]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
             Total Dépensé
           </span>
           <div
             style={{
-              backgroundColor: '#FEE2E2',
-              color: '#991B1B',
+              backgroundColor: 'var(--color-badge-danger-bg)',
+              color: 'var(--color-badge-danger-text)',
               borderRadius: '10px',
               padding: '6px',
             }}
@@ -91,10 +91,10 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
           </div>
         </div>
         <div>
-          <div className="text-xl md:text-2xl font-black text-[#991B1B] tracking-tight font-display">
+          <div className="text-xl md:text-2xl font-black text-[color:var(--color-badge-danger-text)] tracking-tight font-display">
             {formatMoney(Number(cycle.total_spent))} <span className="text-sm font-bold">{currency}</span>
           </div>
-          <p className="text-[11px] text-[#51443C] mt-1 font-medium">
+          <p className="text-[11px] text-[color:var(--color-muted)] mt-1 font-medium">
             {activeExpenses.length} achat{activeExpenses.length > 1 ? 's' : ''} validé{activeExpenses.length > 1 ? 's' : ''}
           </p>
         </div>
@@ -112,13 +112,13 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
         className="flex flex-col justify-between"
       >
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#51443C]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
             Rallonges Caisse
           </span>
           <div
             style={{
-              backgroundColor: '#ECFDF5',
-              color: '#065F46',
+              backgroundColor: 'var(--color-badge-success-soft-bg)',
+              color: 'var(--color-badge-success-text)',
               borderRadius: '10px',
               padding: '6px',
             }}
@@ -127,10 +127,10 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
           </div>
         </div>
         <div>
-          <div className="text-xl md:text-2xl font-black text-[#4B6450] tracking-tight font-display">
+          <div className="text-xl md:text-2xl font-black text-[color:var(--color-secondary)] tracking-tight font-display">
             +{formatMoney(totalTopUps)} <span className="text-sm font-bold">{currency}</span>
           </div>
-          <p className="text-[11px] text-[#51443C] mt-1 font-medium">
+          <p className="text-[11px] text-[color:var(--color-muted)] mt-1 font-medium">
             {topUps.length} injection{topUps.length > 1 ? 's' : ''} en cours de semaine
           </p>
         </div>
@@ -148,13 +148,13 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
         className="flex flex-col justify-between"
       >
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#51443C]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
             Moyenne / Jour
           </span>
           <div
             style={{
-              backgroundColor: '#EFF6FF',
-              color: '#1E40AF',
+              backgroundColor: 'var(--color-badge-crm-bg)',
+              color: 'var(--color-badge-production-text)',
               borderRadius: '10px',
               padding: '6px',
             }}
@@ -163,10 +163,10 @@ export default function BudgetKpiCards({ cycle, expenses, topUps }: Props) {
           </div>
         </div>
         <div>
-          <div className="text-xl md:text-2xl font-black text-[#1A1C1A] tracking-tight font-display">
-            ~{formatMoney(dailyAverage)} <span className="text-sm font-bold text-[#815431]">{currency}</span>
+          <div className="text-xl md:text-2xl font-black text-[color:var(--color-text)] tracking-tight font-display">
+            ~{formatMoney(dailyAverage)} <span className="text-sm font-bold text-[color:var(--color-primary)]">{currency}</span>
           </div>
-          <p className="text-[11px] text-[#51443C] mt-1 font-medium">
+          <p className="text-[11px] text-[color:var(--color-muted)] mt-1 font-medium">
             sur les {elapsedDays} jour{elapsedDays > 1 ? 's' : ''} écoulé{elapsedDays > 1 ? 's' : ''}
           </p>
         </div>

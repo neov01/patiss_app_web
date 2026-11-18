@@ -170,11 +170,11 @@ export default function EditPaymentModal({
                         </div>
                         <div>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Autres payés</div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#065F46' }}>{paidAmountOther.toLocaleString('fr-FR')} {currency}</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-badge-success-text)' }}>{paidAmountOther.toLocaleString('fr-FR')} {currency}</div>
                         </div>
                         <div>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Reste à payer</div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: balanceToCover > 0 ? '#B91C1C' : '#065F46' }}>{balanceToCover.toLocaleString('fr-FR')} {currency}</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: balanceToCover > 0 ? 'var(--color-error)' : 'var(--color-badge-success-text)' }}>{balanceToCover.toLocaleString('fr-FR')} {currency}</div>
                         </div>
                     </div>
 
@@ -201,8 +201,8 @@ export default function EditPaymentModal({
                     {/* Alerte Trop-perçu */}
                     {isOverpaid && (
                         <div style={{
-                            display: 'flex', gap: '10px', background: '#FEF3C7', border: '1px solid #F59E0B',
-                            borderRadius: '10px', padding: '10px 12px', alignItems: 'center', color: '#92400E',
+                            display: 'flex', gap: '10px', background: 'var(--color-badge-warning-bg)', border: '1px solid var(--color-badge-warning-accent)',
+                            borderRadius: '10px', padding: '10px 12px', alignItems: 'center', color: 'var(--color-badge-warning-text)',
                             fontSize: '0.8rem', fontWeight: 600
                         }}>
                             <AlertTriangle size={18} style={{ flexShrink: 0 }} />

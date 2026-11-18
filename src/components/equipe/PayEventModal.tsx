@@ -106,27 +106,27 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
               type="button"
               onClick={() => setType('prime')}
               style={{
-                padding: '14px', borderRadius: '14px', border: `2px solid ${type === 'prime' ? '#10B981' : 'var(--color-border)'}`,
-                background: type === 'prime' ? '#ECFDF5' : '#fff',
+                padding: '14px', borderRadius: '14px', border: `2px solid ${type === 'prime' ? 'var(--color-badge-success-accent)' : 'var(--color-border)'}`,
+                background: type === 'prime' ? 'var(--color-badge-success-soft-bg)' : '#fff',
                 cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
                 transition: 'all 0.15s',
               }}
             >
-              <TrendingUp size={22} color={type === 'prime' ? '#10B981' : '#9CA3AF'} />
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: type === 'prime' ? '#059669' : 'var(--color-muted)' }}>Prime</span>
+              <TrendingUp size={22} color={type === 'prime' ? 'var(--color-badge-success-accent)' : 'var(--color-muted)'} />
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: type === 'prime' ? 'var(--color-badge-success-accent)' : 'var(--color-muted)' }}>Prime</span>
             </button>
             <button
               type="button"
               onClick={() => setType('retenue')}
               style={{
-                padding: '14px', borderRadius: '14px', border: `2px solid ${type === 'retenue' ? '#EF4444' : 'var(--color-border)'}`,
-                background: type === 'retenue' ? '#FEF2F2' : '#fff',
+                padding: '14px', borderRadius: '14px', border: `2px solid ${type === 'retenue' ? 'var(--color-error)' : 'var(--color-border)'}`,
+                background: type === 'retenue' ? 'var(--color-badge-danger-bg)' : '#fff',
                 cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
                 transition: 'all 0.15s',
               }}
             >
-              <TrendingDown size={22} color={type === 'retenue' ? '#EF4444' : '#9CA3AF'} />
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: type === 'retenue' ? '#DC2626' : 'var(--color-muted)' }}>Retenue</span>
+              <TrendingDown size={22} color={type === 'retenue' ? 'var(--color-error)' : 'var(--color-muted)'} />
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: type === 'retenue' ? 'var(--color-badge-danger-accent)' : 'var(--color-muted)' }}>Retenue</span>
             </button>
           </div>
 
@@ -176,8 +176,8 @@ export default function PayEventModal({ open, onClose, onSuccess, employeeId, em
             style={{
               flex: 2, padding: '12px', borderRadius: '12px', border: 'none',
               background: type === 'prime'
-                ? 'linear-gradient(135deg, #10B981, #059669)'
-                : 'linear-gradient(135deg, #EF4444, #DC2626)',
+                ? 'linear-gradient(135deg, var(--color-badge-success-accent), var(--color-badge-success-accent))'
+                : 'linear-gradient(135deg, var(--color-error), var(--color-badge-danger-accent))',
               color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer',
               opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}

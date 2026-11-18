@@ -109,7 +109,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
                 width: 56, height: 56, borderRadius: '50%',
                 objectFit: 'cover',
                 border: `3px solid ${color}`,
-                boxShadow: `0 0 0 2px white, 0 0 0 4px ${color}30`,
+                boxShadow: `0 0 0 2px white, 0 0 0 4px color-mix(in srgb, ${color} 19%, transparent)`,
               }}
             />
           ) : (
@@ -119,7 +119,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 800, fontSize: '1.1rem', color: '#fff',
               border: `3px solid ${color}`,
-              boxShadow: `0 0 0 2px white, 0 0 0 4px ${color}30`,
+              boxShadow: `0 0 0 2px white, 0 0 0 4px color-mix(in srgb, ${color} 19%, transparent)`,
             }}>
               {initials(emp.full_name)}
             </div>
@@ -128,7 +128,7 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
           <div style={{
             position: 'absolute', bottom: 2, right: 2,
             width: 12, height: 12, borderRadius: '50%',
-            background: emp.is_active !== false ? '#10B981' : '#9CA3AF',
+            background: emp.is_active !== false ? 'var(--color-badge-success-accent)' : 'var(--color-muted)',
             border: '2px solid white',
           }} />
         </div>
@@ -153,8 +153,8 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
         {/* Badge actif/inactif */}
         <div style={{
           padding: '4px 10px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 700,
-          background: emp.is_active !== false ? '#D1FAE5' : '#F3F4F6',
-          color:      emp.is_active !== false ? '#065F46'  : '#6B7280',
+          background: emp.is_active !== false ? 'var(--color-badge-success-bg)' : 'var(--color-well)',
+          color:      emp.is_active !== false ? 'var(--color-badge-success-text)'  : 'var(--color-muted)',
           flexShrink: 0,
         }}>
           {emp.is_active !== false ? 'Actif' : 'Inactif'}
@@ -213,8 +213,8 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
           onClick={() => onPayslip(emp)}
           style={{
             flex: 1, padding: '9px', borderRadius: '10px', border: '1.5px solid #A7F3D0',
-            background: '#ECFDF5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#059669', transition: 'all 0.15s'
+            background: 'var(--color-badge-success-soft-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: '6px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-badge-success-accent)', transition: 'all 0.15s'
           }}
         >
           <Banknote size={14} /> Paie
@@ -228,8 +228,8 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
             title="Désactiver"
             style={{
               width: '40px', height: '40px', borderRadius: '10px', border: '1.5px solid #FECACA',
-              background: '#FEF2F2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#DC2626', transition: 'all 0.15s', flexShrink: 0
+              background: 'var(--color-badge-danger-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-badge-danger-accent)', transition: 'all 0.15s', flexShrink: 0
             }}
           >
             {deactivating ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
@@ -242,8 +242,8 @@ export default function EmployeeCard({ employee: emp, currency, onEdit, onPaysli
             title="Réactiver"
             style={{
               width: '40px', height: '40px', borderRadius: '10px', border: '1.5px solid #A7F3D0',
-              background: '#ECFDF5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#059669', transition: 'all 0.15s', flexShrink: 0
+              background: 'var(--color-badge-success-soft-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--color-badge-success-accent)', transition: 'all 0.15s', flexShrink: 0
             }}
           >
             {deactivating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
@@ -41,6 +42,7 @@ interface Props {
     products: Product[] // Initial products for fallback/default
     currency: string
     organizationId: string
+    onOrderCreated?: (order: Record<string, unknown>) => void
 }
 
 const STATUS_OPTIONS = [
@@ -53,8 +55,8 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
     { value: 'normale', label: 'Normale', color: 'var(--color-text)' },
-    { value: 'urgent', label: 'Urgent', color: '#b91c1c' }, // Rouge brique élégant
-    { value: 'vip', label: 'VIP', color: '#b57c1e' }, // Doré sourd élégant
+    { value: 'urgent', label: 'Urgent', color: 'var(--color-error)' }, // Rouge brique élégant
+    { value: 'vip', label: 'VIP', color: 'var(--color-gold)' }, // Doré sourd élégant
 ]
 
 const PAYMENT_METHODS = [
@@ -65,7 +67,8 @@ const PAYMENT_METHODS = [
     { value: 'moov_money', label: '🔵 Moov Money' }
 ]
 
-export default function NewOrderModal({ open, onClose, currency, organizationId }: Props) {
+export default function NewOrderModal({ open, onClose, currency, organizationId, onOrderCreated }: Props) {
+    const router = useRouter()
     const { execute, isPending, isSuccess, renderFeedback } = useActionFeedback()
     const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
@@ -583,7 +586,12 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                     ? `Commande ${orderNumber} enregistrée en local (hors-ligne) — numéro définitif attribué à la synchronisation`
                     : `Commande ${finalNumber || orderNumber} créée avec succès`
             },
-            onSuccess: () => {
+            onSuccess: (res: unknown) => {
+                const createdOrder = (res as { data?: Record<string, unknown> })?.data
+                if (createdOrder && onOrderCreated) {
+                    onOrderCreated(createdOrder)
+                }
+                router.refresh()
                 handleClose()
             }
         })
@@ -717,9 +725,9 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                 placeholder="+225 00000000 *"
                                                 title="Numéro de téléphone *"
                                                 isPhone={true}
-                                                icon={<Phone size={16} style={{ color: showErrors && !clientPhone.trim() ? 'var(--color-error)' : '#d97757' }} />}
+                                                icon={<Phone size={16} style={{ color: showErrors && !clientPhone.trim() ? 'var(--color-error)' : 'var(--color-primary)' }} />}
                                                 style={{ 
-                                                    borderColor: showErrors && !clientPhone.trim() ? 'var(--color-error)' : (crmCustomerId ? '#10B981' : 'var(--color-border)'),
+                                                    borderColor: showErrors && !clientPhone.trim() ? 'var(--color-error)' : (crmCustomerId ? 'var(--color-badge-success-accent)' : 'var(--color-border)'),
                                                     height: '48px',
                                                     fontSize: '0.9rem',
                                                     borderRadius: 'var(--radius-sm)',
@@ -838,7 +846,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                 </div>
                                             )}
                                             {discountAmount > 0 && (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-error)', fontWeight: 600 }}>
                                                      <span>Réduction:</span>
                                                      <span>-{discountAmount.toLocaleString('fr-FR')} {currency}</span>
                                                 </div>
@@ -1020,18 +1028,18 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <div style={{
                                                                         minWidth: '24px', height: '20px', borderRadius: '4px',
-                                                                        background: isOut ? '#DC2626' : ((res.current_stock || 0) < 5 ? '#F59E0B' : '#10B981'),
+                                                                        background: isOut ? 'var(--color-badge-danger-accent)' : ((res.current_stock || 0) < 5 ? 'var(--color-badge-warning-accent)' : 'var(--color-badge-success-accent)'),
                                                                         color: 'white', fontSize: '0.65rem', fontWeight: 800,
                                                                         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px'
                                                                     }}>
                                                                         {isOut ? '!' : res.current_stock}
                                                                     </div>
                                                                     <div>
-                                                                        <div style={{ fontWeight: 600, color: isOut ? '#9ca3af' : 'inherit' }}>{res.name}</div>
-                                                                        {isOut && <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 700 }}>Stock épuisé</div>}
+                                                                        <div style={{ fontWeight: 600, color: isOut ? 'var(--color-muted)' : 'inherit' }}>{res.name}</div>
+                                                                        {isOut && <div style={{ fontSize: '0.75rem', color: 'var(--color-badge-danger-accent)', fontWeight: 700 }}>Stock épuisé</div>}
                                                                     </div>
                                                                 </div>
-                                                                <span style={{ color: isOut ? '#9ca3af' : 'var(--color-muted)', fontWeight: 600 }}>{Number(res.selling_price).toLocaleString('fr-FR')} {currency}</span>
+                                                                <span style={{ color: isOut ? 'var(--color-muted)' : 'var(--color-muted)', fontWeight: 600 }}>{Number(res.selling_price).toLocaleString('fr-FR')} {currency}</span>
                                                             </button>
                                                         )
                                                     })}
@@ -1343,7 +1351,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                 {priority === 'vip' && (
                                                     <div style={{
                                                         background: '#FEFCE8',
-                                                        border: '1.5px solid #B57C1E',
+                                                        border: '1.5px solid var(--color-gold)',
                                                         borderRadius: 'var(--radius-md)',
                                                         padding: '12px',
                                                         display: 'flex',
@@ -1351,7 +1359,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
                                                         gap: '6px',
                                                         marginTop: '4px'
                                                     }}>
-                                                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#B57C1E', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <label style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--color-gold)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                             ⭐ Note / Commentaire VIP *
                                                         </label>
                                                         <textarea
@@ -1563,7 +1571,7 @@ function CrmPhoneMatchBadge({ match, isLooking, isLinked, onLink }: CrmPhoneMatc
                 <CheckCircle size={14} />
                 <span>Client CRM lié · {match.name}</span>
                 {(match.loyalty_points ?? 0) > 0 && (
-                    <span style={{ marginLeft: 'auto', background: '#FEF3C7', color: '#92400E',
+                    <span style={{ marginLeft: 'auto', background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)',
                                    padding: '2px 8px', borderRadius: '99px', fontSize: '0.7rem' }}>
                         ★ {match.loyalty_points} pts
                     </span>
@@ -1577,18 +1585,18 @@ function CrmPhoneMatchBadge({ match, isLooking, isLinked, onLink }: CrmPhoneMatc
         <div className="animate-slide-up" style={{
             marginTop: '6px', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', padding: '8px 12px',
-            background: '#FEF3C7', borderRadius: '10px', fontSize: '0.8rem',
+            background: 'var(--color-badge-warning-bg)', borderRadius: '10px', fontSize: '0.8rem',
             border: '1px solid #FDE68A',
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px',
-                          fontWeight: 600, color: '#92400E' }}>
+                          fontWeight: 600, color: 'var(--color-badge-warning-text)' }}>
                 <UserCheck size={14} />
                 <span>👤 {match.name}</span>
                 <span style={{ fontWeight: 400, color: '#B45309' }}>— Client trouvé</span>
             </div>
             <button type="button" onClick={onLink} style={{
                 padding: '4px 12px', borderRadius: '99px', border: 'none',
-                background: '#92400E', color: 'white',
+                background: 'var(--color-badge-warning-text)', color: 'white',
                 fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
             }}>
                 Associer

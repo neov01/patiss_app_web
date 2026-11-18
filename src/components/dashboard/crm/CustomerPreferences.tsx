@@ -81,7 +81,7 @@ function CustomerPreferencesForm({ customer, onUpdatePreferences }: CustomerPref
               {prefs?.favorite_products && prefs.favorite_products.length > 0 ? (
                 prefs.favorite_products.map((prod: string, idx: number) => (
                   <span key={idx} className="px-3 py-2 bg-white text-slate-700 border border-slate-100 rounded-xl text-xs font-bold shadow-sm flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#DC5F4A]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-primary)]" />
                     {prod}
                   </span>
                 ))
@@ -96,9 +96,9 @@ function CustomerPreferencesForm({ customer, onUpdatePreferences }: CustomerPref
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
               Date d&apos;anniversaire
             </label>
-            <div className="p-4 bg-[#DC5F4A]/5 border border-[#DC5F4A]/10 rounded-2xl space-y-3">
+            <div className="p-4 bg-[var(--color-primary)]/5 border border-[color:var(--color-primary)]/10 rounded-2xl space-y-3">
               {birthdayDisplay && (
-                <p className="text-xs font-bold text-[#DC5F4A] flex items-center gap-2">
+                <p className="text-xs font-bold text-[color:var(--color-primary)] flex items-center gap-2">
                   <Gift size={14} />
                   {birthdayDisplay}
                 </p>
@@ -108,19 +108,19 @@ function CustomerPreferencesForm({ customer, onUpdatePreferences }: CustomerPref
                   type="date"
                   value={birthday}
                   onChange={e => setBirthday(e.target.value)}
-                  className="flex-1 px-3 py-1.5 text-xs border border-[#DC5F4A]/20 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/30 text-slate-700"
+                  className="flex-1 px-3 py-1.5 text-xs border border-[color:var(--color-primary)]/20 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)]/30 text-slate-700"
                 />
                 <button
                   onClick={saveBirthday}
                   disabled={savingBirthday || birthday === (prefs?.birth_date || "")}
-                  className="p-1.5 bg-[#DC5F4A] text-white rounded-xl disabled:opacity-40 hover:bg-[#C5533F] transition-colors"
+                  className="p-1.5 bg-[var(--color-primary)] text-white rounded-xl disabled:opacity-40 hover:bg-[#C5533F] transition-colors"
                   title="Sauvegarder"
                 >
                   {savingBirthday ? <span className="w-4 h-4 block border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={14} />}
                 </button>
               </div>
               {birthday && (
-                <p className="text-[10px] font-medium text-[#DC5F4A]/70 uppercase tracking-tight">
+                <p className="text-[10px] font-medium text-[color:var(--color-primary)]/70 uppercase tracking-tight">
                   SMS automatique le jour J
                 </p>
               )}

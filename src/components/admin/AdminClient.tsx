@@ -65,13 +65,13 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function subscriptionStatus(date: string | null) {
-    if (!date) return { label: 'Illimité', color: '#4C9E6A', bg: '#E8F5EE' }
+    if (!date) return { label: 'Illimité', color: 'var(--color-success)', bg: 'var(--color-badge-success-soft-bg)' }
     const d = new Date(date)
     const now = new Date()
     const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    if (diff < 0) return { label: 'Expiré', color: '#D94F38', bg: '#FEE8E5' }
-    if (diff < 7) return { label: `Expire dans ${diff}j`, color: '#D97757', bg: 'var(--color-well)' }
-    return { label: 'Actif', color: '#4C9E6A', bg: '#E8F5EE' }
+    if (diff < 0) return { label: 'Expiré', color: 'var(--color-error)', bg: 'var(--color-badge-danger-bg)' }
+    if (diff < 7) return { label: `Expire dans ${diff}j`, color: 'var(--color-badge-warning-accent)', bg: 'var(--color-well)' }
+    return { label: 'Actif', color: 'var(--color-success)', bg: 'var(--color-badge-success-soft-bg)' }
 }
 
 function formatDate(d: string | null) {
@@ -91,9 +91,9 @@ const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpp
 const ROLE_PRIORITY: Record<string, number> = { super_admin: 0, gerant: 1, vendeur: 2, patissier: 3 }
 const ROLE_BADGE: Record<string, { icon: string; color: string; bg: string }> = {
     super_admin: { icon: '🛡️', color: '#9333EA', bg: '#F3E8FF' },
-    gerant: { icon: '👔', color: '#D97757', bg: 'var(--color-well)' },
-    vendeur: { icon: '🛒', color: '#6A9CC4', bg: '#EEF4FA' },
-    patissier: { icon: '👨‍🍳', color: '#4C9E6A', bg: '#E8F5EE' },
+    gerant: { icon: '👔', color: 'var(--color-primary)', bg: 'var(--color-well)' },
+    vendeur: { icon: '🛒', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+    patissier: { icon: '👨‍🍳', color: 'var(--color-success)', bg: 'var(--color-badge-success-soft-bg)' },
 }
 
 const CURRENCY_OPTIONS = [
@@ -518,17 +518,17 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         <p style={{ color: 'var(--color-muted)', margin: '4px 0 0', fontSize: '0.9rem', fontWeight: 500 }}>Gestion des pâtisseries et licences SaaS</p>
                     </div>
                     <button onClick={() => setViewMode(v => v === 'list' ? 'analytics' : 'list')}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: viewMode === 'analytics' ? 'var(--color-well)' : 'white', color: viewMode === 'analytics' ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '14px', border: '1.5px solid var(--color-border)', background: viewMode === 'analytics' ? 'var(--color-well)' : 'white', color: viewMode === 'analytics' ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }}>
                         <BarChart2 size={16} /> {viewMode === 'analytics' ? 'Vue liste' : 'Analytique'}
                     </button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
                     {[
-                        { icon: '🏢', label: 'Actives', value: totalActive, color: '#4C9E6A', bg: '#E8F5EE' },
-                        { icon: '⚠️', label: 'Expire < 7j', value: atRisk, color: '#D97757', bg: 'var(--color-well)' },
-                        { icon: '📅', label: 'Expire < 30j', value: expiringSoon30, color: '#C08A63', bg: '#FDF5EC' },
-                        { icon: '👥', label: 'Utilisateurs', value: totalUsers, color: '#6A9CC4', bg: '#EEF4FA' },
-                        { icon: '📊', label: 'Usage moyen', value: `${avgUsagePct}%`, color: '#815431', bg: '#F5EEE4' },
+                        { icon: '🏢', label: 'Actives', value: totalActive, color: 'var(--color-success)', bg: 'var(--color-badge-success-soft-bg)' },
+                        { icon: '⚠️', label: 'Expire < 7j', value: atRisk, color: 'var(--color-badge-warning-accent)', bg: 'var(--color-well)' },
+                        { icon: '📅', label: 'Expire < 30j', value: expiringSoon30, color: 'var(--color-primary-container)', bg: '#FDF5EC' },
+                        { icon: '👥', label: 'Utilisateurs', value: totalUsers, color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+                        { icon: '📊', label: 'Usage moyen', value: `${avgUsagePct}%`, color: 'var(--color-primary)', bg: 'var(--color-well)' },
                     ].map(k => (
                         <div key={k.label} style={{ background: k.bg, borderRadius: '16px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '1.2rem' }}>{k.icon}</span>
@@ -548,10 +548,10 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         <input type="text" placeholder="Rechercher une pâtisserie (nom, contact...)"
                             value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                             className="input" style={{ paddingLeft: '44px', height: '48px', border: '2px solid var(--color-well)', fontWeight: 600 }} />
-                        <LayoutDashboard size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#d97757' }} />
+                        <LayoutDashboard size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-primary)' }} />
                     </div>
                     <button onClick={() => setShowFilters(v => !v)}
-                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: `1.5px solid ${showFilters ? '#D97757' : 'var(--color-border)'}`, background: showFilters ? 'var(--color-well)' : 'white', color: showFilters ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                        style={{ height: '48px', padding: '0 16px', borderRadius: '14px', border: `1.5px solid ${showFilters ? 'var(--color-primary)' : 'var(--color-border)'}`, background: showFilters ? 'var(--color-well)' : 'white', color: showFilters ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
                         <Filter size={15} /> Filtres
                     </button>
                     <button onClick={handleExportCSV}
@@ -568,21 +568,21 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Statut :</span>
                         {(['all', 'actif', 'risk', 'expire'] as const).map(s => (
                             <button key={s} onClick={() => setFilterStatus(s)}
-                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterStatus === s ? '#D97757' : 'var(--color-border)', background: filterStatus === s ? 'var(--color-well)' : 'white', color: filterStatus === s ? '#D97757' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterStatus === s ? 'var(--color-primary)' : 'var(--color-border)', background: filterStatus === s ? 'var(--color-well)' : 'white', color: filterStatus === s ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
                                 {s === 'all' ? 'Tous' : s === 'actif' ? 'Actif' : s === 'risk' ? '⚠️ À risque' : 'Expiré'}
                             </button>
                         ))}
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginLeft: '8px' }}>Plan :</span>
                         {(['all', 'Basic', 'Premium', 'Premium + IA'] as const).map(t => (
                             <button key={t} onClick={() => setFilterTier(t)}
-                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterTier === t ? '#6A9CC4' : 'var(--color-border)', background: filterTier === t ? '#EEF4FA' : 'white', color: filterTier === t ? '#6A9CC4' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: filterTier === t ? 'var(--color-info)' : 'var(--color-border)', background: filterTier === t ? 'var(--color-info-bg)' : 'white', color: filterTier === t ? 'var(--color-info)' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
                                 {t === 'all' ? 'Tous' : t}
                             </button>
                         ))}
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginLeft: '8px' }}>Trier par :</span>
                         {([['name', 'Nom'], ['expiration', 'Expiration'], ['usage', 'Usage']] as const).map(([val, lbl]) => (
                             <button key={val} onClick={() => setSortBy(val)}
-                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: sortBy === val ? '#815431' : 'var(--color-border)', background: sortBy === val ? '#F5EEE4' : 'white', color: sortBy === val ? '#815431' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                style={{ padding: '4px 12px', borderRadius: '99px', border: '1.5px solid', borderColor: sortBy === val ? 'var(--color-primary)' : 'var(--color-border)', background: sortBy === val ? 'var(--color-well)' : 'white', color: sortBy === val ? 'var(--color-primary)' : 'var(--color-muted)', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' }}>
                                 {lbl}
                             </button>
                         ))}
@@ -597,19 +597,19 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     {viewMode === 'analytics' ? (
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                             {/* Répartition par tier */}
-                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid var(--color-border)' }}>
                                 <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Répartition par Plan</h4>
                                 {['Basic', 'Premium', 'Premium + IA'].map(tier => {
                                     const count = orgs.filter(o => (o.tier || 'Basic') === tier).length
                                     const pct = orgs.length > 0 ? Math.round(count / orgs.length * 100) : 0
-                                    const colors: Record<string, string> = { 'Basic': '#6A9CC4', 'Premium': '#D97757', 'Premium + IA': '#4C9E6A' }
+                                    const colors: Record<string, string> = { 'Basic': 'var(--color-info)', 'Premium': 'var(--color-primary)', 'Premium + IA': 'var(--color-success)' }
                                     return (
                                         <div key={tier} style={{ marginBottom: '12px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                                 <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{tier}</span>
                                                 <span style={{ fontSize: '0.82rem', color: 'var(--color-muted)', fontWeight: 600 }}>{count} org · {pct}%</span>
                                             </div>
-                                            <div style={{ height: '8px', background: '#F5F5F5', borderRadius: '4px', overflow: 'hidden' }}>
+                                            <div style={{ height: '8px', background: 'var(--color-well)', borderRadius: '4px', overflow: 'hidden' }}>
                                                 <div style={{ height: '100%', width: '100%', background: colors[tier], borderRadius: '4px', transform: `scaleX(${pct / 100})`, transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
                                             </div>
                                         </div>
@@ -617,7 +617,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 })}
                             </div>
                             {/* Expirations par mois (prochains 6 mois) */}
-                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid var(--color-border)' }}>
                                 <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Expirations à venir (6 mois)</h4>
                                 {Array.from({ length: 6 }, (_, i) => {
                                     const d = new Date(); d.setMonth(d.getMonth() + i)
@@ -632,8 +632,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     return (
                                         <div key={ym} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', width: '42px', textAlign: 'right' }}>{label}</span>
-                                            <div style={{ flex: 1, height: '20px', background: '#F5F5F5', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
-                                                <div style={{ height: '100%', width: '100%', background: count > 2 ? '#D94F38' : '#D97757', borderRadius: '6px', transform: `scaleX(${count / maxCount})`, transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
+                                            <div style={{ flex: 1, height: '20px', background: 'var(--color-well)', borderRadius: '6px', overflow: 'hidden', position: 'relative' }}>
+                                                <div style={{ height: '100%', width: '100%', background: count > 2 ? 'var(--color-error)' : 'var(--color-badge-warning-accent)', borderRadius: '6px', transform: `scaleX(${count / maxCount})`, transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)', willChange: 'transform' }} />
                                                 {count > 0 && (
                                                     <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', display: 'flex', alignItems: 'center', paddingLeft: '6px' }}>
                                                         <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'white' }}>{count}</span>
@@ -645,18 +645,18 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 })}
                             </div>
                             {/* Stats usage */}
-                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid var(--color-border)' }}>
                                 <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Taux d&apos;occupation des licences</h4>
                                 {orgs.slice(0, 8).map(o => {
                                     const pct = Math.round((o.member_count / (o.max_users || 1)) * 100)
-                                    const color = pct >= 90 ? '#D94F38' : pct >= 60 ? '#D97757' : '#4C9E6A'
+                                    const color = pct >= 90 ? 'var(--color-error)' : pct >= 60 ? 'var(--color-badge-warning-accent)' : 'var(--color-success)'
                                     return (
                                         <div key={o.id} style={{ marginBottom: '8px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
                                                 <span style={{ fontSize: '0.75rem', fontWeight: 700, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</span>
                                                 <span style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>{o.member_count}/{o.max_users || 5}</span>
                                             </div>
-                                            <div style={{ height: '6px', background: '#F5F5F5', borderRadius: '3px', overflow: 'hidden' }}>
+                                            <div style={{ height: '6px', background: 'var(--color-well)', borderRadius: '3px', overflow: 'hidden' }}>
                                                 <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: color, borderRadius: '3px' }} />
                                             </div>
                                         </div>
@@ -664,15 +664,15 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 })}
                             </div>
                             {/* Résumé statut */}
-                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid #EEE' }}>
+                            <div style={{ background: 'white', borderRadius: '20px', padding: '24px', border: '1px solid var(--color-border)' }}>
                                 <h4 style={{ margin: '0 0 16px', fontWeight: 800, fontSize: '0.95rem' }}>Résumé des Statuts</h4>
                                 {[
-                                    { label: 'Actives', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Actif').length, color: '#4C9E6A' },
-                                    { label: 'Illimitées', count: orgs.filter(o => !o.subscription_end_date).length, color: '#6A9CC4' },
-                                    { label: 'À risque (< 7j)', count: atRisk, color: '#D97757' },
-                                    { label: 'Expirées', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Expiré').length, color: '#D94F38' },
+                                    { label: 'Actives', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Actif').length, color: 'var(--color-success)' },
+                                    { label: 'Illimitées', count: orgs.filter(o => !o.subscription_end_date).length, color: 'var(--color-info)' },
+                                    { label: 'À risque (< 7j)', count: atRisk, color: 'var(--color-badge-warning-accent)' },
+                                    { label: 'Expirées', count: orgs.filter(o => subscriptionStatus(o.subscription_end_date).label === 'Expiré').length, color: 'var(--color-error)' },
                                 ].map(s => (
-                                    <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #F5F5F5' }}>
+                                    <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--color-well)' }}>
                                         <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{s.label}</span>
                                         <span style={{ fontSize: '1rem', fontWeight: 900, color: s.color }}>{s.count}</span>
                                     </div>
@@ -690,27 +690,27 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         {/* G — Actions en masse */}
                         {selectedOrgIds.size > 0 && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-well)', padding: '8px 14px', borderRadius: '14px' }}>
-                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#D97757' }}>{selectedOrgIds.size} sélectionnée{selectedOrgIds.size > 1 ? 's' : ''}</span>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-primary)' }}>{selectedOrgIds.size} sélectionnée{selectedOrgIds.size > 1 ? 's' : ''}</span>
                                 {[1, 3, 6, 12].map(m => (
                                     <button key={m} onClick={() => handleBulkRenew(m)} disabled={isBulkRenewing}
-                                        style={{ padding: '5px 12px', borderRadius: '10px', border: 'none', background: '#D97757', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}>
+                                        style={{ padding: '5px 12px', borderRadius: '10px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: 700, cursor: 'pointer', fontSize: '0.75rem' }}>
                                         {isBulkRenewing ? '…' : `+${m}M`}
                                     </button>
                                 ))}
                                 <button onClick={() => setSelectedOrgIds(new Set())}
-                                    style={{ padding: '4px 8px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#D97757', cursor: 'pointer' }}>
+                                    style={{ padding: '4px 8px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }}>
                                     <X size={14} />
                                 </button>
                             </div>
                         )}
                     </div>
 
-                    <div style={{ background: 'white', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid #EEE' }}>
+                    <div style={{ background: 'white', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
-                                <tr style={{ background: '#FDFCFB', borderBottom: '1px solid #EEE' }}>
+                                <tr style={{ background: 'var(--color-caisse-bg)', borderBottom: '1px solid var(--color-border)' }}>
                                     <th style={{ padding: '14px 16px', width: '40px' }}>
-                                        <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D97757', display: 'flex' }}>
+                                        <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex' }}>
                                             {selectedOrgIds.size === filteredOrgs.length && filteredOrgs.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
                                         </button>
                                     </th>
@@ -729,16 +729,16 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     const isSelected = selectedOrgIds.has(o.id)
                                     return (
                                         <tr key={o.id}
-                                            style={{ borderBottom: '1px solid #F5F5F5', transition: 'background 0.15s', background: isSelected ? 'var(--color-well)' : isExpiringSoon ? '#FFFBF5' : 'white' }}
+                                            style={{ borderBottom: '1px solid var(--color-well)', transition: 'background 0.15s', background: isSelected ? 'var(--color-well)' : isExpiringSoon ? '#FFFBF5' : 'white' }}
                                             className="table-row-hover">
                                             <td style={{ padding: '14px 16px' }} onClick={e => { e.stopPropagation(); toggleSelectOrg(o.id) }}>
-                                                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#D97757', display: 'flex' }}>
-                                                    {isSelected ? <CheckSquare size={17} /> : <Square size={17} style={{ color: '#CCC' }} />}
+                                                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex' }}>
+                                                    {isSelected ? <CheckSquare size={17} /> : <Square size={17} style={{ color: 'var(--color-border)' }} />}
                                                 </button>
                                             </td>
                                             <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'var(--color-well)', color: '#d97757', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', flexShrink: 0 }}>
+                                                    <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'var(--color-well)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.75rem', flexShrink: 0 }}>
                                                         {initials(o.name)}
                                                     </div>
                                                     <div>
@@ -752,7 +752,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                     <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: status.color }} />
                                                     {status.label.toUpperCase()}
                                                 </div>
-                                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6A9CC4' }}>{o.tier || 'Basic'}</div>
+                                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-info)' }}>{o.tier || 'Basic'}</div>
                                             </td>
                                             <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
                                                 <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{o.member_count} / {o.max_users || 5}</div>
@@ -760,11 +760,11 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             </td>
                                             {/* C — Alerte expiration visible */}
                                             <td style={{ padding: '14px 16px', cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)}>
-                                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: isExpiringSoon ? '#D97757' : 'inherit' }}>
+                                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: isExpiringSoon ? 'var(--color-badge-warning-accent)' : 'inherit' }}>
                                                     {formatDate(o.subscription_end_date)}
                                                 </div>
                                                 {isExpiringSoon && (
-                                                    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: daysLeft! <= 7 ? '#D94F38' : '#D97757' }}>
+                                                    <div style={{ fontSize: '0.65rem', fontWeight: 800, color: daysLeft! <= 7 ? 'var(--color-error)' : 'var(--color-badge-warning-accent)' }}>
                                                         ⚠️ {daysLeft}j restants
                                                     </div>
                                                 )}
@@ -775,11 +775,11 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                     {o.contact_email && isExpiringSoon && (
                                                         <button onClick={e => { e.stopPropagation(); handleSendReminder(o) }}
                                                             title="Envoyer un rappel par email"
-                                                            style={{ padding: '5px', borderRadius: '8px', border: 'none', background: '#EEF4FA', color: '#6A9CC4', cursor: 'pointer', display: 'flex' }}>
+                                                            style={{ padding: '5px', borderRadius: '8px', border: 'none', background: 'var(--color-info-bg)', color: 'var(--color-info)', cursor: 'pointer', display: 'flex' }}>
                                                             <Mail size={14} />
                                                         </button>
                                                     )}
-                                                    <ChevronRight size={18} color="#D97757" style={{ cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)} />
+                                                    <ChevronRight size={18} color="var(--color-primary)" style={{ cursor: 'pointer' }} onClick={() => handleOrgSelect(o.id)} />
                                                 </div>
                                             </td>
                                         </tr>
@@ -795,7 +795,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 <div className="animate-fadeIn">
                     <button 
                         onClick={() => setSelectedOrgId('')}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '10px 16px', borderRadius: '16px', background: 'var(--color-well)', color: '#D97757', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', padding: '10px 16px', borderRadius: '16px', background: 'var(--color-well)', color: 'var(--color-primary)', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem' }}
                     >
                         <ArrowLeft size={20} />
                         RETOUR À TOUTES LES PÂTISSERIES
@@ -816,7 +816,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     display: 'flex', alignItems: 'center', gap: '8px',
                                     padding: '12px 20px', borderRadius: '16px', border: 'none', cursor: 'pointer',
                                     fontWeight: 700, fontSize: '0.875rem', transition: 'all 0.2s',
-                                    background: tab === t.id ? '#D97757' : 'white',
+                                    background: tab === t.id ? 'var(--color-primary)' : 'white',
                                     color: tab === t.id ? 'white' : 'var(--color-muted)',
                                     boxShadow: tab === t.id ? '0 8px 20px rgba(217,119,87,0.3)' : '0 2px 8px rgba(0,0,0,0.05)'
                                 }}
@@ -832,7 +832,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         {tab === 'info' && (
                             <div style={{ maxWidth: '600px' }}>
                                 <div style={{ marginBottom: '32px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, #D97757, var(--color-rose-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.25rem', fontWeight: 900 }}>
+                                    <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, var(--color-primary), var(--color-rose-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.25rem', fontWeight: 900 }}>
                                         {initials(selectedOrg.name)}
                                     </div>
                                     <div>
@@ -867,16 +867,16 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                 placeholder="Sélectionner une date"
                                                 direction="up"
                                             />
-                                            {subForm.subscription_end_date && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4C9E6A' }}>{formatDate(subForm.subscription_end_date)}</span>}
+                                            {subForm.subscription_end_date && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-success)' }}>{formatDate(subForm.subscription_end_date)}</span>}
                                         </div>
                                     </Field>
 
                                     <Field label="Code Boutique (Accès Kiosque)">
                                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                                             <div style={{
-                                                flex: 1, height: '44px', background: '#FDFCFB', border: '1.5px solid #EAEAEA',
+                                                flex: 1, height: '44px', background: 'var(--color-caisse-bg)', border: '1.5px solid var(--color-border)',
                                                 borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '0 14px',
-                                                fontSize: '1.1rem', fontWeight: 800, color: selectedOrg.kiosk_code ? '#D97757' : 'var(--color-muted)',
+                                                fontSize: '1.1rem', fontWeight: 800, color: selectedOrg.kiosk_code ? 'var(--color-primary)' : 'var(--color-muted)',
                                                 letterSpacing: '0.1em'
                                             }}>
                                                 {selectedOrg.kiosk_code || 'NON DÉFINI'}
@@ -937,8 +937,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     </div>
 
 
-                                    <div style={{ background: '#FDFCFB', padding: '20px', borderRadius: '20px', border: '1px solid var(--color-well)' }}>
-                                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97757', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prolonger l&apos;abonnement</p>
+                                    <div style={{ background: 'var(--color-caisse-bg)', padding: '20px', borderRadius: '20px', border: '1px solid var(--color-well)' }}>
+                                        <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prolonger l&apos;abonnement</p>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                             {[{ l: '+1 Mois', m: 1 }, { l: '+3 Mois', m: 3 }, { l: '+6 Mois', m: 6 }, { l: '+1 An', m: 12 }].map(b => (
                                                 <button key={b.m} onClick={() => handleQuickRenew(b.m)} className="btn-ghost" style={{ background: 'white', fontSize: '0.8rem', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -965,7 +965,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         <button onClick={() => setIsAddUserModalOpen(true)} className="btn-secondary" style={{ height: '40px', fontSize: '0.8rem' }}>
                                             <Plus size={16} /> Créer un utilisateur
                                         </button>
-                                        <div style={{ background: 'var(--color-well)', color: '#d97757', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                        <div style={{ background: 'var(--color-well)', color: 'var(--color-primary)', padding: '6px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 700 }}>
                                             {orgTeam.length} utilisateurs
                                         </div>
                                     </div>
@@ -979,8 +979,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         return (
                                             <div key={p.id} style={{
                                                 padding: '20px', borderRadius: '24px',
-                                                border: isGerant ? `2px solid ${badge.color}40` : '1.5px solid #EEE',
-                                                background: p.is_active ? (isGerant ? badge.bg : 'white') : '#f5f5f5',
+                                                border: isGerant ? `2px solid color-mix(in srgb, ${badge.color} 25%, transparent)` : '1.5px solid var(--color-border)',
+                                                background: p.is_active ? (isGerant ? badge.bg : 'white') : 'var(--color-well)',
                                                 opacity: p.is_active ? 1 : 0.6
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -999,7 +999,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                                             {roles.map(r => <option key={r.slug} value={r.slug}>{r.name.toUpperCase()}</option>)}
                                                         </select>
                                                     </div>
-                                                    <button onClick={() => handleToggleActive(p.id)} style={{ width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer', background: p.is_active ? '#4C9E6A' : '#CCC', position: 'relative' }}>
+                                                    <button onClick={() => handleToggleActive(p.id)} style={{ width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer', background: p.is_active ? 'var(--color-success)' : 'var(--color-border)', position: 'relative' }}>
                                                         <span style={{ position: 'absolute', top: '3px', left: p.is_active ? '25px' : '3px', width: '20px', height: '20px', borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
                                                     </button>
                                                 </div>
@@ -1033,7 +1033,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         {tab === 'support' && (
                             <div style={{ maxWidth: '800px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-                                    <div style={{ padding: '24px', borderRadius: '24px', background: 'linear-gradient(135deg, #FF6B6B, #D94F38)', color: 'white' }}>
+                                    <div style={{ padding: '24px', borderRadius: '24px', background: 'linear-gradient(135deg, var(--color-error), var(--color-error))', color: 'white' }}>
                                         <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <ShieldAlert size={24} /> Prise de main (Impersonation)
                                         </h3>
@@ -1046,7 +1046,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                             disabled={impersonationLoading}
                                             style={{ 
                                                 width: '100%', height: '52px', borderRadius: '14px', border: 'none', 
-                                                background: 'white', color: '#D94F38', fontWeight: 800, cursor: 'pointer',
+                                                background: 'white', color: 'var(--color-error)', fontWeight: 800, cursor: 'pointer',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
                                             }}
                                         >
@@ -1055,20 +1055,20 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                         </button>
                                     </div>
 
-                                    <div style={{ padding: '24px', borderRadius: '24px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                                    <div style={{ padding: '24px', borderRadius: '24px', background: 'var(--color-well)', border: '1px solid var(--color-border)' }}>
                                         <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E293B', marginBottom: '16px' }}>Infos Support</h3>
                                         <div style={{ display: 'grid', gap: '12px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                                <span style={{ color: '#64748B' }}>Dernière Synchro :</span>
+                                                <span style={{ color: 'var(--color-muted)' }}>Dernière Synchro :</span>
                                                 <span style={{ fontWeight: 700 }}>Aujourd&apos;hui, 14:22</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                                <span style={{ color: '#64748B' }}>Version Client :</span>
+                                                <span style={{ color: 'var(--color-muted)' }}>Version Client :</span>
                                                 <span style={{ fontWeight: 700 }}>v2.4.0 (Vercel)</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                                                <span style={{ color: '#64748B' }}>Contact Facturation :</span>
-                                                <span style={{ fontWeight: 700, color: '#D97757' }}>{selectedOrg.contact_email || 'Non défini'}</span>
+                                                <span style={{ color: 'var(--color-muted)' }}>Contact Facturation :</span>
+                                                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{selectedOrg.contact_email || 'Non défini'}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1079,17 +1079,17 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     <Clock size={16} /> Activité Récente
                                     {loadingActivity && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-muted)' }} />}
                                 </h4>
-                                <div style={{ border: '1px solid #EEE', borderRadius: '16px', overflow: 'hidden' }}>
+                                <div style={{ border: '1px solid var(--color-border)', borderRadius: '16px', overflow: 'hidden' }}>
                                     {realActivity.length === 0 && !loadingActivity ? (
                                         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
                                             Aucune activité récente enregistrée.
                                         </div>
                                     ) : realActivity.map((l, i) => (
-                                        <div key={i} style={{ padding: '12px 20px', borderBottom: i < realActivity.length - 1 ? '1px solid #F5F5F5' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div key={i} style={{ padding: '12px 20px', borderBottom: i < realActivity.length - 1 ? '1px solid var(--color-well)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.type === 'Vente' ? '#4C9E6A' : '#6A9CC4', flexShrink: 0 }} />
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.type === 'Vente' ? 'var(--color-success)' : 'var(--color-info)', flexShrink: 0 }} />
                                                 <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{l.msg}</span>
-                                                <span style={{ fontSize: '0.7rem', background: l.type === 'Vente' ? '#E8F5EE' : '#EEF4FA', color: l.type === 'Vente' ? '#4C9E6A' : '#6A9CC4', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>{l.type}</span>
+                                                <span style={{ fontSize: '0.7rem', background: l.type === 'Vente' ? 'var(--color-badge-success-soft-bg)' : 'var(--color-info-bg)', color: l.type === 'Vente' ? 'var(--color-success)' : 'var(--color-info)', padding: '2px 8px', borderRadius: '8px', fontWeight: 700 }}>{l.type}</span>
                                             </div>
                                             <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>{l.date}</span>
                                         </div>
@@ -1101,8 +1101,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         {/* Tab Content: Danger */}
                         {tab === 'danger' && (
                             <div style={{ maxWidth: '600px' }}>
-                                <div style={{ padding: '24px', borderRadius: '24px', border: '2px solid #D94F3840', background: '#FEF7F5' }}>
-                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: '#D94F38', margin: '0 0 12px' }}>
+                                <div style={{ padding: '24px', borderRadius: '24px', border: '2px solid color-mix(in srgb, var(--color-error) 25%, transparent)', background: 'var(--color-caisse-urgent-badge-bg)' }}>
+                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-error)', margin: '0 0 12px' }}>
                                         <ShieldAlert size={24} /> Suspension de Licence
                                     </h3>
                                     <p style={{ fontSize: '0.95rem', color: 'var(--color-text)', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
@@ -1110,19 +1110,19 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     </p>
 
                                     {allSuspended ? (
-                                        <button onClick={handleReactivateOrg} disabled={isPending} className="btn-primary" style={{ background: '#4C9E6A', padding: '0 24px', height: '52px', fontWeight: 800, gap: '10px' }}>
+                                        <button onClick={handleReactivateOrg} disabled={isPending} className="btn-primary" style={{ background: 'var(--color-success)', padding: '0 24px', height: '52px', fontWeight: 800, gap: '10px' }}>
                                             <ShieldCheck size={20} /> Réactiver tous les accès (Remise en service)
                                         </button>
                                     ) : !confirmSuspend ? (
-                                        <button onClick={() => setConfirmSuspend(true)} className="btn-ghost" style={{ color: '#D94F38', border: '2px solid #D94F3840', fontWeight: 800, padding: '0 24px', height: '52px', gap: '10px' }}>
+                                        <button onClick={() => setConfirmSuspend(true)} className="btn-ghost" style={{ color: 'var(--color-error)', border: '2px solid color-mix(in srgb, var(--color-error) 25%, transparent)', fontWeight: 800, padding: '0 24px', height: '52px', gap: '10px' }}>
                                             <ShieldAlert size={20} /> Suspendre les activités de {selectedOrg.name}
                                         </button>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                            <p style={{ fontWeight: 800, color: '#D94F38', fontSize: '1rem' }}>⚠️ Confirmez-vous la suspension immédiate ?</p>
+                                            <p style={{ fontWeight: 800, color: 'var(--color-error)', fontSize: '1rem' }}>⚠️ Confirmez-vous la suspension immédiate ?</p>
                                             <div style={{ display: 'flex', gap: '12px' }}>
                                                 <button onClick={() => setConfirmSuspend(false)} className="btn-ghost" style={{ flex: 1 }}>Annuler</button>
-                                                <button onClick={handleSuspendOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, background: '#D94F38', color: 'white', fontWeight: 800 }}>
+                                                <button onClick={handleSuspendOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, background: 'var(--color-error)', color: 'white', fontWeight: 800 }}>
                                                     {isPending ? <Loader2 size={18} className="animate-spin" /> : 'OUI, SUSPENDRE MAINTENANT'}
                                                 </button>
                                             </div>
@@ -1130,8 +1130,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     )}
                                 </div>
 
-                                <div style={{ marginTop: '32px', padding: '24px', borderRadius: '24px', border: '2px solid #D94F3840', background: 'white' }}>
-                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: '#D94F38', margin: '0 0 12px' }}>
+                                <div style={{ marginTop: '32px', padding: '24px', borderRadius: '24px', border: '2px solid color-mix(in srgb, var(--color-error) 25%, transparent)', background: 'white' }}>
+                                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-error)', margin: '0 0 12px' }}>
                                         <ShieldAlert size={24} /> Suppression Définitive
                                     </h3>
                                     <p style={{ fontSize: '0.95rem', color: 'var(--color-text)', opacity: 0.8, lineHeight: 1.6, marginBottom: '24px' }}>
@@ -1139,15 +1139,15 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                     </p>
 
                                     {!confirmDelete ? (
-                                        <button onClick={() => setConfirmDelete(true)} className="btn-ghost" style={{ width: '100%', color: '#D94F38', border: '2px solid #D94F3840', fontWeight: 800, height: '52px' }}>
+                                        <button onClick={() => setConfirmDelete(true)} className="btn-ghost" style={{ width: '100%', color: 'var(--color-error)', border: '2px solid color-mix(in srgb, var(--color-error) 25%, transparent)', fontWeight: 800, height: '52px' }}>
                                             SUPPRIMER DÉFINITIVEMENT CETTE PÂTISSERIE
                                         </button>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                            <p style={{ fontWeight: 800, color: '#D94F38', textAlign: 'center' }}>⚠️ Êtes-vous ABSOLUMENT sûr ? Cette action ne peut pas être annulée.</p>
+                                            <p style={{ fontWeight: 800, color: 'var(--color-error)', textAlign: 'center' }}>⚠️ Êtes-vous ABSOLUMENT sûr ? Cette action ne peut pas être annulée.</p>
                                             <div style={{ display: 'flex', gap: '12px' }}>
                                                 <button onClick={() => setConfirmDelete(false)} className="btn-ghost" style={{ flex: 1 }}>Annuler</button>
-                                                <button onClick={handleDeleteOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, background: '#D94F38', color: 'white', fontWeight: 800 }}>
+                                                <button onClick={handleDeleteOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, background: 'var(--color-error)', color: 'white', fontWeight: 800 }}>
                                                     {isPending ? <Loader2 size={18} className="animate-spin" /> : 'CONFIRMER LA SUPPRESSION'}
                                                 </button>
                                             </div>
@@ -1167,7 +1167,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     <div className="modal-content animate-scaleIn" onClick={e => e.stopPropagation()} 
                          style={{ maxWidth: '600px', padding: 0, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
                         
-                        <div style={{ padding: '32px', borderBottom: '1px solid #EEE' }}>
+                        <div style={{ padding: '32px', borderBottom: '1px solid var(--color-border)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, color: 'var(--color-text)' }}>Nouvelle Pâtisserie</h2>
                                 <button onClick={() => setIsCreateModalOpen(false)} className="btn-ghost" style={{ padding: '8px' }}><X size={24} /></button>
@@ -1178,7 +1178,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                         <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>1. Informations Pâtisserie</p>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '12px' }}>1. Informations Pâtisserie</p>
                                 </div>
                                 <Field label="Nom de l'enseigne">
                                     <input className="input" placeholder="ex: Boulangerie Moderne" value={newOrgForm.org_name} onChange={e => setNewOrgForm(f => ({ ...f, org_name: e.target.value }))} />
@@ -1204,7 +1204,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                                 </div>
 
                                 <div style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#d97757', textTransform: 'uppercase', marginBottom: '12px' }}>2. Compte Gérant</p>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '12px' }}>2. Compte Gérant</p>
                                 </div>
                                 <Field label="Nom Complet du Gérant">
                                     <input className="input" placeholder="Prénom Nom" value={newOrgForm.gerant_full_name} onChange={e => setNewOrgForm(f => ({ ...f, gerant_full_name: e.target.value }))} />
@@ -1226,7 +1226,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                             </div>
                         </div>
 
-                        <div style={{ padding: '32px', background: '#FDFCFB', borderTop: '1px solid #EEE', display: 'flex', gap: '16px' }}>
+                        <div style={{ padding: '32px', background: 'var(--color-caisse-bg)', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '16px' }}>
                             <button onClick={() => setIsCreateModalOpen(false)} className="btn-ghost" style={{ flex: 1, padding: '16px', fontWeight: 700 }}>Annuler</button>
                             <button onClick={handleCreateOrg} disabled={isPending} className="btn-primary" style={{ flex: 2, padding: '16px', fontWeight: 800, fontSize: '1rem', gap: '10px' }}>
                                 {isPending ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
@@ -1272,14 +1272,14 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
             {resetPinResult && (
                 <div className="modal-overlay">
                     <div className="modal-content animate-scaleIn" style={{ maxWidth: '400px', textAlign: 'center' }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#E8F5EE', color: '#4C9E6A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-badge-success-soft-bg)', color: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                             <KeyRound size={32} />
                         </div>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '10px' }}>Nouveau Code PIN</h2>
                         <p style={{ color: 'var(--color-muted)', marginBottom: '24px' }}>
                             Le code PIN pour <strong>{resetPinResult.name}</strong> a été réinitialisé. Communiquez-lui ce code :
                         </p>
-                        <div style={{ fontSize: '3rem', fontWeight: 900, color: '#D97757', letterSpacing: '0.2em', marginBottom: '32px' }}>
+                        <div style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--color-primary)', letterSpacing: '0.2em', marginBottom: '32px' }}>
                             {resetPinResult.pin}
                         </div>
                         <button onClick={() => setResetPinResult(null)} className="btn-primary" style={{ width: '100%' }}>J&apos;ai pris note</button>
@@ -1292,8 +1292,8 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                 .stat-pill {
                     padding: 8px 16px;
                     border-radius: 14px;
-                    background: #EEF4FA;
-                    color: #6A9CC4;
+                    background: var(--color-info-bg);
+                    color: var(--color-info);
                     font-size: 0.85rem;
                     font-weight: 800;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.03);
@@ -1313,7 +1313,7 @@ export default function AdminClient({ orgs: initialOrgs, allProfiles, roles }: P
                     to { transform: scale(1); opacity: 1; }
                 }
                 .table-row-hover:hover {
-                    background: #FDFCFB !important;
+                    background: var(--color-caisse-bg) !important;
                 }
                 .custom-scrollbar::-webkit-scrollbar {
                     width: 6px;

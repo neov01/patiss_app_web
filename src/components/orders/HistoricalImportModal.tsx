@@ -890,7 +890,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#D94F38',
+                              color: 'var(--color-error)',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
@@ -1257,7 +1257,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                 {isMultiplePayment && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                     {payments.map((p) => (
-                      <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                      <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', background: 'var(--color-well)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           {/* Toggle Acompte / Solde pour cette ligne */}
                           <div style={{ display: 'flex', background: 'var(--color-bg)', borderRadius: 'var(--radius-sm)', padding: '2px', gap: '2px' }}>
@@ -1301,7 +1301,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                                   }
                                   return next;
                                 });
-                              }} style={{ width: '22px', height: '22px', borderRadius: '6px', border: 'none', background: '#FEE2E2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                              }} style={{ width: '22px', height: '22px', borderRadius: '6px', border: 'none', background: 'var(--color-badge-danger-bg)', color: 'var(--color-error)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold' }}>
                                 ✕
                               </button>
                             )}
@@ -1346,7 +1346,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* Instructions */}
-              <div style={{ padding: '14px', background: '#EFF6FF', borderRadius: '16px', border: '1px solid #BFDBFE', color: '#1E3A8A', fontSize: '0.8rem', lineHeight: 1.45 }}>
+              <div style={{ padding: '14px', background: 'var(--color-badge-crm-bg)', borderRadius: '16px', border: '1px solid #BFDBFE', color: '#1E3A8A', fontSize: '0.8rem', lineHeight: 1.45 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, marginBottom: '6px' }}>
                   <FileText size={16} /> Instructions de préparation du fichier Excel
                 </div>
@@ -1399,7 +1399,7 @@ export default function HistoricalImportModal({ open, onClose, products, currenc
                           const totalAmount = ord.total_amount ?? 0
                           const balance = ord.balance ?? 0
                           return (
-                            <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                            <tr key={i} style={{ borderBottom: '1px solid var(--color-well)' }}>
                               <td style={{ padding: '8px 12px', fontWeight: 700 }}>{ord.customer_name}</td>
                               <td style={{ padding: '8px 12px' }}>{ord.created_at}</td>
                               <td style={{ padding: '8px 12px' }}>{ord.pickup_date}</td>

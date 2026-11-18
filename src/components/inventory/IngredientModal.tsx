@@ -88,10 +88,10 @@ export default function IngredientModal({ mode, ingredient, existingNames = [] }
                                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                                     placeholder="ex: Farine T55"
                                     required
-                                    style={{ borderColor: isDuplicateName ? '#D94F38' : undefined }}
+                                    style={{ borderColor: isDuplicateName ? 'var(--color-error)' : undefined }}
                                 />
                                 {isDuplicateName && (
-                                    <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#D94F38', fontWeight: 600 }}>
+                                    <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: 'var(--color-error)', fontWeight: 600 }}>
                                         Un ingrédient &quot;{form.name.trim()}&quot; existe déjà.
                                     </p>
                                 )}

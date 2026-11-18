@@ -252,6 +252,15 @@ Modals support focused entry and confirmation.
 
 The checkout surface combines cart lines, payment methods, customer context, ready orders, and offline behavior. It should remain visually quieter than the actions inside it: compact rows, stable quantities, large enough +/- controls, and immediate feedback for optimistic changes.
 
+### Direction: Atelier gourmand
+
+Structure d'atelier (chiffres héros en Manrope 800, matières papier/kraft, peu de grilles de KPI, palette disciplinée) avec une chaleur utile : monogrammes ou photos produit, états vides illustrés par Croustik, fin de paiement marquée. **La chaleur s'arrête là où commence la vitesse** : aucune illustration ni animation ne s'intercale entre le panier et le bouton Encaisser.
+
+- **Vente rapide (« étiquette »)** : tuile blanche, plaque 4/3 avec monogramme teinté (4 tons : kraft, sauge, pierre, teal), nom, prix en Manrope 800, badge terracotta `×n` quand le produit est dans le panier, pastille ambre « Plus que n » sous 3 en stock. Classes `.product-tile*` (partagées avec le catalogue produits) et `.quick-sale-grid` pour la grille de la caisse.
+- **Récap « À encaisser »** : cases Articles / Sous-total / Acompte, puis montant en 38px terracotta ; sauge et « Commande réglée » à 0. Annoncé en `aria-live`. Classes `.cart-totals-*`.
+- **États vides** : Croustik 64–72px, titre Manrope, indication en `#51443C`. Classes `.caisse-empty*`.
+- **Croustik** reste accessible partout ; sur `/caisse` il quitte la zone d'encaissement (bas de la colonne produits sur desktop, bas gauche sur mobile) et ne pulse pas.
+
 ## 6. Do's and Don'ts
 
 ### Do:

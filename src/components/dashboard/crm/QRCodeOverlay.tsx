@@ -18,7 +18,7 @@ export default function QRCodeOverlay({ show, onClose, customer }: QRCodeOverlay
       onClick={onClose}
     >
       <div className="bg-white p-8 rounded-[40px] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-[#DC5F4A]" />
+        <div className="absolute top-0 left-0 w-full h-2 bg-[var(--color-primary)]" />
         <div className="w-64 h-64 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 border border-slate-100">
           <QrCode size={180} className="text-slate-800" strokeWidth={1.5} />
         </div>

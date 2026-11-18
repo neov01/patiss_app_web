@@ -68,10 +68,10 @@ export default async function ProductionPlan({
 
     if (!orders || orders.length === 0) {
         return (
-            <div style={{ marginTop: '24px', padding: '24px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
-                <CheckCircle2 color="#10b981" size={48} style={{ margin: '0 auto 16px' }} />
-                <h3 style={{ fontSize: '1.2rem', color: '#374151' }}>Aucune production urgente</h3>
-                <p style={{ color: '#6b7280' }}>Il n&apos;y a pas de commandes en attente pour cette période.</p>
+            <div style={{ marginTop: '24px', padding: '24px', background: 'var(--color-well)', borderRadius: '8px', textAlign: 'center' }}>
+                <CheckCircle2 color="var(--color-badge-success-accent)" size={48} style={{ margin: '0 auto 16px' }} />
+                <h3 style={{ fontSize: '1.2rem', color: 'var(--color-text)' }}>Aucune production urgente</h3>
+                <p style={{ color: 'var(--color-muted)' }}>Il n&apos;y a pas de commandes en attente pour cette période.</p>
             </div>
         )
     }
@@ -132,15 +132,15 @@ export default async function ProductionPlan({
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
                 {/* Résumé des Gâteaux à produire */}
-                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px' }}>
+                <div style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', marginBottom: '16px' }}>
                         Recettes à préparer
                     </h3>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                         {productList.map((r, idx) => (
-                            <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: idx < productList.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                            <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: idx < productList.length - 1 ? '1px solid var(--color-well)' : 'none' }}>
                                 <span style={{ fontWeight: 500 }}>{r.name}</span>
-                                <span style={{ background: '#D1FAE5', color: '#065F46', padding: '4px 10px', borderRadius: '20px', fontSize: '0.875rem', fontWeight: 700 }}>
+                                <span style={{ background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-text)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.875rem', fontWeight: 700 }}>
                                     x {r.quantity}
                                 </span>
                             </li>
@@ -149,27 +149,27 @@ export default async function ProductionPlan({
                 </div>
 
                 {/* Synthèse des ingrédients requis */}
-                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px' }}>
+                <div style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', marginBottom: '16px' }}>
                         Ingrédients totaux nécessaires
                     </h3>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                         {ingredientList.map((ing, idx) => {
                             const isShortage = ing.totalRequired > ing.currentStock
                             return (
-                                <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: idx < ingredientList.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                                <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: idx < ingredientList.length - 1 ? '1px solid var(--color-well)' : 'none' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: 500, color: isShortage ? '#DC2626' : 'inherit' }}>{ing.name}</span>
-                                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                                        <span style={{ fontWeight: 500, color: isShortage ? 'var(--color-badge-danger-accent)' : 'inherit' }}>{ing.name}</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
                                             Stock actuel : {ing.currentStock} {ing.unit}
                                         </span>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: isShortage ? '#DC2626' : '#2563EB' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: isShortage ? 'var(--color-badge-danger-accent)' : '#2563EB' }}>
                                             {ing.totalRequired.toFixed(2)}
                                         </span>
-                                        <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '4px' }}>{ing.unit}</span>
-                                        {isShortage && <div style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 600 }}>Rupture !</div>}
+                                        <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)', marginLeft: '4px' }}>{ing.unit}</span>
+                                        {isShortage && <div style={{ fontSize: '0.75rem', color: 'var(--color-badge-danger-accent)', fontWeight: 600 }}>Rupture !</div>}
                                     </div>
                                 </li>
                             )

@@ -12,6 +12,10 @@ export interface ActionFeedbackOptions<T = unknown> {
     type?: 'simple' | 'summary' | 'toast' | 'modal'
     modalTitle?: string
     modalDescription?: string
+    /** Fin d'encaissement : Croustik + montant en grand. Réservé aux moments de réussite de la caisse. */
+    celebrate?: boolean
+    /** Durée avant fermeture automatique du modal simple (défaut 2000 ms). */
+    durationMs?: number
     onSuccess?: (result: T) => void | Promise<void>
     onError?: (error: unknown) => void
 }
@@ -24,6 +28,7 @@ export function useActionFeedback() {
         title: string
         description?: string
         type: 'simple' | 'summary'
+        celebrate?: boolean
         onClose: () => void
     } | null>(null)
 
@@ -60,7 +65,10 @@ export function useActionFeedback() {
             if (displayType === 'modal') displayType = 'summary'
             
             if (displayType === 'simple') {
+                let closed = false
                 const closeHandler = () => {
+                    if (closed) return
+                    closed = true
                     setModalConfig(null)
                     setState('idle')
                     if (options?.onSuccess) {
@@ -75,13 +83,14 @@ export function useActionFeedback() {
                     title: successMessage || 'Opération réussie !',
                     description: options?.modalDescription,
                     type: 'simple',
+                    celebrate: options?.celebrate,
                     onClose: closeHandler
                 })
                 
-                // Auto close simple modals after 2 seconds
+                // Fermeture automatique (2 s par défaut)
                 setTimeout(() => {
                     closeHandler()
-                }, 2000)
+                }, options?.durationMs ?? 2000)
             } else {
                 // Summary type (e.g. Day Closure summary)
                 setModalData(result)
@@ -134,6 +143,7 @@ export function useActionFeedback() {
                 title={modalConfig.title}
                 description={modalConfig.description}
                 type={modalConfig.type}
+                celebrate={modalConfig.celebrate}
                 sessionData={modalData as SessionFeedbackData}
             />,
             document.body
