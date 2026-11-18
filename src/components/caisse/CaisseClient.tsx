@@ -957,15 +957,15 @@ export default function CaisseClient({
             <div className="caisse-cart-column" style={{ background: 'white', borderLeft: '1.5px solid var(--color-caisse-border)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                 
                 {/* Header Panier */}
-                <div style={{ padding: '20px', borderBottom: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="caisse-cart-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
                             <ShoppingBag size={20} color="var(--color-caisse-accent)" /> Panier en cours
                         </h2>
                         {activeSession && <DashboardNewOrderButton organizationId={organizationId} currency={currency} isFloating={true} />}
                     </div>
                     
-                    <div style={{ marginBottom: '16px' }}>
+                    <div>
                         <CRMSelector
                             selectedCustomer={activeClient ? { id: activeCustomerId || '', name: activeClient } : null}
                             onCustomerSelected={(id, name, phone) => {
@@ -978,10 +978,12 @@ export default function CaisseClient({
                     </div>
                 </div>
 
+                {/* Corps défilant : lignes + totaux + ventilation */}
+                <div className="caisse-cart-body">
                 {/* Lignes Panier */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+                <div className="caisse-cart-lines" style={{ padding: '20px' }}>
                     {optimisticPanier.length === 0 ? (
-                        <div className="caisse-empty is-bare" style={{ height: '100%', justifyContent: 'center' }}>
+                        <div className="caisse-empty is-bare" style={{ minHeight: '180px', justifyContent: 'center' }}>
                             <Image src={getMascotImagePath('greeting')} alt="" width={72} height={72} className="caisse-empty-art" />
                             <p className="caisse-empty-title">Panier vide</p>
                             <p className="caisse-empty-hint">Touchez un produit pour l&apos;ajouter.</p>
@@ -1009,7 +1011,7 @@ export default function CaisseClient({
                                             }}
                                             onRemove={() => removeItem(idx)}
                                         />
-                                        <div style={{ width: '80px', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text)' }}>
+                                        <div style={{ minWidth: '80px', textAlign: 'right', fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-text)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                                             {(line.qty * line.prix).toLocaleString('fr-FR')} {currency}
                                         </div>
                                     </div>
@@ -1019,8 +1021,8 @@ export default function CaisseClient({
                     )}
                 </div>
 
-                {/* Footer Panier */}
-                <div style={{ padding: '20px', borderTop: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
+                {/* Totaux et ventilation du paiement (défilent avec les lignes) */}
+                <div className="caisse-cart-payment" style={{ padding: '20px 20px 4px', borderTop: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
                     <div className="cart-totals">
                         <div className="cart-totals-cells">
                             <div className="cart-totals-cell"><span>Articles</span><strong>{optimisticPanier.reduce((s, l) => s + l.qty, 0)}</strong></div>
@@ -1248,6 +1250,11 @@ export default function CaisseClient({
                         </div>
                     )}
 
+                </div>
+                </div>
+
+                {/* Barre d'action figée : toujours accessible */}
+                <div className="caisse-cart-actions" style={{ padding: '12px 20px 16px', borderTop: '1px solid var(--color-caisse-border)', background: 'var(--color-caisse-well)' }}>
                     <button
                         className="btn-primary"
                         onClick={handleEncaisser}
@@ -1369,14 +1376,30 @@ export default function CaisseClient({
                         flex-direction: column !important;
                     }
 
-                    /* Figer le header et le footer du panier, et ne laisser scroller que les articles */
-                    .caisse-cart-column > div:first-child,
-                    .caisse-cart-column > div:last-child {
+                    /* En-tête et barre d'action figés ; tout le reste (lignes,
+                       totaux, ventilation) défile dans un seul corps. */
+                    .caisse-cart-header,
+                    .caisse-cart-actions {
                         flex-shrink: 0 !important;
                     }
-                    .caisse-cart-column > div:nth-child(2) {
-                        flex-shrink: 1 !important;
-                        min-height: 0 !important;
+                    .caisse-cart-body {
+                        flex: 1 1 auto;
+                        min-height: 0;
+                        overflow-y: auto;
+                        overscroll-behavior: contain;
+                        display: flex;
+                        flex-direction: column;
+                        background: var(--color-caisse-well);
+                    }
+                    .caisse-cart-lines {
+                        background: white;
+                        flex-shrink: 0;
+                    }
+                    .caisse-cart-payment {
+                        flex: 1 0 auto;
+                    }
+                    .caisse-cart-actions {
+                        box-shadow: 0 -6px 16px -10px rgba(26, 28, 26, 0.25);
                     }
                 }
                 
