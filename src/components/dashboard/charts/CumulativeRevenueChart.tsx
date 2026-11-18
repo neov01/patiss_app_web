@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { CumulativePoint } from '@/lib/domain/dashboard-metrics'
 
-const W = 640
+const DEFAULT_W = 640
+const MIN_W = 240
 const H = 220
-const PAD = { top: 16, right: 16, bottom: 28, left: 56 }
+const PAD = { top: 30, right: 16, bottom: 28, left: 56 }
 
 function fmt(value: number) {
     return value.toLocaleString('fr-FR')
@@ -13,6 +14,21 @@ function fmt(value: number) {
 
 export default function CumulativeRevenueChart({ points, currency }: { points: CumulativePoint[]; currency: string }) {
     const [hovered, setHovered] = useState<number | null>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [W, setW] = useState(DEFAULT_W)
+
+    // Dessiner à la largeur réelle : le texte garde sa taille sur mobile au lieu d'être réduit avec le SVG.
+    useEffect(() => {
+        const el = containerRef.current
+        if (!el) return
+        const observer = new ResizeObserver(entries => {
+            const width = Math.round(entries[0]?.contentRect.width ?? DEFAULT_W)
+            setW(Math.max(MIN_W, width))
+        })
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
+    const hourStep = W < 420 ? 6 : 3
 
     const todayPoints = points.filter(p => p.today !== null)
     const last = todayPoints[todayPoints.length - 1]
@@ -47,7 +63,7 @@ export default function CumulativeRevenueChart({ points, currency }: { points: C
         : 'CA cumulé : aucune donnée'
 
     return (
-        <div style={{ position: 'relative' }}>
+        <div ref={containerRef} style={{ position: 'relative' }}>
             <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '8px' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <svg width="20" height="4" aria-hidden="true"><line x1="0" y1="2" x2="20" y2="2" stroke="var(--color-primary)" strokeWidth="3" /></svg>
@@ -77,7 +93,7 @@ export default function CumulativeRevenueChart({ points, currency }: { points: C
                         </text>
                     </g>
                 ))}
-                {points.map((p, i) => (p.hour % 3 === 0 ? (
+                {points.map((p, i) => (p.hour % hourStep === 0 ? (
                     <text key={p.hour} x={x(i)} y={H - 8} textAnchor="middle" style={{ fontSize: '11px', fill: 'var(--color-muted)' }}>{p.hour}h</text>
                 ) : null))}
                 {hasYesterday && (
@@ -103,7 +119,7 @@ export default function CumulativeRevenueChart({ points, currency }: { points: C
                         position: 'absolute', top: '28px',
                         left: `${(x(hovered) / W) * 100}%`,
                         transform: hovered > points.length / 2 ? 'translateX(calc(-100% - 8px))' : 'translateX(8px)',
-                        background: 'var(--color-text)', color: 'white', borderRadius: '8px',
+                        background: 'var(--color-text)', color: 'white', borderRadius: 'var(--radius-sm)',
                         padding: '6px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap', pointerEvents: 'none',
                         fontVariantNumeric: 'tabular-nums',
                     }}
