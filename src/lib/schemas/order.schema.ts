@@ -12,7 +12,9 @@ export const orderItemSchema = z.object({
 
 export const orderSchema = z.object({
   id: z.string().uuid().optional(),
-  order_number: z.string().min(1, "Le numéro de commande est requis"),
+  // Le numéro définitif est attribué par la base (create_order_atomic).
+  // Toute valeur envoyée par un ancien client est acceptée mais ignorée.
+  order_number: z.string().optional(),
   customer_id: z.string().uuid().optional().nullable(),
   customer_name: z.string().min(2, "Le nom du client est trop court"),
   customer_contact: z.string().min(8, "Le numéro de téléphone est trop court ou requis"),

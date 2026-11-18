@@ -11,6 +11,7 @@ import { getPhoneSearchCandidates, normalizeCustomerPhone } from '@/lib/domain/p
 import { buildIlikeOrFilter } from '@/lib/domain/postgrest-search'
 
 import { orderSchema } from '@/lib/schemas/order.schema'
+import { buildOrderLog, type OrderLogEvent, type OrderLogFields } from '@/lib/domain/order-log'
 
 type CreateOrderAtomicArgs = {
     p_order: Record<string, unknown>
@@ -90,7 +91,16 @@ function toPayments(value: unknown): PaymentInput[] {
         }))
 }
 
+function logOrder(level: 'info' | 'warn' | 'error', event: OrderLogEvent, fields: OrderLogFields) {
+    console[level](buildOrderLog(event, fields))
+}
+
 export async function createOrder(input: unknown) {
+    const startedAt = Date.now()
+    const inputOrderId = isRecord(input) && typeof input.id === 'string' ? input.id : null
+    let logContext: OrderLogFields = { orderId: inputOrderId }
+    logOrder('info', 'order.create.received', logContext)
+
     try {
         // Bloquer si l'abonnement est expiré
         await ensureActiveSubscription()
@@ -100,6 +110,7 @@ export async function createOrder(input: unknown) {
         if (!result.success) {
             const errors = result.error.flatten().fieldErrors
             const firstErr = Object.values(errors).flat()[0]
+            logOrder('warn', 'order.create.rejected', { ...logContext, step: 'validation', reason: String(firstErr ?? 'Données de commande invalides') })
             return { error: firstErr || 'Données de commande invalides' }
         }
         const formData = result.data
@@ -108,6 +119,7 @@ export async function createOrder(input: unknown) {
         const context = await requireRoleContext(['gerant', 'super_admin', 'vendeur'])
         await requireOpenSalesSession(context)
         const { supabase } = context
+        logContext = { orderId: formData.id ?? inputOrderId, organizationId: context.organizationId, userId: context.userId }
 
         const metrics = formData.creation_started_at && formData.creation_completed_at && typeof formData.creation_duration_seconds === 'number'
             ? {
@@ -126,7 +138,7 @@ export async function createOrder(input: unknown) {
         const { data, error } = await (supabase as unknown as CreateOrderRpcClient).rpc('create_order_atomic', {
             p_order: {
                 id: formData.id ?? null,
-                order_number: formData.order_number,
+                // order_number volontairement absent : attribué par la base, sans trou
                 customer_id: formData.customer_id ?? null,
                 customer_name: formData.customer_name,
                 customer_contact: formData.customer_contact ?? null,
@@ -161,27 +173,56 @@ export async function createOrder(input: unknown) {
             p_metrics: metrics,
         })
 
+        if (!error) {
+            logOrder('info', 'order.create.saved', {
+                ...logContext,
+                orderNumber: (data?.order as { order_number?: string | null } | null | undefined)?.order_number,
+                durationMs: Date.now() - startedAt,
+            })
+        }
+
         if (error) {
             console.error('Erreur création commande atomique:', error)
             const isDuplicate = error.message?.includes('duplicate key') || 
                                 (error as { code?: string }).code === '23505'
             if (isDuplicate) {
-                // Déjà traité en base, on considère cela comme un succès
-                return { data: { id: formData.id } }
+                // Un 23505 n'est un succès que s'il s'agit d'un rejeu du même id
+                // (idempotence). Sinon (ex. collision de order_number), la commande
+                // n'existe PAS en base : on remonte l'erreur au lieu d'un faux succès.
+                if (formData.id) {
+                    const { data: existing, error: lookupError } = await supabase
+                        .from('orders')
+                        .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
+                        .eq('id', formData.id)
+                        .eq('organization_id', context.organizationId)
+                        .maybeSingle()
+                    if (!lookupError && existing) {
+                        logOrder('info', 'order.create.replayed', { ...logContext, durationMs: Date.now() - startedAt })
+                        return { data: existing }
+                    }
+                }
+                logOrder('error', 'order.create.failed', { ...logContext, step: 'rpc', code: (error as { code?: string }).code ?? '23505', reason: error.message, durationMs: Date.now() - startedAt })
+                return { error: "Ce numéro de commande est déjà utilisé : la commande n'a pas été enregistrée. Veuillez réessayer." }
             }
+            logOrder('error', 'order.create.failed', { ...logContext, step: 'rpc', code: (error as { code?: string }).code, reason: error.message, durationMs: Date.now() - startedAt })
             return { error: error.message || 'Erreur lors de la création de la commande' }
         }
 
+        // Relecture pour renvoyer la commande complète (articles, paiements).
+        // La commande est DÉJÀ enregistrée : un échec ici ne doit jamais devenir une erreur.
         const createdOrderId = (data?.order as { id?: string })?.id || formData.id
         let fullOrder = data?.order
         if (createdOrderId) {
-            const { data: fetched } = await context.supabase
-                .from('orders')
-                .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
-                .eq('id', createdOrderId)
-                .maybeSingle()
-            if (fetched) {
-                fullOrder = fetched
+            try {
+                const { data: fetched } = await supabase
+                    .from('orders')
+                    .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
+                    .eq('id', createdOrderId)
+                    .eq('organization_id', context.organizationId)
+                    .maybeSingle()
+                if (fetched) fullOrder = fetched
+            } catch {
+                // on garde la commande renvoyée par la RPC
             }
         }
 
@@ -189,7 +230,11 @@ export async function createOrder(input: unknown) {
         revalidatePath('/dashboard')
         return { data: fullOrder }
     } catch (e: unknown) {
-        if (e instanceof AuthContextError) return { error: e.message }
+        if (e instanceof AuthContextError) {
+            logOrder('warn', 'order.create.rejected', { ...logContext, step: 'auth', code: String(e.status), reason: e.message, durationMs: Date.now() - startedAt })
+            return { error: e.message }
+        }
+        logOrder('error', 'order.create.failed', { ...logContext, step: 'exception', reason: getErrorMessage(e, 'Erreur inconnue'), durationMs: Date.now() - startedAt })
         return { error: getErrorMessage(e, 'Erreur lors de la création de la commande') }
     }
 }

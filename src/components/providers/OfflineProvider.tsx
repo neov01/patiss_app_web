@@ -140,15 +140,22 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       const totalSynced = result.syncedTransactions + result.syncedOrders
       const totalFailed = result.failedTransactions + result.failedOrders
 
+      // Numéros définitifs attribués aux commandes prises hors ligne (réf. provisoire → numéro)
+      const numbered = result.syncedOrderRefs.filter(r => r.orderNumber)
+      const refsText = numbered.length > 0
+        ? ` Numéros définitifs : ${numbered.map(r => `${r.ref} → ${r.orderNumber}`).join(', ')}.`
+        : ''
+      const duration = numbered.length > 0 ? 15000 : 5000
+
       if (totalSynced > 0 && totalFailed === 0) {
         toast.success(
-          `✅ ${totalSynced} opération(s) synchronisée(s) avec succès !`,
-          { id: toastId, duration: 5000 }
+          `✅ ${totalSynced} opération(s) synchronisée(s) avec succès !${refsText}`,
+          { id: toastId, duration }
         )
       } else if (totalSynced > 0 && totalFailed > 0) {
         toast.warning(
-          `${totalSynced} synchronisée(s), ${totalFailed} en échec — sera retenté`,
-          { id: toastId, duration: 5000 }
+          `${totalSynced} synchronisée(s), ${totalFailed} en échec — sera retenté.${refsText}`,
+          { id: toastId, duration }
         )
       } else if (totalFailed > 0) {
         toast.error(

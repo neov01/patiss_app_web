@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
+import { provisionalOrderRef } from '@/lib/domain/order-number'
+import { uploadOrderImage } from '@/lib/actions/order-images'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { compressImage } from '@/lib/utils/image-compression'
 import TouchInput from '@/components/ui/TouchInput'
@@ -67,11 +69,14 @@ const PAYMENT_METHODS = [
 
 export default function NewOrderModal({ open, onClose, currency, organizationId, onOrderCreated }: Props) {
     const router = useRouter()
-    const { execute, isPending, renderFeedback } = useActionFeedback()
+    const { execute, isPending, isSuccess, renderFeedback } = useActionFeedback()
     const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
-    // Auto Order Number
-    const [orderNumber, setOrderNumber] = useState('')
+    // Identifiant de la commande : généré UNE fois à l'ouverture (clé d'idempotence).
+    // Le numéro définitif est attribué par la base à l'enregistrement ; en attendant
+    // on affiche une référence provisoire dérivée de cet identifiant.
+    const [draftOrderId, setDraftOrderId] = useState('')
+    const orderNumber = draftOrderId ? provisionalOrderRef(draftOrderId) : ''
     
     // Header States
     const [status, setStatus] = useState('confirmed')
@@ -142,9 +147,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
     useEffect(() => {
         if (open) {
             creationStartedAtRef.current = Date.now()
-            const year = new Date().getFullYear()
-            const rand = Math.floor(1000 + Math.random() * 9000)
-            setOrderNumber(`CMD-${year}-${rand}`)
+            setDraftOrderId(crypto.randomUUID())
         } else {
             creationStartedAtRef.current = null
         }
@@ -422,25 +425,27 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
         const creationDurationSeconds = Math.max(0, Math.round((creationCompletedAtMs - creationStartedAtMs) / 1000))
 
         await execute(async () => {
-            // Fonction interne d'upload d'une image d'article
-            const uploadImage = async (file: File): Promise<string | undefined> => {
+            // Envoi de l'image d'un article, via le serveur (le navigateur n'a pas de
+            // session Supabase en mode kiosque). Un échec n'est JAMAIS silencieux :
+            // l'erreur remonte, la commande n'est pas envoyée et le panier est conservé.
+            const uploadImage = async (file: File): Promise<string> => {
+                let compressed: Blob
                 try {
-                    const compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
-                    const supabase = createSupabaseClient()
-                    const filePath = `orders/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`
-                    
-                    const { error: uploadError } = await supabase.storage.from('order-images').upload(filePath, compressed, {
-                        contentType: 'image/webp',
-                        upsert: true
-                    })
-                    
-                    if (uploadError) throw uploadError
-                    const { data: { publicUrl } } = supabase.storage.from('order-images').getPublicUrl(filePath)
-                    return publicUrl
-                } catch (err) {
-                    console.error("Image upload failed:", err)
-                    return undefined
+                    compressed = await compressImage(file, { maxWidth: 1200, quality: 0.7 })
+                } catch {
+                    throw new Error("La photo n'a pas pu être préparée. Retirez-la pour enregistrer la commande sans image.")
                 }
+                if (compressed.size > 1_000_000) {
+                    throw new Error("La photo est trop lourde. Choisissez-en une plus petite ou retirez-la pour enregistrer la commande sans image.")
+                }
+
+                const form = new FormData()
+                form.set('file', new File([compressed], 'commande.webp', { type: compressed.type || 'image/webp' }))
+                const uploaded = await uploadOrderImage(form)
+                if ('error' in uploaded) {
+                    throw new Error(`${uploaded.error} Réessayez, ou retirez la photo pour enregistrer la commande sans image.`)
+                }
+                return uploaded.url
             }
 
             // Uploader l'image du premier article si elle existe
@@ -448,10 +453,8 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
             const itemsWithUrls = [...orderItems]
             if (itemsWithUrls[0]?.imageFile) {
                 const url = await uploadImage(itemsWithUrls[0].imageFile)
-                if (url) {
-                    firstImageUrl = url
-                    itemsWithUrls[0] = { ...itemsWithUrls[0], imageUrl: url }
-                }
+                firstImageUrl = url
+                itemsWithUrls[0] = { ...itemsWithUrls[0], imageUrl: url }
             }
 
             // Construire le JSON structuré des notes et images pour chaque article
@@ -488,7 +491,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
 
             if (isOffline) {
                 await saveOrderOffline({
-                    id: crypto.randomUUID(),
+                    id: draftOrderId,
                     customer_name: clientName,
                     customer_contact: clientPhone,
                     pickup_date: pickupDeliveryDate,
@@ -524,8 +527,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
             }
 
             const result = await createOrder({
-                id: crypto.randomUUID(),
-                order_number: orderNumber,
+                id: draftOrderId,
                 status,
                 priority,
                 customer_id: crmCustomerId || undefined,
@@ -578,11 +580,14 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
             return result
         }, {
             type: 'toast',
-            successMessage: isOffline 
-                ? `Commande #${orderNumber} enregistrée en local (hors-ligne)` 
-                : `Commande #${orderNumber} créée avec succès`,
+            successMessage: (res: unknown) => {
+                const finalNumber = (res as { data?: { order_number?: string | null } })?.data?.order_number
+                return isOffline
+                    ? `Commande ${orderNumber} enregistrée en local (hors-ligne) — numéro définitif attribué à la synchronisation`
+                    : `Commande ${finalNumber || orderNumber} créée avec succès`
+            },
             onSuccess: (res: unknown) => {
-                const createdOrder = (res as { data?: Record<string, unknown> })?.data || (res as Record<string, unknown>)
+                const createdOrder = (res as { data?: Record<string, unknown> })?.data
                 if (createdOrder && onOrderCreated) {
                     onOrderCreated(createdOrder)
                 }
@@ -615,7 +620,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
                         {/* Titre & ID */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Nouvelle commande</h2>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600, background: 'var(--color-well)', padding: '2px 8px', borderRadius: '6px' }}>#{orderNumber}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600, background: 'var(--color-well)', padding: '2px 8px', borderRadius: '6px' }} title="Le numéro définitif est attribué à l'enregistrement">Réf. {orderNumber}</span>
                         </div>
                         
                         {/* Contrôles d'en-tête (Statut, Priorité, Fermeture) */}
@@ -1502,7 +1507,7 @@ export default function NewOrderModal({ open, onClose, currency, organizationId,
                     <div style={{ padding: '10px 16px', borderTop: '1.5px solid var(--color-border)', display: 'flex', gap: '8px', background: 'var(--color-lift)', position: 'sticky', bottom: 0 }}>
                         <button type="button" onClick={handleClose} className="btn-secondary" style={{ flex: 1, minHeight: '44px', height: '44px' }}>Annuler</button>
                         <button type="submit" className="btn-primary"
-                            disabled={isPending || !clientName.trim() || orderItems.length === 0 || !pickupDate}
+                            disabled={isPending || isSuccess || !clientName.trim() || orderItems.length === 0 || !pickupDate}
                             style={{ flex: 2, minHeight: '44px', height: '44px' }}>
                             {isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
                             {isPending ? 'Création en cours…' : 'Créer la commande'}
