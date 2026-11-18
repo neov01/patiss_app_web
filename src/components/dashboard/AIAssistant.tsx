@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Send, Loader2, MoreVertical, Trash2 } from 'lucide-react'
+import { Send, Loader2, MoreVertical, Trash2, BarChart3, Trophy, TrendingUp, Wallet } from 'lucide-react'
 import Image from 'next/image'
 import DOMPurify from 'dompurify'
 import { getMascotImagePath, getMessageMascotState } from '@/lib/domain/mascot'
@@ -13,10 +13,10 @@ interface Props {
 }
 
 const QUICK_QUESTIONS = [
-    { label: '📊 Résumé du jour', text: 'Donne-moi un résumé des ventes d\'aujourd\'hui.' },
-    { label: '🏆 Meilleurs produits', text: 'Quels sont mes produits les plus vendus cette semaine ?' },
-    { label: '📈 Prévision demain', text: 'Quelle prévision de chiffre d\'affaires pour demain ?' },
-    { label: '💰 Chiffre du mois', text: 'Quel est mon chiffre d\'affaires ce mois-ci ?' },
+    { label: 'Résumé du jour', icon: BarChart3, text: 'Donne-moi un résumé des ventes d\'aujourd\'hui.' },
+    { label: 'Meilleurs produits', icon: Trophy, text: 'Quels sont mes produits les plus vendus cette semaine ?' },
+    { label: 'Prévision demain', icon: TrendingUp, text: 'Quelle prévision de chiffre d\'affaires pour demain ?' },
+    { label: 'Chiffre du mois', icon: Wallet, text: 'Quel est mon chiffre d\'affaires ce mois-ci ?' },
 ]
 
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000 // 24h
@@ -146,7 +146,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
     const showQuickQuestions = history.length === 0 || (!loading && history.length > 0)
 
     return (
-        <div className="card shadow-2xl transition-all duration-500 hover:shadow-primary/5" style={{ padding: 0, overflow: 'hidden', height: '500px', display: 'flex', flexDirection: 'column', border: 'none', background: 'var(--color-lift)' }}>
+        <div className="card shadow-2xl transition-all duration-500 hover:shadow-primary/5" style={{ padding: 0, overflow: 'hidden', height: '440px', display: 'flex', flexDirection: 'column', border: 'none', background: 'var(--color-lift)' }}>
             {/* Header */}
             <div style={{
                 background: 'rgba(129, 84, 49, 0.95)',
@@ -277,6 +277,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                                 color: 'var(--color-on-surface)',
                                 transition: 'all 0.15s',
                                 whiteSpace: 'nowrap',
+                                display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '36px',
                             }}
                             onMouseEnter={e => {
                                 e.currentTarget.style.borderColor = 'var(--color-rose-dark)'
@@ -287,6 +288,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                                 e.currentTarget.style.color = 'var(--color-on-surface)'
                             }}
                         >
+                            <qq.icon size={14} aria-hidden="true" />
                             {qq.label}
                         </button>
                     ))}
