@@ -65,6 +65,12 @@
   --color-gray-800: #2A2420;
   --color-gray-900: #1A1C1A;
 
+  /* Info (palier Basic, indicateurs neutres) : teal de la charte */
+  --color-info:    #2F6671;
+  --color-info-bg: #DCEAEC;
+  /* Doré « VIP » */
+  --color-gold:    #B57C1E;
+
   /* rose-* → rampe terracotta (primary = rose-600) */
   --color-rose-50:  #FBF3EC;
   --color-rose-100: #F4E4D6;

@@ -668,12 +668,12 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                     {/* Commentaire / Note VIP */}
                     {(order.priority === 'vip' || vipNoteExtracted) && (
                         <section style={{ marginBottom: '24px' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B57C1E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 ⭐ Commentaire VIP
                             </div>
                             <div style={{
                                 background: '#FEFCE8',
-                                border: '1.5px solid #B57C1E',
+                                border: '1.5px solid var(--color-gold)',
                                 borderRadius: 'var(--radius-md)',
                                 padding: '14px 16px',
                                 fontSize: '0.88rem',

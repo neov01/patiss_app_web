@@ -75,31 +75,31 @@ export interface VitrineSaleTransaction {
 }
 
 const STATUS_LABELS: Record<string, { label: string; next: string; color: string; bg: string; text: string }> = {
-    confirmed: { label: '⏳ Confirmée', next: 'in_preparation', color: '#FEF3C7', bg: '#FEF3C7', text: '#92400E' },
-    in_preparation: { label: '👨‍🍳 En préparation', next: 'ready', color: '#DBEAFE', bg: '#DBEAFE', text: '#1E40AF' },
-    ready: { label: '✅ Prête', next: 'delivered', color: '#D1FAE5', bg: '#D1FAE5', text: '#065F46' },
-    awaiting_pickup: { label: '📦 Attente retrait', next: 'delivered', color: '#D1FAE5', bg: '#D1FAE5', text: '#065F46' },
-    delivered: { label: '✔ Livrée / Retirée', next: '', color: '#F3F4F6', bg: '#F3F4F6', text: '#374151' },
-    cancelled: { label: '✖ Annulée', next: '', color: '#FEE2E2', bg: '#FEE2E2', text: '#991B1B' },
+    confirmed: { label: '⏳ Confirmée', next: 'in_preparation', color: 'var(--color-badge-warning-bg)', bg: 'var(--color-badge-warning-bg)', text: 'var(--color-badge-warning-text)' },
+    in_preparation: { label: '👨‍🍳 En préparation', next: 'ready', color: 'var(--color-badge-production-bg)', bg: 'var(--color-badge-production-bg)', text: 'var(--color-badge-production-text)' },
+    ready: { label: '✅ Prête', next: 'delivered', color: 'var(--color-badge-success-bg)', bg: 'var(--color-badge-success-bg)', text: 'var(--color-badge-success-text)' },
+    awaiting_pickup: { label: '📦 Attente retrait', next: 'delivered', color: 'var(--color-badge-success-bg)', bg: 'var(--color-badge-success-bg)', text: 'var(--color-badge-success-text)' },
+    delivered: { label: '✔ Livrée / Retirée', next: '', color: 'var(--color-well)', bg: 'var(--color-well)', text: 'var(--color-text)' },
+    cancelled: { label: '✖ Annulée', next: '', color: 'var(--color-badge-danger-bg)', bg: 'var(--color-badge-danger-bg)', text: 'var(--color-badge-danger-text)' },
     // Rétrocompatibilité
-    pending: { label: '⏳ Confirmée', next: 'in_preparation', color: '#FEF3C7', bg: '#FEF3C7', text: '#92400E' },
-    production: { label: '👨‍🍳 En préparation', next: 'ready', color: '#DBEAFE', bg: '#DBEAFE', text: '#1E40AF' },
-    completed: { label: '✔ Livrée / Retirée', next: '', color: '#F3F4F6', bg: '#F3F4F6', text: '#374151' },
+    pending: { label: '⏳ Confirmée', next: 'in_preparation', color: 'var(--color-badge-warning-bg)', bg: 'var(--color-badge-warning-bg)', text: 'var(--color-badge-warning-text)' },
+    production: { label: '👨‍🍳 En préparation', next: 'ready', color: 'var(--color-badge-production-bg)', bg: 'var(--color-badge-production-bg)', text: 'var(--color-badge-production-text)' },
+    completed: { label: '✔ Livrée / Retirée', next: '', color: 'var(--color-well)', bg: 'var(--color-well)', text: 'var(--color-text)' },
 }
 
 const ACTIVE_STATUSES = ['confirmed', 'in_preparation', 'ready', 'awaiting_pickup', 'pending', 'production']
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: any }> = {
-    unpaid: { label: 'Impayé', bg: '#FEE2E2', text: '#B91C1C', icon: Wallet },
+    unpaid: { label: 'Impayé', bg: 'var(--color-badge-danger-bg)', text: 'var(--color-error)', icon: Wallet },
     deposit_paid: { label: 'Acompte versé', bg: 'rgba(129, 84, 49, 0.08)', text: 'var(--color-primary)', icon: Wallet },
-    partial: { label: 'Partiel', bg: 'rgba(217, 119, 6, 0.08)', text: '#D97706', icon: Wallet },
-    paid: { label: 'Soldé', bg: '#D1FAE5', text: '#065F46', icon: CheckCircle2 },
-    overpaid: { label: 'Trop-perçu', bg: '#FEF3C7', text: '#92400E', icon: AlertTriangle },
+    partial: { label: 'Partiel', bg: 'rgba(217, 119, 6, 0.08)', text: 'var(--color-badge-warning-accent)', icon: Wallet },
+    paid: { label: 'Soldé', bg: 'var(--color-badge-success-bg)', text: 'var(--color-badge-success-text)', icon: CheckCircle2 },
+    overpaid: { label: 'Trop-perçu', bg: 'var(--color-badge-warning-bg)', text: 'var(--color-badge-warning-text)', icon: AlertTriangle },
     // Rétrocompatibilité
-    EN_ATTENTE: { label: 'Impayé', bg: '#FEE2E2', text: '#B91C1C', icon: Wallet },
+    EN_ATTENTE: { label: 'Impayé', bg: 'var(--color-badge-danger-bg)', text: 'var(--color-error)', icon: Wallet },
     PARTIEL: { label: 'Acompte', bg: 'rgba(129, 84, 49, 0.08)', text: 'var(--color-primary)', icon: Wallet },
-    SOLDEE: { label: 'Soldé', bg: '#D1FAE5', text: '#065F46', icon: CheckCircle2 },
+    SOLDEE: { label: 'Soldé', bg: 'var(--color-badge-success-bg)', text: 'var(--color-badge-success-text)', icon: CheckCircle2 },
 }
 
 function formatPickupDate(date: Date): string {
@@ -1245,8 +1245,8 @@ export default function OrdersClient({
                                             <button
                                                 onClick={() => handleNumpadPress('C')}
                                                 style={{
-                                                    height: '48px', borderRadius: '12px', border: 'none', background: '#FEE2E2',
-                                                    fontSize: '0.95rem', fontWeight: 800, color: '#DC2626', cursor: 'pointer',
+                                                    height: '48px', borderRadius: '12px', border: 'none', background: 'var(--color-badge-danger-bg)',
+                                                    fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-badge-danger-accent)', cursor: 'pointer',
                                                     boxShadow: 'var(--shadow-sm)'
                                                 }}
                                             >
@@ -1265,7 +1265,7 @@ export default function OrdersClient({
                                             <button
                                                 onClick={() => handleNumpadPress('⌫')}
                                                 style={{
-                                                    height: '48px', borderRadius: '12px', border: 'none', background: '#E0D8CE',
+                                                    height: '48px', borderRadius: '12px', border: 'none', background: 'var(--color-surface-variant)',
                                                     fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-text)', cursor: 'pointer',
                                                     boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                 }}
@@ -1341,7 +1341,7 @@ export default function OrdersClient({
                         borderRadius: '24px', padding: '32px', textAlign: 'center',
                         boxShadow: 'var(--shadow-lg)'
                     }}>
-                        <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: 'var(--color-error-container, #FEE2E2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-error)' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: 'var(--color-error-container, var(--color-badge-danger-bg))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-error)' }}>
                             <Trash2 size={32} />
                         </div>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>Supprimer la vente rapide ?</h3>
@@ -1414,9 +1414,9 @@ export default function OrdersClient({
 
         let cardBorder = '1.5px solid var(--color-border)'
         if (order.priority === 'urgent') {
-            cardBorder = '4px solid #EF4444'
+            cardBorder = '4px solid var(--color-error)'
         } else if (order.priority === 'vip') {
-            cardBorder = '4px solid #B57C1E'
+            cardBorder = '4px solid var(--color-gold)'
         } else if (order.status === 'ready') {
             cardBorder = '1.5px solid var(--color-success)'
         }
@@ -1444,8 +1444,8 @@ export default function OrdersClient({
                             {s.label}
                         </span>
                         
-                        {order.priority === 'urgent' && <span className="badge" style={{ background: '#FEE2E2', color: '#DC2626', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
-                        {order.priority === 'vip' && <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-accent)', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
 
                         {(() => {
                             const pStatus = order.payment_status || 'unpaid'
@@ -1463,7 +1463,7 @@ export default function OrdersClient({
                             )
                         })()}
                         
-                        {order.customer_id && <span className="badge" style={{ background: '#EFF6FF', color: '#3B82F6', display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> CRM</span>}
+                        {order.customer_id && <span className="badge" style={{ background: 'var(--color-badge-crm-bg)', color: 'var(--color-badge-crm-text)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> CRM</span>}
                         {isToday && <span className="badge" style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)' }}>📅 Aujourd&apos;hui</span>}
                     </div>
 
@@ -1573,11 +1573,11 @@ export default function OrdersClient({
         let rowBorder = '1.5px solid var(--color-border)'
         let hoverBorderColor = 'var(--color-secondary)'
         if (order.priority === 'urgent') {
-            rowBorder = '4px solid #EF4444'
-            hoverBorderColor = '#EF4444'
+            rowBorder = '4px solid var(--color-error)'
+            hoverBorderColor = 'var(--color-error)'
         } else if (order.priority === 'vip') {
-            rowBorder = '4px solid #B57C1E'
-            hoverBorderColor = '#B57C1E'
+            rowBorder = '4px solid var(--color-gold)'
+            hoverBorderColor = 'var(--color-gold)'
         }
 
         // Rendu Mobile
@@ -1602,8 +1602,8 @@ export default function OrdersClient({
                         <span style={{ background: s.bg, color: s.text, fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
                             {s.label}
                         </span>
-                        {order.priority === 'urgent' && <span className="badge" style={{ background: '#FEE2E2', color: '#DC2626', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
-                        {order.priority === 'vip' && <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-accent)', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
                         {(() => {
                             const pStatus = order.payment_status || 'unpaid'
                             const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
@@ -1641,12 +1641,12 @@ export default function OrdersClient({
                         cursor: 'pointer', transition: 'all 0.15s', marginBottom: '4px'
                     }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = hoverBorderColor}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = order.priority === 'urgent' ? '#EF4444' : order.priority === 'vip' ? '#B57C1E' : 'var(--color-border)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = order.priority === 'urgent' ? 'var(--color-error)' : order.priority === 'vip' ? 'var(--color-gold)' : 'var(--color-border)'}
                 >
                     {/* Client */}
                     <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>{order.customer_name}</span>
-                        {order.customer_id && <span style={{ fontSize: '0.65rem', color: '#3B82F6', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 2 }}><BadgeCheck size={10} /> Client CRM</span>}
+                        {order.customer_id && <span style={{ fontSize: '0.65rem', color: 'var(--color-badge-crm-text)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 2 }}><BadgeCheck size={10} /> Client CRM</span>}
                     </div>
 
                     {/* Téléphone */}
@@ -1763,7 +1763,7 @@ export default function OrdersClient({
                         <span style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)', fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
                             Ref: {shortId}
                         </span>
-                        <span className="badge" style={{ background: '#F3F4F6', color: '#374151', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <span className="badge" style={{ background: 'var(--color-well)', color: 'var(--color-text)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                             💳 {tx.payment_method?.toUpperCase()}
                         </span>
                     </div>
@@ -1788,7 +1788,7 @@ export default function OrdersClient({
                                 onClick={() => setVitrineToDelete({ id: tx.id, amount: Number(tx.amount), clientName: tx.client_name })}
                                 className="btn-secondary" 
                                 disabled={isDeleting}
-                                style={{ color: 'var(--color-error)', minHeight: '32px', height: '32px', padding: '0 12px', fontSize: '0.75rem', border: '1px solid #fee2e2', background: '#fef2f2' }}
+                                style={{ color: 'var(--color-error)', minHeight: '32px', height: '32px', padding: '0 12px', fontSize: '0.75rem', border: '1px solid var(--color-badge-danger-bg)', background: 'var(--color-badge-danger-bg)' }}
                             >
                                 Supprimer
                             </button>
@@ -1825,7 +1825,7 @@ export default function OrdersClient({
 
                     {/* Mode Paiement */}
                     <div style={{ flex: 1.5 }}>
-                        <span className="badge" style={{ background: '#F3F4F6', color: '#374151', fontWeight: 700 }}>
+                        <span className="badge" style={{ background: 'var(--color-well)', color: 'var(--color-text)', fontWeight: 700 }}>
                             💳 {tx.payment_method?.toUpperCase()}
                         </span>
                     </div>
@@ -1856,7 +1856,7 @@ export default function OrdersClient({
                                 onClick={() => setVitrineToDelete({ id: tx.id, amount: Number(tx.amount), clientName: tx.client_name })}
                                 className="btn-secondary" 
                                 disabled={isDeleting}
-                                style={{ color: 'var(--color-error)', minHeight: '36px', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', padding: 0 }}
+                                style={{ color: 'var(--color-error)', minHeight: '36px', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-badge-danger-bg)', border: 'none', padding: 0 }}
                             >
                                 <Trash2 size={16} />
                             </button>
