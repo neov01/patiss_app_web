@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ShoppingBag, User, Phone, X, Loader2, Image as ImageIcon, MapPin, Search, Grid, UserCheck, CheckCircle, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { createOrder } from '@/lib/actions/orders'
@@ -39,6 +40,7 @@ interface Props {
     products: Product[] // Initial products for fallback/default
     currency: string
     organizationId: string
+    onOrderCreated?: (order: Record<string, unknown>) => void
 }
 
 const STATUS_OPTIONS = [
@@ -63,7 +65,8 @@ const PAYMENT_METHODS = [
     { value: 'moov_money', label: '🔵 Moov Money' }
 ]
 
-export default function NewOrderModal({ open, onClose, currency, organizationId }: Props) {
+export default function NewOrderModal({ open, onClose, currency, organizationId, onOrderCreated }: Props) {
+    const router = useRouter()
     const { execute, isPending, renderFeedback } = useActionFeedback()
     const { isOffline, saveOrderOffline, cachedProducts } = useOffline()
     
@@ -578,7 +581,12 @@ export default function NewOrderModal({ open, onClose, currency, organizationId 
             successMessage: isOffline 
                 ? `Commande #${orderNumber} enregistrée en local (hors-ligne)` 
                 : `Commande #${orderNumber} créée avec succès`,
-            onSuccess: () => {
+            onSuccess: (res: unknown) => {
+                const createdOrder = (res as { data?: Record<string, unknown> })?.data || (res as Record<string, unknown>)
+                if (createdOrder && onOrderCreated) {
+                    onOrderCreated(createdOrder)
+                }
+                router.refresh()
                 handleClose()
             }
         })

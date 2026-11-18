@@ -172,9 +172,22 @@ export async function createOrder(input: unknown) {
             return { error: error.message || 'Erreur lors de la création de la commande' }
         }
 
+        const createdOrderId = (data?.order as { id?: string })?.id || formData.id
+        let fullOrder = data?.order
+        if (createdOrderId) {
+            const { data: fetched } = await context.supabase
+                .from('orders')
+                .select('*, order_items(*, products(name)), order_payments(*), creator_profile:profiles!orders_created_by_fkey(full_name, role_slug)')
+                .eq('id', createdOrderId)
+                .maybeSingle()
+            if (fetched) {
+                fullOrder = fetched
+            }
+        }
+
         revalidatePath('/commandes')
         revalidatePath('/dashboard')
-        return { data: data?.order }
+        return { data: fullOrder }
     } catch (e: unknown) {
         if (e instanceof AuthContextError) return { error: e.message }
         return { error: getErrorMessage(e, 'Erreur lors de la création de la commande') }
@@ -652,7 +665,7 @@ export async function importHistoricalOrder(input: unknown) {
                     customer_id: resolvedCustomerId,
                     client_name: customer_name,
                     amount: p.amount,
-                    payment_method: p.payment_method || 'Espèces',
+                    payment_method: normalizePaymentMethod(p.payment_method),
                     label_type: p.label_type,
                     created_by: context.userId,
                     created_at: paymentDate,
@@ -699,7 +712,7 @@ export async function importHistoricalOrder(input: unknown) {
                 customer_id: resolvedCustomerId,
                 client_name: customer_name,
                 amount: deposit_amount,
-                payment_method: deposit_payment_method,
+                payment_method: normalizePaymentMethod(deposit_payment_method),
                 label_type: labelType,
                 created_by: context.userId,
                 created_at, // Date de prise de commande (date de l'acompte)
@@ -721,7 +734,7 @@ export async function importHistoricalOrder(input: unknown) {
                 customer_id: resolvedCustomerId,
                 client_name: customer_name,
                 amount: resolvedBalance,
-                payment_method: balance_payment_method,
+                payment_method: normalizePaymentMethod(balance_payment_method),
                 label_type: 'SOLDE',
                 created_by: context.userId,
                 created_at: pickup_date, // Date de retrait (date du paiement du solde)
@@ -809,8 +822,10 @@ export async function getHistoricalOrders(filters: {
 
         // 3. Appliquer le filtrage par statut d'historique
         if (filters.searchQuery && filters.searchQuery.trim().length >= 2) {
-            // Dans le cas d'une recherche globale, on cherche dans tout l'historique (les livrées ou annulées)
-            query = query.in('status', ['delivered', 'completed', 'cancelled'])
+            // Recherche universelle : interroge tous les statuts de l'organisation (actives et passées)
+            if (filters.status && filters.status !== 'all') {
+                query = query.eq('status', filters.status)
+            }
         } else if (filters.status && filters.status !== 'all') {
             if (filters.status === 'completed' || filters.status === 'delivered') {
                 // Pour les livrées dans l'historique : uniquement celles qui ne sont pas actives dans "À traiter"
