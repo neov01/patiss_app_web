@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import AIAssistant from './AIAssistant'
 import { getMascotImagePath } from '@/lib/domain/mascot'
@@ -13,16 +14,18 @@ interface Props {
 
 export default function FloatingMascot({ currency, organizationId, userRole }: Props) {
     const [open, setOpen] = useState(false)
+    // Sur la caisse, Croustik reste accessible mais quitte la zone d'encaissement
+    // (montant « À encaisser » et bouton Encaisser) et ne pulse pas.
+    const onCaisse = usePathname() === '/caisse'
 
     return (
         <>
             <button
                 onClick={() => setOpen(v => !v)}
                 aria-label="Ouvrir Croustik, l'assistant comptable IA"
-                className="floating-mascot-button"
+                className={`floating-mascot-button${onCaisse ? ' is-caisse' : ''}`}
                 style={{
                     position: 'fixed',
-                    right: '20px',
                     width: '56px',
                     height: '56px',
                     borderRadius: '50%',
@@ -35,7 +38,7 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
                     zIndex: 45,
                     boxShadow: 'var(--shadow-md)',
                     padding: 0,
-                    animation: open ? 'none' : 'floating-mascot-pulse 2s ease-in-out infinite',
+                    animation: open || onCaisse ? 'none' : 'floating-mascot-pulse 2s ease-in-out infinite',
                 }}
             >
                 <Image src={getMascotImagePath('greeting')} alt="" width={44} height={44} />
@@ -43,10 +46,9 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
 
             {open && (
                 <div
-                    className="floating-mascot-panel"
+                    className={`floating-mascot-panel${onCaisse ? ' is-caisse' : ''}`}
                     style={{
                         position: 'fixed',
-                        right: '20px',
                         width: 'min(360px, calc(100vw - 40px))',
                         height: 'min(500px, calc(100dvh - 174px))',
                         zIndex: 45,
@@ -61,17 +63,34 @@ export default function FloatingMascot({ currency, organizationId, userRole }: P
 
             <style jsx>{`
                 .floating-mascot-button {
+                    right: 20px;
                     bottom: 90px;
                 }
                 .floating-mascot-panel {
+                    right: 20px;
                     bottom: 154px;
                 }
-                @media (max-width: 767px) {
-                    .floating-mascot-button {
-                        bottom: 90px;
+                /* Caisse desktop : coin bas-droit de la colonne produits,
+                   à gauche du panier (380px) et du padding de main (16px). */
+                @media (min-width: 901px) {
+                    .floating-mascot-button.is-caisse {
+                        right: 412px;
+                        bottom: 32px;
                     }
-                    .floating-mascot-panel {
-                        bottom: 154px;
+                    .floating-mascot-panel.is-caisse {
+                        right: 412px;
+                        bottom: 96px;
+                    }
+                }
+                /* Caisse mobile : à gauche, à l'opposé du bouton « Nouvelle commande ». */
+                @media (max-width: 900px) {
+                    .floating-mascot-button.is-caisse {
+                        right: auto;
+                        left: 16px;
+                    }
+                    .floating-mascot-panel.is-caisse {
+                        right: auto;
+                        left: 16px;
                     }
                 }
                 .floating-mascot-panel :global(.card) {

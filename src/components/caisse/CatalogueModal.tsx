@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { X, Search, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
+import { PRODUCT_CATEGORIES } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
 import { cacheProducts, getCachedProducts } from '@/lib/offline/db'
+import ProductPlate from '@/components/ui/ProductPlate'
 
 type Product = {
     id: string
@@ -15,6 +16,7 @@ type Product = {
     selling_price: number
     current_stock: number | null
     category: string | null
+    image_url?: string | null
 }
 
 export default function CatalogueModal({
@@ -47,6 +49,7 @@ export default function CatalogueModal({
                         selling_price: Number(p.selling_price),
                         current_stock: p.current_stock,
                         category: p.category || '',
+                        image_url: p.image_url ?? null,
                     }))
                 }
             } catch (localErr) {
@@ -57,7 +60,7 @@ export default function CatalogueModal({
             const supabase = createClient()
             try {
                 const { data, error } = await supabase.from('products')
-                    .select('id, name, selling_price, current_stock, category')
+                    .select('id, name, selling_price, current_stock, category, image_url')
                     .eq('organization_id', organizationId)
                     .eq('is_active', true)
                     .order('name')
@@ -72,6 +75,7 @@ export default function CatalogueModal({
                         selling_price: Number(p.selling_price),
                         current_stock: p.current_stock,
                         category: p.category || '',
+                        image_url: p.image_url ?? null,
                     }))
                     await cacheProducts(productsToCache, true)
                     return productsToCache
@@ -130,12 +134,12 @@ export default function CatalogueModal({
 
             <div className="animate-scale-in" onClick={e => e.stopPropagation()} style={{
                 position: 'relative', width: '100%', maxWidth: '800px', height: '80vh',
-                background: 'var(--color-cream, #FDF8F3)', borderRadius: '24px', overflow: 'hidden',
+                background: 'var(--color-cream, var(--color-caisse-bg))', borderRadius: '24px', overflow: 'hidden',
                 display: 'flex', flexDirection: 'column',
                 boxShadow: '0 20px 60px rgba(45,27,14,0.15)'
             }}>
                 {/* HEADER */}
-                <div style={{ padding: '20px 24px', background: 'white', borderBottom: '1px solid var(--color-border, #FDE8DB)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '20px 24px', background: 'white', borderBottom: '1px solid var(--color-border, var(--color-caisse-border))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <h2 id="catalogue-modal-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text, var(--color-text))', margin: 0 }}>Catalogue Produits</h2>
                     <button
                         onClick={onClose}
@@ -147,7 +151,7 @@ export default function CatalogueModal({
                 </div>
 
                 {/* SEARCH & FILTERS */}
-                <div style={{ padding: '16px 24px', background: 'white', borderBottom: '1px solid var(--color-border, #FDE8DB)' }}>
+                <div style={{ padding: '16px 24px', background: 'white', borderBottom: '1px solid var(--color-border, var(--color-caisse-border))' }}>
                     {/* Barre de recherche — même style que la page */}
                     <div style={{ position: 'relative', marginBottom: '14px' }}>
                         <Search size={18} color="var(--color-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -162,8 +166,8 @@ export default function CatalogueModal({
                                 width: '100%',
                                 padding: '12px 16px 12px 48px',
                                 borderRadius: '9999px',
-                                border: '1.5px solid var(--color-border, #FDE8DB)',
-                                background: 'var(--color-cream, #FDF8F3)',
+                                border: '1.5px solid var(--color-border, var(--color-caisse-border))',
+                                background: 'var(--color-cream, var(--color-caisse-bg))',
                                 fontSize: '0.95rem',
                                 fontWeight: 600,
                                 color: 'var(--color-text, var(--color-text))',
@@ -184,7 +188,7 @@ export default function CatalogueModal({
                                     fontWeight: 700,
                                     transition: 'all 0.2s',
                                     cursor: 'pointer',
-                                    border: activeCat === cat ? 'none' : '1.5px solid var(--color-border, #E5E7EB)',
+                                    border: activeCat === cat ? 'none' : '1.5px solid var(--color-border, var(--color-border))',
                                     background: activeCat === cat ? 'var(--color-rose-dark, var(--color-rose-dark))' : '#fff',
                                     color: activeCat === cat ? '#fff' : 'var(--color-muted, var(--color-muted))',
                                     boxShadow: activeCat === cat ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
@@ -207,76 +211,31 @@ export default function CatalogueModal({
                             <p style={{ fontWeight: 600 }}>Aucun produit trouvé</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
+                        <div className="product-grid">
                             {filtered.map(product => {
                                 const isOutOfStock = product.current_stock === 0
                                 return (
                                     <button
                                         key={product.id}
+                                        type="button"
                                         disabled={isOutOfStock}
                                         onClick={() => { onAddToCart(product); toast.success(`${product.name} ajouté`) }}
-                                        className={isOutOfStock ? '' : 'card-clickable'}
-                                        style={{
-                                            background: 'white',
-                                            padding: '20px 16px 16px',
-                                            borderRadius: '16px',
-                                            border: isOutOfStock ? '1.5px solid #FECACA' : '1.5px solid var(--color-border, #E5E7EB)',
-                                            textAlign: 'center',
-                                            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                            transition: 'transform 0.1s, box-shadow 0.1s',
-                                            opacity: isOutOfStock ? 0.65 : 1,
-                                        }}
+                                        className={`product-tile${isOutOfStock ? ' is-out' : ''}`}
+                                        aria-label={`Ajouter ${product.name} au panier, ${Number(product.selling_price).toLocaleString('fr-FR')} ${currency}`}
                                     >
-                                        {/* Icône produit */}
-                                        <div style={{
-                                            width: '56px', height: '56px', borderRadius: '28px',
-                                            background: isOutOfStock ? '#FEF2F2' : 'var(--color-blush, var(--color-well))',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontSize: '1.5rem', marginBottom: '12px',
-                                            border: '2px solid var(--color-border, #FDE8DB)'
-                                        }}>
-                                            {CATEGORY_ICONS[product.category ?? ''] ?? '📦'}
+                                        <ProductPlate name={product.name} imageUrl={product.image_url} />
+                                        <div className="product-tile-body">
+                                            <span className="product-tile-name">{product.name}</span>
+                                            {product.current_stock !== null && (
+                                                <span className={`product-tile-stock${isOutOfStock ? '' : ' is-ok'}`}>
+                                                    {isOutOfStock ? 'Rupture' : `${product.current_stock} en stock`}
+                                                </span>
+                                            )}
+                                            <span className="product-tile-price">
+                                                {Number(product.selling_price).toLocaleString('fr-FR')}
+                                                <span className="product-tile-cur">{currency}</span>
+                                            </span>
                                         </div>
-
-                                        {/* Nom */}
-                                        <div style={{
-                                            fontWeight: 700, fontSize: '0.88rem',
-                                            color: isOutOfStock ? 'var(--color-muted)' : 'var(--color-text, var(--color-text))',
-                                            marginBottom: '6px', lineHeight: 1.2,
-                                            display: '-webkit-box', WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                                        }}>
-                                            {product.name}
-                                        </div>
-
-                                        {/* Prix */}
-                                        <div style={{
-                                            fontWeight: 900, fontSize: '1rem',
-                                            color: isOutOfStock ? 'var(--color-muted)' : 'var(--color-rose-dark, var(--color-rose-dark))',
-                                            marginBottom: '10px', marginTop: 'auto'
-                                        }}>
-                                            {Number(product.selling_price).toLocaleString('fr-FR')} {currency}
-                                        </div>
-
-                                        {/* Badge stock — même style pill que la page */}
-                                        <span style={{
-                                            background: isOutOfStock ? '#FEF3C7' : '#ECFDF5',
-                                            color: isOutOfStock ? '#92400E' : '#065F46',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 800,
-                                            padding: '4px 12px',
-                                            borderRadius: '99px',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.04em',
-                                            border: '1px solid',
-                                            borderColor: isOutOfStock ? '#FDE68A' : '#A7F3D0',
-                                        }}>
-                                            {isOutOfStock ? 'Rupture' : `${product.current_stock} en stock`}
-                                        </span>
                                     </button>
                                 )
                             })}

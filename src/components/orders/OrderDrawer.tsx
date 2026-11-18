@@ -54,21 +54,21 @@ export interface Order {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; next: string; nextLabel: string; prev?: string; prevLabel?: string; color: string; bg: string }> = {
-    confirmed:       { label: '⏳ Confirmée',          next: 'in_preparation', nextLabel: '👨‍🍳 Lancer en production', color: '#92400E', bg: '#FEF3C7' },
-    in_preparation:  { label: '👨‍🍳 En préparation',   next: 'ready',          nextLabel: '✅ Marquer Prête',          prev: 'confirmed',       prevLabel: '⏪ Confirmée', color: '#1E40AF', bg: '#DBEAFE' },
-    ready:           { label: '✅ Prête',             next: 'delivered',      nextLabel: '✔ Livrer / Retirer',        prev: 'in_preparation',  prevLabel: '⏪ En préparation', color: '#065F46', bg: '#D1FAE5' },
-    awaiting_pickup: { label: '📦 Attente retrait',   next: 'delivered',      nextLabel: '✔ Livrer / Retirer',        prev: 'ready',           prevLabel: '⏪ Prête', color: '#065F46', bg: '#D1FAE5' },
-    delivered:       { label: '✔ Livrée / Retirée',   next: '',               nextLabel: '',                          prev: 'ready',           prevLabel: '⏪ Prête', color: '#374151', bg: '#F3F4F6' },
-    cancelled:       { label: '✖ Annulée',            next: '',               nextLabel: '',                                                   color: '#991B1B', bg: '#FEE2E2' },
+    confirmed:       { label: '⏳ Confirmée',          next: 'in_preparation', nextLabel: '👨‍🍳 Lancer en production', color: 'var(--color-badge-warning-text)', bg: 'var(--color-badge-warning-bg)' },
+    in_preparation:  { label: '👨‍🍳 En préparation',   next: 'ready',          nextLabel: '✅ Marquer Prête',          prev: 'confirmed',       prevLabel: '⏪ Confirmée', color: 'var(--color-badge-production-text)', bg: 'var(--color-badge-production-bg)' },
+    ready:           { label: '✅ Prête',             next: 'delivered',      nextLabel: '✔ Livrer / Retirer',        prev: 'in_preparation',  prevLabel: '⏪ En préparation', color: 'var(--color-badge-success-text)', bg: 'var(--color-badge-success-bg)' },
+    awaiting_pickup: { label: '📦 Attente retrait',   next: 'delivered',      nextLabel: '✔ Livrer / Retirer',        prev: 'ready',           prevLabel: '⏪ Prête', color: 'var(--color-badge-success-text)', bg: 'var(--color-badge-success-bg)' },
+    delivered:       { label: '✔ Livrée / Retirée',   next: '',               nextLabel: '',                          prev: 'ready',           prevLabel: '⏪ Prête', color: 'var(--color-text)', bg: 'var(--color-well)' },
+    cancelled:       { label: '✖ Annulée',            next: '',               nextLabel: '',                                                   color: 'var(--color-badge-danger-text)', bg: 'var(--color-badge-danger-bg)' },
     // Compatibilité ascendante pour les anciennes commandes
-    pending:         { label: '⏳ Confirmée',          next: 'in_preparation', nextLabel: '👨‍🍳 Lancer en production', color: '#92400E', bg: '#FEF3C7' },
-    production:      { label: '👨‍🍳 En préparation',   next: 'ready',          nextLabel: '✅ Marquer Prête',          prev: 'confirmed',       prevLabel: '⏪ Confirmée', color: '#1E40AF', bg: '#DBEAFE' },
-    completed:       { label: '✔ Livrée / Retirée',   next: '',               nextLabel: '',                          prev: 'ready',           prevLabel: '⏪ Prête', color: '#374151', bg: '#F3F4F6' },
+    pending:         { label: '⏳ Confirmée',          next: 'in_preparation', nextLabel: '👨‍🍳 Lancer en production', color: 'var(--color-badge-warning-text)', bg: 'var(--color-badge-warning-bg)' },
+    production:      { label: '👨‍🍳 En préparation',   next: 'ready',          nextLabel: '✅ Marquer Prête',          prev: 'confirmed',       prevLabel: '⏪ Confirmée', color: 'var(--color-badge-production-text)', bg: 'var(--color-badge-production-bg)' },
+    completed:       { label: '✔ Livrée / Retirée',   next: '',               nextLabel: '',                          prev: 'ready',           prevLabel: '⏪ Prête', color: 'var(--color-text)', bg: 'var(--color-well)' },
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    urgent: { label: '🔴 Urgent', color: '#991B1B', bg: '#FEE2E2' },
-    vip:    { label: '⭐ VIP',    color: '#92400E', bg: '#FEF3C7' },
+    urgent: { label: '🔴 Urgent', color: 'var(--color-badge-danger-text)', bg: 'var(--color-badge-danger-bg)' },
+    vip:    { label: '⭐ VIP',    color: 'var(--color-badge-warning-text)', bg: 'var(--color-badge-warning-bg)' },
 }
 
 const PAYMENT_METHODS = [
@@ -884,12 +884,12 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {extraAuditNotes.map((note, idx) => (
                                     <div key={idx} style={{
-                                        background: note.includes('[DETTE]') ? '#FEF2F2' : 'var(--color-well)',
+                                        background: note.includes('[DETTE]') ? 'var(--color-badge-danger-bg)' : 'var(--color-well)',
                                         border: note.includes('[DETTE]') ? '1px solid #FCA5A5' : '1px solid var(--color-border)',
                                         borderRadius: 'var(--radius-md)',
                                         padding: '12px 14px',
                                         fontSize: '0.85rem',
-                                        color: note.includes('[DETTE]') ? '#991B1B' : 'var(--color-text)',
+                                        color: note.includes('[DETTE]') ? 'var(--color-badge-danger-text)' : 'var(--color-text)',
                                         fontWeight: 600
                                     }}>
                                         {note}
@@ -1054,11 +1054,11 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Payé</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#065F46' }}>{Number(order.paid_amount || 0).toLocaleString('fr-FR')} {currency}</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-badge-success-text)' }}>{Number(order.paid_amount || 0).toLocaleString('fr-FR')} {currency}</div>
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Reste</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: Number(order.balance || 0) > 0 ? '#B91C1C' : '#065F46' }}>{Number(order.balance || 0).toLocaleString('fr-FR')} {currency}</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: Number(order.balance || 0) > 0 ? 'var(--color-error)' : 'var(--color-badge-success-text)' }}>{Number(order.balance || 0).toLocaleString('fr-FR')} {currency}</div>
                                 </div>
                             </div>
 
@@ -1094,7 +1094,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                     {/* Commentaire obligatoire */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>
-                                            Motif du changement <span style={{ color: '#B91C1C' }}>*</span>
+                                            Motif du changement <span style={{ color: 'var(--color-error)' }}>*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -1461,7 +1461,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column',
                         overflow: 'hidden', padding: '24px', gap: '16px'
                     }}>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: '#B91C1C' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: 'var(--color-error)' }}>
                             <AlertTriangle size={28} style={{ flexShrink: 0 }} />
                             <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.15rem' }}>
                                 Commande non soldée !
@@ -1471,7 +1471,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                         <div style={{ fontSize: '0.88rem', color: 'var(--color-text)', lineHeight: 1.5 }}>
                             Cette commande n’est pas encore soldée.
                             <br />
-                            Reste à payer : <strong style={{ color: '#B91C1C', fontSize: '1rem' }}>{Number(order.balance).toLocaleString('fr-FR')} {currency}</strong>.
+                            Reste à payer : <strong style={{ color: 'var(--color-error)', fontSize: '1rem' }}>{Number(order.balance).toLocaleString('fr-FR')} {currency}</strong>.
                             <br />
                             Voulez-vous encaisser le solde maintenant ?
                         </div>
@@ -1512,7 +1512,7 @@ export default function OrderDrawer({ order, onClose, onStatusChange, isPending,
                                 className="btn-secondary"
                                 style={{
                                     minHeight: '44px', width: '100%', fontWeight: 700,
-                                    borderColor: '#D97706', color: '#D97706', background: 'rgba(217, 119, 6, 0.05)',
+                                    borderColor: 'var(--color-badge-warning-accent)', color: 'var(--color-badge-warning-accent)', background: 'rgba(217, 119, 6, 0.05)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                                 }}
                             >

@@ -1,7 +1,9 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
+import Image from 'next/image'
+import { getMascotImagePath } from '@/lib/domain/mascot'
 import { X, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react'
 
 // Props for the centered overlay success modal
@@ -11,6 +13,7 @@ export interface ActionFeedbackModalProps {
     title: string
     description?: string
     type?: 'simple' | 'summary'
+    celebrate?: boolean
     sessionData?: {
         closed_at?: string
         opened_at?: string
@@ -40,8 +43,10 @@ export interface ActionFeedbackModalProps {
 
 export type SessionFeedbackData = ActionFeedbackModalProps['sessionData'];
 
-export function ActionFeedbackModal({ isOpen, onClose, title, description, type = 'simple', sessionData, currency = 'FCFA' }: ActionFeedbackModalProps) {
+export function ActionFeedbackModal({ isOpen, onClose, title, description, type = 'simple', celebrate = false, sessionData, currency = 'FCFA' }: ActionFeedbackModalProps) {
+    const reduceMotion = useReducedMotion()
     if (!isOpen) return null
+    const descLines = description ? description.split('\n') : []
 
     const snapshot = sessionData?.metrics_snapshot
 
@@ -62,7 +67,7 @@ export function ActionFeedbackModal({ isOpen, onClose, title, description, type 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={type === 'summary' ? onClose : undefined} // Allow closing summary by clicking backdrop
+                onClick={type === 'summary' || celebrate ? onClose : undefined} // Allow closing summary by clicking backdrop
                 style={{
                     position: 'absolute',
                     inset: 0,
@@ -79,7 +84,9 @@ export function ActionFeedbackModal({ isOpen, onClose, title, description, type 
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9, y: 15 }}
                     transition={{ type: 'spring', stiffness: 350, damping: 24 }}
+                    onClick={celebrate ? onClose : undefined}
                     style={{
+                        cursor: celebrate ? 'pointer' : undefined,
                         position: 'relative',
                         width: '100%',
                         maxWidth: '380px',
@@ -94,7 +101,27 @@ export function ActionFeedbackModal({ isOpen, onClose, title, description, type 
                         textAlign: 'center',
                     }}
                 >
-                    {/* Animated Checkmark */}
+                    {celebrate ? (
+                        <div style={{ position: 'relative', marginBottom: '12px' }}>
+                            <motion.div
+                                initial={reduceMotion ? false : { scale: 0.6, rotate: -8 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 16 }}
+                            >
+                                <Image src={getMascotImagePath('happy')} alt="" width={96} height={96} style={{ height: 'auto' }} />
+                            </motion.div>
+                            <span
+                                aria-hidden="true"
+                                style={{
+                                    position: 'absolute', right: -6, bottom: 2, width: 32, height: 32, borderRadius: '50%',
+                                    background: 'var(--color-success)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    border: '3px solid var(--color-lift)',
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            </span>
+                        </div>
+                    ) : (
                     <div style={{ marginBottom: '20px' }}>
                         <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
                             <motion.circle
@@ -118,17 +145,26 @@ export function ActionFeedbackModal({ isOpen, onClose, title, description, type 
                             />
                         </svg>
                     </div>
+                    )}
 
                     {/* Title Message */}
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1.4 }}>
+                    <h3 role="status" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1.4 }}>
                         {title}
                     </h3>
-                    
-                    {description && (
-                        <p style={{ margin: '8px 0 0', fontSize: '0.9rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>
+
+                    {descLines.length > 0 && (celebrate ? (
+                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <p style={{ margin: 0, fontFamily: 'var(--font-display, Manrope), sans-serif', fontWeight: 800, fontSize: '1.9rem', lineHeight: 1.1, color: 'var(--color-primary)' }}>{descLines[0]}</p>
+                            {descLines.slice(1).map((l, i) => (
+                                <p key={i} style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--color-muted)' }}>{l}</p>
+                            ))}
+                            <p style={{ margin: '10px 0 0', fontSize: '0.8rem', color: 'var(--color-muted)' }}>Touchez pour continuer</p>
+                        </div>
+                    ) : (
+                        <p style={{ margin: '8px 0 0', fontSize: '0.9rem', color: 'var(--color-muted)', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
                             {description}
                         </p>
-                    )}
+                    ))}
                 </motion.div>
             ) : (
                 // 2. DETAILED SUMMARY MODAL (e.g. Day Closure)
@@ -266,13 +302,13 @@ export function ActionFeedbackModal({ isOpen, onClose, title, description, type 
 
                             {/* Stock Warnings */}
                             {snapshot.alertItems && snapshot.alertItems.length > 0 && (
-                                <div style={{ marginTop: '16px', background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '12px', padding: '12px', display: 'flex', gap: '10px' }}>
+                                <div style={{ marginTop: '16px', background: 'var(--color-badge-danger-bg)', border: '1px solid var(--color-badge-danger-bg)', borderRadius: '12px', padding: '12px', display: 'flex', gap: '10px' }}>
                                     <AlertTriangle size={16} color="var(--color-error)" style={{ flexShrink: 0, marginTop: '2px' }} />
                                     <div>
-                                        <h4 style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 800, color: '#991B1B' }}>
+                                        <h4 style={{ margin: '0 0 4px', fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-badge-danger-text)' }}>
                                             Alerte stocks bas ({snapshot.alertItems.length} ingrédient{snapshot.alertItems.length > 1 ? 's' : ''})
                                         </h4>
-                                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#B91C1C', lineHeight: 1.4 }}>
+                                        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--color-error)', lineHeight: 1.4 }}>
                                             {snapshot.alertItems.slice(0, 3).map(i => `${i.name} (${i.current_stock}${i.unit || ''})`).join(', ')}
                                             {snapshot.alertItems.length > 3 ? '...' : ''}
                                         </p>

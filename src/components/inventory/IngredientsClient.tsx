@@ -51,8 +51,8 @@ function stockRatio(stock: number, threshold: number) {
 
 function stockColor(ratio: number) {
     if (ratio > 1) return '#16A34A'
-    if (ratio > 0.5) return '#F59E0B'
-    return '#D94F38'
+    if (ratio > 0.5) return 'var(--color-badge-warning-accent)'
+    return 'var(--color-error)'
 }
 
 function buildWhatsAppUrl(ing: IngredientRow) {
@@ -186,16 +186,16 @@ export default function IngredientsClient({
                     </div>
                 </div>
                 <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderColor: alertCount > 0 ? '#FECACA' : undefined }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: alertCount > 0 ? '#FEF2F2' : '#F5F5F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AlertTriangle size={20} color={alertCount > 0 ? '#D94F38' : 'var(--color-muted)'} />
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: alertCount > 0 ? 'var(--color-badge-danger-bg)' : '#F5F5F4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AlertTriangle size={20} color={alertCount > 0 ? 'var(--color-error)' : 'var(--color-muted)'} />
                     </div>
                     <div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>En alerte</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: alertCount > 0 ? '#D94F38' : 'var(--color-text)' }}>{alertCount}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: alertCount > 0 ? 'var(--color-error)' : 'var(--color-text)' }}>{alertCount}</div>
                     </div>
                 </div>
                 <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--color-badge-success-soft-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Wallet size={20} color="#16A34A" />
                     </div>
                     <div>
@@ -306,8 +306,8 @@ export default function IngredientsClient({
                             borderRadius: '9999px',
                             border: '1.5px solid',
                             borderColor: lowStockOnly ? '#FECACA' : 'var(--color-border)',
-                            background: lowStockOnly ? '#FEF2F2' : 'white',
-                            color: lowStockOnly ? '#991B1B' : 'var(--color-text)',
+                            background: lowStockOnly ? 'var(--color-badge-danger-bg)' : 'white',
+                            color: lowStockOnly ? 'var(--color-badge-danger-text)' : 'var(--color-text)',
                             fontSize: '0.85rem',
                             fontWeight: 600,
                             cursor: 'pointer',
@@ -325,18 +325,18 @@ export default function IngredientsClient({
             {/* Alerte globale */}
             {view === 'active' && alertCount > 0 && !lowStockOnly && (
                 <div style={{
-                    background: '#FEF2F2', border: '1.5px solid #FECACA',
+                    background: 'var(--color-badge-danger-bg)', border: '1.5px solid #FECACA',
                     borderRadius: 'var(--radius-md)', padding: '12px 16px',
                     display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px',
                 }}>
-                    <AlertTriangle size={18} color="#D94F38" />
-                    <span style={{ fontSize: '0.875rem', color: '#991B1B', fontWeight: 500, flex: 1 }}>
+                    <AlertTriangle size={18} color="var(--color-error)" />
+                    <span style={{ fontSize: '0.875rem', color: 'var(--color-badge-danger-text)', fontWeight: 500, flex: 1 }}>
                         {alertCount} ingrédient(s) sous le seuil d&apos;alerte
                     </span>
                     <button
                         onClick={() => setLowStockOnly(true)}
                         style={{
-                            background: 'transparent', border: 'none', color: '#991B1B',
+                            background: 'transparent', border: 'none', color: 'var(--color-badge-danger-text)',
                             fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline',
                         }}
                     >
@@ -423,7 +423,7 @@ export default function IngredientsClient({
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                         <span style={{ fontWeight: 600 }}>{ing.name}</span>
                                                         {isActive && alert && (
-                                                            <span style={{ background: '#FEF2F2', color: '#991B1B', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                                                            <span style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase' }}>
                                                                 Stock faible
                                                             </span>
                                                         )}
@@ -438,7 +438,7 @@ export default function IngredientsClient({
                                                 <td style={{ padding: '12px 16px', color: 'var(--color-muted)', fontSize: '0.875rem' }}>{ing.unit}</td>
                                                 <td style={{ padding: '12px 16px', fontSize: '0.875rem' }}>{formatNumber(ing.cost_per_unit)} {currency}</td>
                                                 <td style={{ padding: '12px 16px', fontSize: '0.9rem', minWidth: '140px' }}>
-                                                    <div style={{ fontWeight: 600, color: (alert && isActive) ? '#D94F38' : 'var(--color-text)' }}>
+                                                    <div style={{ fontWeight: 600, color: (alert && isActive) ? 'var(--color-error)' : 'var(--color-text)' }}>
                                                         {formatNumber(ing.current_stock)} {ing.unit}
                                                     </div>
                                                     <div style={{ height: '4px', background: '#F1E9E0', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
@@ -527,7 +527,7 @@ export default function IngredientsClient({
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
                                         <span style={{ color: 'var(--color-muted)' }}>Stock</span>
-                                        <span style={{ fontWeight: 700, color: (alert && isActive) ? '#D94F38' : 'var(--color-text)' }}>
+                                        <span style={{ fontWeight: 700, color: (alert && isActive) ? 'var(--color-error)' : 'var(--color-text)' }}>
                                             {formatNumber(ing.current_stock)} / seuil {formatNumber(ing.alert_threshold)} {ing.unit}
                                         </span>
                                     </div>

@@ -94,7 +94,7 @@ export default function StatCard({
                 right: '-16px', 
                 width: '96px', 
                 height: '96px', 
-                background: `${accent}08`, 
+                background: `color-mix(in srgb, ${accent} 3%, transparent)`, 
                 borderRadius: '50%',
                 filter: 'blur(32px)',
                 transition: 'background 0.3s'

@@ -161,19 +161,19 @@ export default function NewExpenseModal({
         className="flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* En-tête du modal */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
           <div>
-            <h3 className="text-lg font-bold text-[#1A1C1A] font-display">
+            <h3 className="text-lg font-bold text-[color:var(--color-text)] font-display">
               Nouvelle Dépense
             </h3>
-            <p className="text-xs text-[#51443C]">
+            <p className="text-xs text-[color:var(--color-muted)]">
               Régie d'avances hebdomadaire (Solde dispo : {new Intl.NumberFormat('fr-FR').format(currentBalance)} {currency})
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-[#83746B] hover:text-[#1A1C1A] hover:bg-[#F5EEE4] rounded-full transition-colors"
+            className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] hover:bg-[var(--color-well)] rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -183,7 +183,7 @@ export default function NewExpenseModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* 1. Saisie Montant avec TouchInput */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Montant dépensé ({currency}) *
             </label>
             <TouchInput
@@ -195,17 +195,17 @@ export default function NewExpenseModal({
                 height: '52px',
                 fontSize: '22px',
                 fontWeight: 'bold',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '12px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 textAlign: 'left',
               }}
             />
 
             {/* Avertissement de dépassement de solde */}
             {isOverBalance && (
-              <div className="mt-2 p-2.5 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] text-[#92400E] text-xs flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-[#D97706] mt-0.5" />
+              <div className="mt-2 p-2.5 rounded-lg bg-[var(--color-badge-warning-bg)] border border-[#FDE68A] text-[color:var(--color-badge-warning-text)] text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-[color:var(--color-badge-warning-accent)] mt-0.5" />
                 <span>
                   Ce montant dépasse le solde disponible de {new Intl.NumberFormat('fr-FR').format(amount - currentBalance)} {currency}.
                   Le solde passera en négatif jusqu'à la régularisation par une rallonge caisse.
@@ -216,7 +216,7 @@ export default function NewExpenseModal({
 
           {/* 2. Sélection de Catégorie (Boutons tactiles 48px) */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Catégorie de la dépense *
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -232,13 +232,13 @@ export default function NewExpenseModal({
                     style={{
                       height: '54px',
                       borderRadius: '12px',
-                      backgroundColor: isSelected ? '#815431' : '#F5EEE4',
-                      color: isSelected ? '#FFFFFF' : '#1A1C1A',
-                      border: isSelected ? '2px solid #815431' : '1px solid rgba(131, 116, 107, 0.15)',
+                      backgroundColor: isSelected ? 'var(--color-primary)' : 'var(--color-well)',
+                      color: isSelected ? '#FFFFFF' : 'var(--color-text)',
+                      border: isSelected ? '2px solid var(--color-primary)' : '1px solid rgba(131, 116, 107, 0.15)',
                     }}
                     className="flex items-center gap-2.5 px-3 text-left transition-all active:scale-[0.98]"
                   >
-                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-[#815431]'}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isSelected ? 'text-white' : 'text-[color:var(--color-primary)]'}`} />
                     <span className="text-xs font-bold leading-tight line-clamp-2">
                       {cfg.shortLabel}
                     </span>
@@ -250,7 +250,7 @@ export default function NewExpenseModal({
 
           {/* 3. Suggestions rapides de motifs */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1">
               Suggestions rapides
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -259,7 +259,7 @@ export default function NewExpenseModal({
                   type="button"
                   key={sugg}
                   onClick={() => setDescription(sugg)}
-                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-[#F5EEE4] hover:bg-[#E0D8CE] text-[#51443C] transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-[var(--color-well)] hover:bg-[var(--color-surface-variant)] text-[color:var(--color-muted)] transition-colors"
                 >
                   + {sugg}
                 </button>
@@ -269,7 +269,7 @@ export default function NewExpenseModal({
 
           {/* 4. Description / Motif personnalisé */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Motif exact de l'achat *
             </label>
             <input
@@ -280,12 +280,12 @@ export default function NewExpenseModal({
               onChange={(e) => setDescription(e.target.value)}
               style={{
                 height: '48px',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '12px',
                 border: '1px solid rgba(131, 116, 107, 0.2)',
                 padding: '0 16px',
                 fontSize: '14px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 width: '100%',
               }}
             />
@@ -293,7 +293,7 @@ export default function NewExpenseModal({
 
           {/* 5. Mode de paiement */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Payé en
             </label>
             <div className="grid grid-cols-3 gap-2 text-xs font-bold">
@@ -309,8 +309,8 @@ export default function NewExpenseModal({
                   style={{
                     height: '44px',
                     borderRadius: '10px',
-                    backgroundColor: paymentMethod === m.id ? '#4B6450' : '#F5EEE4',
-                    color: paymentMethod === m.id ? '#FFFFFF' : '#1A1C1A',
+                    backgroundColor: paymentMethod === m.id ? 'var(--color-secondary)' : 'var(--color-well)',
+                    color: paymentMethod === m.id ? '#FFFFFF' : 'var(--color-text)',
                     border: 'none',
                   }}
                   className="transition-all active:scale-[0.98]"
@@ -323,7 +323,7 @@ export default function NewExpenseModal({
 
           {/* 6. Photo du justificatif / reçu */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[#51443C] block mb-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)] block mb-1.5">
               Photo du reçu / ticket (facultatif)
             </label>
             <input
@@ -357,13 +357,13 @@ export default function NewExpenseModal({
                 style={{
                   height: '48px',
                   borderRadius: '12px',
-                  backgroundColor: '#F5EEE4',
+                  backgroundColor: 'var(--color-well)',
                   border: '1px dashed rgba(131, 116, 107, 0.4)',
-                  color: '#51443C',
+                  color: 'var(--color-muted)',
                 }}
-                className="w-full flex items-center justify-center gap-2 text-xs font-bold hover:bg-[#E0D8CE] transition-all"
+                className="w-full flex items-center justify-center gap-2 text-xs font-bold hover:bg-[var(--color-surface-variant)] transition-all"
               >
-                <Camera className="w-4 h-4 text-[#815431]" />
+                <Camera className="w-4 h-4 text-[color:var(--color-primary)]" />
                 <span>Prendre en photo ou joindre un ticket</span>
               </button>
             )}
@@ -371,7 +371,7 @@ export default function NewExpenseModal({
         </form>
 
         {/* Pied du modal avec actions tactiles */}
-        <div className="p-4 border-t border-[rgba(131,116,107,0.15)] bg-[#FDFBF7] flex items-center gap-3">
+        <div className="p-4 border-t border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)] flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -379,12 +379,12 @@ export default function NewExpenseModal({
             style={{
               height: '48px',
               borderRadius: '9999px',
-              backgroundColor: '#F5EEE4',
-              color: '#51443C',
+              backgroundColor: 'var(--color-well)',
+              color: 'var(--color-muted)',
               border: 'none',
               padding: '0 20px',
             }}
-            className="text-sm font-bold hover:bg-[#E0D8CE] transition-all"
+            className="text-sm font-bold hover:bg-[var(--color-surface-variant)] transition-all"
           >
             Annuler
           </button>
@@ -396,7 +396,7 @@ export default function NewExpenseModal({
             style={{
               height: '48px',
               borderRadius: '9999px',
-              backgroundColor: isSubmitting || amount <= 0 ? '#C08A63' : '#815431',
+              backgroundColor: isSubmitting || amount <= 0 ? 'var(--color-primary-container)' : 'var(--color-primary)',
               color: '#FFFFFF',
               border: 'none',
             }}

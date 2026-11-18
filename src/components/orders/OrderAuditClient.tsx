@@ -13,9 +13,9 @@ type AuditEntry = OrderDeletionAuditEntry & { isRestorable: boolean }
 const PAGE_SIZE = 30
 
 const ACTION_LABELS: Record<AuditEntry['action'], { label: string; bg: string; color: string }> = {
-    delete: { label: 'Suppression', bg: '#FEF2F2', color: '#EF4444' },
-    restore: { label: 'Restauration', bg: '#ECFDF5', color: '#10B981' },
-    purge: { label: 'Purge définitive', bg: '#F3F4F6', color: '#6B7280' }
+    delete: { label: 'Suppression', bg: 'var(--color-badge-danger-bg)', color: 'var(--color-error)' },
+    restore: { label: 'Restauration', bg: 'var(--color-badge-success-soft-bg)', color: 'var(--color-badge-success-accent)' },
+    purge: { label: 'Purge définitive', bg: 'var(--color-well)', color: 'var(--color-muted)' }
 }
 
 export default function OrderAuditClient({
@@ -168,7 +168,7 @@ export default function OrderAuditClient({
                                     {entry.isRestorable && (
                                         <button
                                             onClick={() => setEntryToRestore(entry)}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', background: '#10B981', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', background: 'var(--color-badge-success-accent)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem' }}
                                         >
                                             <RotateCcw size={14} /> Restaurer
                                         </button>
@@ -183,7 +183,7 @@ export default function OrderAuditClient({
                             </div>
 
                             {daysLeft !== null && (
-                                <p style={{ marginTop: '8px', fontSize: '0.8rem', color: purgeImminent ? '#EF4444' : 'var(--color-muted)' }}>
+                                <p style={{ marginTop: '8px', fontSize: '0.8rem', color: purgeImminent ? 'var(--color-error)' : 'var(--color-muted)' }}>
                                     {purgeImminent ? 'Purge définitive imminente' : `Purge définitive dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}`}
                                 </p>
                             )}
@@ -191,7 +191,7 @@ export default function OrderAuditClient({
                             <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>{entry.reason}</p>
 
                             {isExpanded && entry.order_snapshot && (
-                                <pre style={{ marginTop: '12px', background: '#F9FAFB', borderRadius: '12px', padding: '12px', fontSize: '0.75rem', overflowX: 'auto' }}>
+                                <pre style={{ marginTop: '12px', background: 'var(--color-well)', borderRadius: '12px', padding: '12px', fontSize: '0.75rem', overflowX: 'auto' }}>
                                     {JSON.stringify(entry.order_snapshot, null, 2)}
                                 </pre>
                             )}

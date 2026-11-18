@@ -85,10 +85,10 @@ export default function DepensesClient({
       {/* 1. Titre & Entête de Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#1A1C1A] tracking-tight font-display">
+          <h1 className="text-2xl md:text-3xl font-black text-[color:var(--color-text)] tracking-tight font-display">
             Régie Dépenses & Menue Caisse
           </h1>
-          <p className="text-xs md:text-sm text-[#51443C] mt-0.5">
+          <p className="text-xs md:text-sm text-[color:var(--color-muted)] mt-0.5">
             Petite caisse de fonctionnement hebdomadaire ({new Intl.NumberFormat('fr-FR').format(orgBudget)} FCFA) · Isolée des ventes
           </p>
         </div>
@@ -115,10 +115,10 @@ export default function DepensesClient({
       {/* 5. Fil d'Activité & Historique Quotidien */}
       <div className="pt-2">
         <div className="mb-3">
-          <h2 className="text-base font-bold text-[#1A1C1A] font-display">
+          <h2 className="text-base font-bold text-[color:var(--color-text)] font-display">
             Journal des Achats & Sorties
           </h2>
-          <p className="text-xs text-[#51443C]">
+          <p className="text-xs text-[color:var(--color-muted)]">
             Historique chronologique des opérations de la semaine
           </p>
         </div>

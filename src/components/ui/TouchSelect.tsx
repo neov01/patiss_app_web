@@ -75,7 +75,7 @@ export default function TouchSelect({
                     justifyContent: 'space-between',
                     minHeight: '44px',
                     userSelect: 'none',
-                    background: hasError ? '#FFF5F5' : '#fff',
+                    background: hasError ? 'var(--color-badge-danger-bg)' : '#fff',
                     border: hasError ? '1.5px solid var(--color-error)' : '1.5px solid transparent',
                     ...style
                 }}
@@ -191,7 +191,7 @@ export default function TouchSelect({
                     }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>{title}</h3>
-                            <button onClick={() => setIsOpen(false)} style={{ background: '#FDF8F3', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)' }}>
+                            <button onClick={() => setIsOpen(false)} style={{ background: 'var(--color-caisse-bg)', border: 'none', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)' }}>
                                 <X size={20} />
                             </button>
                         </div>
@@ -208,9 +208,9 @@ export default function TouchSelect({
                                         fontSize: '1.1rem',
                                         fontWeight: 700,
                                         background: value === opt.value ? 'var(--color-well)' : 'white',
-                                        color: value === opt.value ? '#D97757' : 'var(--color-text)',
+                                        color: value === opt.value ? 'var(--color-primary)' : 'var(--color-text)',
                                         borderRadius: '16px',
-                                        border: `2px solid ${value === opt.value ? '#D97757' : '#F3F0EE'}`,
+                                        border: `2px solid ${value === opt.value ? 'var(--color-primary)' : '#F3F0EE'}`,
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
                                         display: 'flex',
@@ -223,7 +223,7 @@ export default function TouchSelect({
                                 >
                                     {opt.icon && <span style={{ fontSize: '1.4rem' }}>{opt.icon}</span>}
                                     <span style={{ flex: 1 }}>{opt.label}</span>
-                                    {value === opt.value && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#D97757' }} />}
+                                    {value === opt.value && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }} />}
                                 </button>
                             ))}
                         </div>

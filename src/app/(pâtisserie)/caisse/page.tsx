@@ -229,7 +229,7 @@ export default async function CaissePage() {
         // 6. Tous les produits actifs de l'organisation
         supabase
             .from('products')
-            .select('id, name, selling_price, current_stock, category')
+            .select('id, name, selling_price, current_stock, category, image_url')
             .eq('organization_id', orgId)
             .eq('is_active', true)
             .order('name')
@@ -336,9 +336,11 @@ export default async function CaissePage() {
 
     // Best-sellers fetched in parallel above
 
+    const imageById = new Map((dbProducts || []).map(p => [p.id, p.image_url as string | null]))
     const bestSellers = parseBestSellers(rpcBestSellers).map((b) => ({
         id: b.id,
         name: b.name,
+        image_url: imageById.get(b.id) ?? null,
         selling_price: Number(b.selling_price),
         stock_qty: b.stock_qty,
         quantity: Number(b.total_sold)
@@ -350,6 +352,7 @@ export default async function CaissePage() {
         selling_price: Number(p.selling_price),
         current_stock: p.current_stock,
         category: p.category || '',
+        image_url: p.image_url ?? null,
     }))
 
     return (

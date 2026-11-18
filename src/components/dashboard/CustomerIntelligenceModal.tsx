@@ -373,7 +373,7 @@ export default function CustomerIntelligenceModal({
                   <div className="md:col-span-4 bg-white/60 p-6 sm:p-8 border-b md:border-b-0 md:border-r border-slate-100 flex flex-col items-center md:items-start h-full overflow-y-auto">
                     <button
                       onClick={() => setIsSelectingProduct(true)}
-                      className="w-full mb-8 flex items-center justify-center gap-3 bg-[#DC5F4A] hover:bg-[#C5533F] text-white py-4 px-6 rounded-2xl font-black text-lg shadow-lg shadow-[#DC5F4A]/20 transition-all hover:scale-[1.02] active:scale-95"
+                      className="w-full mb-8 flex items-center justify-center gap-3 bg-[var(--color-primary)] hover:bg-[#C5533F] text-white py-4 px-6 rounded-2xl font-black text-lg shadow-lg shadow-[color:var(--color-primary)]/20 transition-all hover:scale-[1.02] active:scale-95"
                     >
                       <ShoppingBag size={22} />
                       🛍️ Nouvelle Commande
@@ -381,7 +381,7 @@ export default function CustomerIntelligenceModal({
 
                     <div className="w-full flex flex-col items-center md:items-start">
                       <div className="relative mb-4 group cursor-pointer" onClick={() => setShowQR(!showQR)}>
-                        <div className="w-28 h-28 rounded-3xl bg-[#DC5F4A]/5 text-[#DC5F4A] flex items-center justify-center text-4xl font-black border-2 border-white shadow-md transition-transform group-hover:rotate-3">
+                        <div className="w-28 h-28 rounded-3xl bg-[var(--color-primary)]/5 text-[color:var(--color-primary)] flex items-center justify-center text-4xl font-black border-2 border-white shadow-md transition-transform group-hover:rotate-3">
                           {customer ? getInitials(customer.name) : "??"}
                         </div>
                         <div className="absolute -bottom-2 -right-2 bg-slate-800 text-white p-2 rounded-xl shadow-lg transition-transform group-hover:scale-110">
@@ -392,20 +392,20 @@ export default function CustomerIntelligenceModal({
                       {isEditing ? (
                         <div className="w-full space-y-2">
                           <input
-                            className="w-full px-3 py-2 text-lg font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            className="w-full px-3 py-2 text-lg font-black text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)]/40"
                             value={editForm.name}
                             onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                             placeholder="Nom complet"
                           />
                           <input
-                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)]/40"
                             value={editForm.phone}
                             onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
                             placeholder="Téléphone"
                             type="tel"
                           />
                           <input
-                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#DC5F4A]/40"
+                            className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)]/40"
                             value={editForm.email}
                             onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                             placeholder="Email (optionnel)"
@@ -415,7 +415,7 @@ export default function CustomerIntelligenceModal({
                             <button
                               onClick={() => updateProfileMutation.mutate()}
                               disabled={updateProfileMutation.isPending || !editForm.name.trim()}
-                              className="flex-1 flex items-center justify-center gap-1.5 bg-[#DC5F4A] text-white py-2 rounded-xl text-xs font-black transition-all hover:bg-[#C5533F] disabled:opacity-50"
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-[var(--color-primary)] text-white py-2 rounded-xl text-xs font-black transition-all hover:bg-[#C5533F] disabled:opacity-50"
                             >
                               <Check size={14} />
                               {updateProfileMutation.isPending ? "Sauvegarde…" : "Sauvegarder"}
@@ -538,7 +538,7 @@ export default function CustomerIntelligenceModal({
                         <div className="absolute top-0 right-0 p-4 opacity-5"><Zap size={80} /></div>
                         <div className="space-y-3 relative z-10 w-full">
                           <div className="flex items-center gap-2">
-                            <div className="bg-[#DC5F4A]/10 p-1.5 rounded-lg text-[#DC5F4A]"><Heart size={18} /></div>
+                            <div className="bg-[var(--color-primary)]/10 p-1.5 rounded-lg text-[color:var(--color-primary)]"><Heart size={18} /></div>
                             <h3 className="text-lg font-black text-slate-800 tracking-tight">Conseil de Vente</h3>
                           </div>
                           
@@ -549,7 +549,7 @@ export default function CustomerIntelligenceModal({
                           ) : (
                             <div className="flex flex-col gap-2">
                               <p className="text-sm font-medium text-slate-600">
-                                Client habitué • Préfère : <span className="font-black text-slate-800 underline decoration-[#DC5F4A]/30 decoration-2 underline-offset-2">{customer?.preferences?.favorite_products?.[0] || "Produits de saison"}</span>
+                                Client habitué • Préfère : <span className="font-black text-slate-800 underline decoration-[color:var(--color-primary)]/30 decoration-2 underline-offset-2">{customer?.preferences?.favorite_products?.[0] || "Produits de saison"}</span>
                               </p>
                               <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Clock size={12} /> Dernier achat : {customer?.preferences?.last_purchased || "Récemment"}</div>
                             </div>
@@ -574,7 +574,7 @@ export default function CustomerIntelligenceModal({
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors border-b-2 ${
                               activeTab === tab.id
-                                ? "border-[#DC5F4A] text-[#DC5F4A]"
+                                ? "border-[color:var(--color-primary)] text-[color:var(--color-primary)]"
                                 : "border-transparent text-slate-400 hover:text-slate-600"
                             }`}
                           >{tab.label}</button>
@@ -604,7 +604,7 @@ export default function CustomerIntelligenceModal({
                                       <div
                                         title={`${m.month} : ${formatCurrency(m.total)}`}
                                         style={{ height: `${Math.round((m.total / max) * 100)}%`, minHeight: 4 }}
-                                        className="w-full bg-[#DC5F4A]/80 rounded-t-lg hover:bg-[#DC5F4A] transition-colors"
+                                        className="w-full bg-[var(--color-primary)]/80 rounded-t-lg hover:bg-[var(--color-primary)] transition-colors"
                                       />
                                       <span className="text-[10px] text-slate-400 font-semibold">{m.month}</span>
                                     </div>

@@ -86,7 +86,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
                             </p>
                             {currentStock !== undefined && (
                                 <span style={{
-                                    background: '#FDF8F3', border: '1.5px solid #E8C9B0',
+                                    background: 'var(--color-caisse-bg)', border: '1.5px solid #E8C9B0',
                                     borderRadius: '99px', padding: '4px 12px',
                                     fontSize: '0.8rem', fontWeight: 700, color: '#8A5C3A',
                                 }}>
@@ -118,7 +118,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
 
                             <div>
                                 <label className="label">Quantité ({reasonInfo.positive ? '+' : '-'})</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FDF8F3', borderRadius: '12px', border: '1.5px solid var(--color-border)', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-caisse-bg)', borderRadius: '12px', border: '1.5px solid var(--color-border)', overflow: 'hidden' }}>
                                     <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))}
                                         style={{ width: '44px', height: '44px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-rose-dark)', borderRight: '1.5px solid var(--color-border)' }}>
                                         <Minus size={20} />
@@ -142,7 +142,7 @@ export default function StockMovementModal({ ingredientId, ingredientName, curre
                                 {newStock !== undefined && quantity > 0 && (
                                     <p style={{
                                         margin: '8px 0 0', fontSize: '0.82rem', fontWeight: 700,
-                                        color: newStock >= 0 ? '#4C9E6A' : '#D94F38',
+                                        color: newStock >= 0 ? 'var(--color-success)' : 'var(--color-error)',
                                     }}>
                                         → Nouveau stock : {newStock.toFixed(newStock % 1 === 0 ? 0 : 1)} {unit ?? ''}
                                         {newStock < 0 && ' ⚠️ stock négatif'}

@@ -30,7 +30,7 @@ export default function SuperAdminSidebar() {
     }
 
     return (
-        <aside className="w-64 bg-white border-r border-[#EEEEEE] h-screen flex flex-col hidden md:flex shrink-0">
+        <aside className="w-64 bg-white border-r border-[color:var(--color-border)] h-screen flex flex-col hidden md:flex shrink-0">
             <div className="p-6">
                 <Link href="/admin" className="flex items-center gap-2 group">
                     <div className="bg-[var(--color-well)] p-2 rounded-xl group-hover:scale-105 transition-transform">
@@ -38,7 +38,7 @@ export default function SuperAdminSidebar() {
                     </div>
                     <div>
                         <h1 className="text-xl font-black text-[var(--color-text)] tracking-tight leading-none">Pâtiss&apos;App</h1>
-                        <span className="text-[10px] uppercase font-bold text-[#D97757] tracking-wider">Super Admin</span>
+                        <span className="text-[10px] uppercase font-bold text-[color:var(--color-primary)] tracking-wider">Super Admin</span>
                     </div>
                 </Link>
             </div>
@@ -53,12 +53,12 @@ export default function SuperAdminSidebar() {
                             className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group
                                 ${isActive
                                     ? 'bg-[var(--color-text)] text-white shadow-md'
-                                    : 'text-[#8E8680] hover:bg-[#FDFCFB] hover:text-[var(--color-text)]'
+                                    : 'text-[#8E8680] hover:bg-[var(--color-caisse-bg)] hover:text-[var(--color-text)]'
                                 }`}
                         >
                             <item.icon
                                 size={20}
-                                className={isActive ? 'text-[#D97757]' : 'group-hover:text-[#D97757] transition-colors'}
+                                className={isActive ? 'text-[color:var(--color-primary)]' : 'group-hover:text-[color:var(--color-primary)] transition-colors'}
                             />
                             <span className="font-bold text-sm">{item.label}</span>
                         </Link>
@@ -66,10 +66,10 @@ export default function SuperAdminSidebar() {
                 })}
             </nav>
 
-            <div className="p-4 mt-auto border-t border-[#EEEEEE]">
+            <div className="p-4 mt-auto border-t border-[color:var(--color-border)]">
                 <button
                     onClick={handleSignOut}
-                    className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-[#D94F38] hover:bg-[var(--color-well)] transition-colors"
+                    className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-[color:var(--color-error)] hover:bg-[var(--color-well)] transition-colors"
                 >
                     <LogOut size={16} />
                     <span>Déconnexion</span>

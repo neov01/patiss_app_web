@@ -73,16 +73,16 @@ export default function ConfirmModalWithReason({
         )}
 
         <div style={{
-          width: '64px', height: '64px', borderRadius: '50%', background: '#FEF2F2', display: 'flex',
+          width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-badge-danger-bg)', display: 'flex',
           alignItems: 'center', justifyContent: 'center', marginBottom: '20px'
         }}>
-          <AlertCircle size={32} color="#EF4444" />
+          <AlertCircle size={32} color="var(--color-error)" />
         </div>
 
         <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>
           {title}
         </h3>
-        <p style={{ fontSize: '0.95rem', lineHeight: '1.5', color: '#6B7280', marginBottom: '20px', padding: '0 10px' }}>
+        <p style={{ fontSize: '0.95rem', lineHeight: '1.5', color: 'var(--color-muted)', marginBottom: '20px', padding: '0 10px' }}>
           {message}
         </p>
 
@@ -119,7 +119,7 @@ export default function ConfirmModalWithReason({
             onClick={handleConfirm}
             disabled={!canConfirm}
             style={{
-              flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#EF4444',
+              flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--color-error)',
               fontSize: '0.95rem', fontWeight: 700, color: '#fff',
               cursor: canConfirm ? 'pointer' : 'not-allowed', opacity: canConfirm ? 1 : 0.6
             }}

@@ -19,15 +19,15 @@ const CONFIG: Record<NetworkState, {
     visible: false
   },
   unstable: {
-    bg: '#FEF3C7',
-    color: '#92400E',
+    bg: 'var(--color-badge-warning-bg)',
+    color: 'var(--color-badge-warning-text)',
     icon: AlertTriangle,
     message: 'Connexion instable — certaines actions peuvent être lentes',
     visible: true
   },
   offline: {
-    bg: '#FEE2E2',
-    color: '#991B1B',
+    bg: 'var(--color-badge-danger-bg)',
+    color: 'var(--color-badge-danger-text)',
     icon: WifiOff,
     message: 'Connexion perdue — mode hors-ligne activé',
     visible: true

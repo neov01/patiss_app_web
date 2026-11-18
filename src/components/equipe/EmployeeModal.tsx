@@ -318,7 +318,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontWeight: 900, fontSize: '1.5rem', color: '#fff',
                             border: `3px solid ${identityColor}`,
-                            boxShadow: `0 0 0 4px ${identityColor}30`,
+                            boxShadow: `0 0 0 4px color-mix(in srgb, ${identityColor} 19%, transparent)`,
                             transition: 'background 0.2s',
                           }}>
                             {fullName ? getInitials(fullName) : <User size={32} color="rgba(255,255,255,0.7)" />}
@@ -347,7 +347,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
                         <Camera size={14} /> {avatarPreview ? 'Changer la photo' : 'Ajouter une photo'}
                       </button>
                       {avatarPreview && (
-                        <button type="button" onClick={() => { setAvatarPreview(null); setAvatarFile(null); setValue('avatarUrl', '') }} style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '0.75rem', cursor: 'pointer' }}>
+                        <button type="button" onClick={() => { setAvatarPreview(null); setAvatarFile(null); setValue('avatarUrl', '') }} style={{ background: 'none', border: 'none', color: 'var(--color-muted)', fontSize: '0.75rem', cursor: 'pointer' }}>
                           Supprimer la photo
                         </button>
                       )}
@@ -553,7 +553,7 @@ export default function EmployeeModal({ open, onClose, onSuccess, mode, employee
 
                     {/* Autoriser l'importation historique */}
                     {role !== 'gerant' && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--color-cream, #FDF8F3)', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginTop: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--color-cream, var(--color-caisse-bg))', borderRadius: '16px', border: '1.5px solid var(--color-border)', marginTop: '12px' }}>
                         <div style={{ paddingRight: '8px' }}>
                           <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--color-text)' }}>Droit d&apos;importation historique</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)', marginTop: '2px', lineHeight: 1.25 }}>Permet à cet employé d&apos;accéder au menu d&apos;importation de l&apos;historique de ventes.</div>

@@ -96,7 +96,7 @@ function KioskContent() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'linear-gradient(145deg, #FDF8F3 0%, #FDE8E0 100%)',
+            background: 'linear-gradient(145deg, var(--color-caisse-bg) 0%, #FDE8E0 100%)',
             display: 'flex',
             flexDirection: 'column',
             padding: '24px',
@@ -167,7 +167,7 @@ function KioskContent() {
                     }}
                 >
                     <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--color-well)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
-                        <Store size={32} color="#D97757" />
+                        <Store size={32} color="var(--color-primary)" />
                     </div>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 12px' }}>Code Boutique</h2>
                     <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
@@ -189,7 +189,7 @@ function KioskContent() {
                                 fontWeight: 800, 
                                 textTransform: 'uppercase', 
                                 height: '56px',
-                                background: kioskOrgId ? 'var(--color-well, #F5EEE4)' : 'white',
+                                background: kioskOrgId ? 'var(--color-well, var(--color-well))' : 'white',
                                 borderColor: kioskOrgId ? 'transparent' : undefined
                             }}
                             maxLength={8}
@@ -374,7 +374,7 @@ function KioskContent() {
                                                     style={{
                                                         width: '72px', height: '72px', borderRadius: '50%',
                                                         border: '2px solid var(--color-border)',
-                                                        background: d === '⌫' ? 'var(--color-well, #F5EEE4)' : 'white',
+                                                        background: d === '⌫' ? 'var(--color-well, var(--color-well))' : 'white',
                                                         fontSize: d === '⌫' ? '1.1rem' : '1.5rem',
                                                         fontWeight: 700, cursor: d ? 'pointer' : 'default',
                                                         color: d === '⌫' ? 'var(--color-rose-dark)' : 'var(--color-text)',
@@ -408,7 +408,7 @@ function KioskContent() {
 export default function KioskPage() {
     return (
         <Suspense fallback={
-            <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FDF8F3' }}>
+            <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-caisse-bg)' }}>
                 <Loader2 size={32} className="animate-spin" color="var(--color-rose-dark)" />
             </div>
         }>

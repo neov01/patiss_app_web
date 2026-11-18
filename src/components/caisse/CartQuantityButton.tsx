@@ -59,7 +59,7 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                     borderRadius: '12px',
                     border: '1.5px solid var(--color-caisse-border)',
                     background: 'white',
-                    color: '#2D1B0E',
+                    color: 'var(--color-text)',
                     fontSize: '1.05rem',
                     fontWeight: 800,
                     cursor: 'pointer',
@@ -71,7 +71,7 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                 onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'white' }}
             >
                 {qty}
-                <ChevronUp size={16} style={{ color: '#C4836A' }} />
+                <ChevronUp size={16} style={{ color: 'var(--color-primary)' }} />
             </button>
 
             {/* Popover */}
@@ -113,7 +113,7 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                                     fontSize: '1.1rem',
                                     fontWeight: 700,
                                     background: qty === num ? '#FEF3EC' : 'transparent',
-                                    color: qty === num ? '#D97757' : '#2D1B0E',
+                                    color: qty === num ? 'var(--color-primary)' : 'var(--color-text)',
                                     borderRadius: '10px',
                                     border: 'none',
                                     textAlign: 'center',
@@ -136,7 +136,7 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                                 fontSize: '0.9rem',
                                 fontWeight: 700,
                                 background: 'transparent',
-                                color: '#9C8070',
+                                color: 'var(--color-muted)',
                                 borderRadius: '10px',
                                 border: 'none',
                                 textAlign: 'center',
@@ -156,8 +156,8 @@ export default function CartQuantityButton({ qty, productName, onChange, onRemov
                                 padding: '12px 16px',
                                 fontSize: '0.9rem',
                                 fontWeight: 700,
-                                background: '#FFF5F5',
-                                color: '#EF4444',
+                                background: 'var(--color-badge-danger-bg)',
+                                color: 'var(--color-error)',
                                 borderRadius: '10px',
                                 border: 'none',
                                 textAlign: 'center',

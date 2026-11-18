@@ -412,7 +412,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
 
                   {/* Error Notification */}
                   <div style={{
-                    background: '#FEF2F2',
+                    background: 'var(--color-badge-danger-bg)',
                     border: '1px solid #FCA5A5',
                     borderRadius: 'var(--radius-sm)',
                     padding: '12px 16px',
@@ -420,7 +420,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                     flexDirection: 'column',
                     gap: '6px'
                   }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#991B1B', fontWeight: 700, fontSize: '0.82rem' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--color-badge-danger-text)', fontWeight: 700, fontSize: '0.82rem' }}>
                       <AlertCircle size={15} />
                       <span>{getFriendlyError(tx.lastError)}</span>
                     </div>
@@ -432,7 +432,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                             background: 'none',
                             border: 'none',
                             padding: 0,
-                            color: '#B91C1C',
+                            color: 'var(--color-error)',
                             fontSize: '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
@@ -452,8 +452,8 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                             borderRadius: '6px',
                             fontSize: '0.7rem',
                             overflowX: 'auto',
-                            color: '#555',
-                            border: '1px solid #F3F4F6'
+                            color: 'var(--color-muted)',
+                            border: '1px solid var(--color-well)'
                           }}>{tx.lastError}</pre>
                         )}
                       </div>
@@ -637,7 +637,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
 
                   {/* Error Notification */}
                   <div style={{
-                    background: '#FEF2F2',
+                    background: 'var(--color-badge-danger-bg)',
                     border: '1px solid #FCA5A5',
                     borderRadius: 'var(--radius-sm)',
                     padding: '12px 16px',
@@ -645,7 +645,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                     flexDirection: 'column',
                     gap: '6px'
                   }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: '#991B1B', fontWeight: 700, fontSize: '0.82rem' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--color-badge-danger-text)', fontWeight: 700, fontSize: '0.82rem' }}>
                       <AlertCircle size={15} />
                       <span>{getFriendlyError(order.lastError)}</span>
                     </div>
@@ -657,7 +657,7 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                             background: 'none',
                             border: 'none',
                             padding: 0,
-                            color: '#B91C1C',
+                            color: 'var(--color-error)',
                             fontSize: '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
@@ -677,8 +677,8 @@ export default function SyncErrorResolutionModal({ isOpen, onClose, onResolved }
                             borderRadius: '6px',
                             fontSize: '0.7rem',
                             overflowX: 'auto',
-                            color: '#555',
-                            border: '1px solid #F3F4F6'
+                            color: 'var(--color-muted)',
+                            border: '1px solid var(--color-well)'
                           }}>{order.lastError}</pre>
                         )}
                       </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { closeCurrentSession, openSession } from '@/lib/actions/sessions'
+import { closeCurrentSession, openSession, getSessionClosingPreviewAction, type SessionClosingPreview } from '@/lib/actions/sessions'
 import { getWeeklyBilanPreviewAction, weeklyExpenseClosingAction } from '@/lib/actions/expenses'
 import type { WeeklyBilanPreview } from '@/lib/schemas/expenses'
 import WeeklyBilanSummary from '@/components/depenses/WeeklyBilanSummary'
@@ -63,6 +63,8 @@ export default function SessionMaster({
     // Bilan hebdomadaire de la régie, proposé à la clôture du dernier jour de la semaine
     const [bilanPreview, setBilanPreview] = useState<WeeklyBilanPreview | null>(null)
     const [bilanLoading, setBilanLoading] = useState(false)
+    // Récap de la journée (lecture seule) montré avant de confirmer la clôture
+    const [dayPreview, setDayPreview] = useState<SessionClosingPreview | null>(null)
     const pathname = usePathname()
     const router = useRouter()
     const isOpen = !!initialSession
@@ -97,6 +99,8 @@ export default function SessionMaster({
         }
     }, [isOpen])
 
+    const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n)
+
     const handleToggle = () => {
         if (isOpen) {
             if (!canCloseSession) {
@@ -112,8 +116,11 @@ export default function SessionMaster({
 
     const loadBilanPreview = async () => {
         setBilanPreview(null)
+        setDayPreview(null)
         setBilanLoading(true)
         try {
+            // Le récap du jour est informatif : son échec ne bloque jamais la clôture
+            getSessionClosingPreviewAction().then(r => { if (r.success) setDayPreview(r.preview) }).catch(() => {})
             const res = await getWeeklyBilanPreviewAction()
             // Pas de bilan possible (hors dimanche, erreur, caisse fermée) : clôture simple
             if (res.success && res.preview?.isDue && res.preview.hasOpenSalesSession) {
@@ -231,7 +238,7 @@ export default function SessionMaster({
                         alignItems: 'center',
                         justifyContent: 'between',
                         gap: '16px',
-                        color: '#92400E',
+                        color: 'var(--color-badge-warning-text)',
                         fontSize: '0.875rem',
                         fontWeight: 500,
                         animation: 'fadeIn 0.3s ease'
@@ -242,8 +249,8 @@ export default function SessionMaster({
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                background: '#F59E0B',
-                                boxShadow: '0 0 8px #F59E0B'
+                                background: 'var(--color-badge-warning-accent)',
+                                boxShadow: '0 0 8px var(--color-badge-warning-accent)'
                             }} />
                             <span>
                                 <strong>Caisse clôturée</strong> — Mode consultation uniquement. Les fonctions d&apos;encaissement sont désactivées.
@@ -256,7 +263,7 @@ export default function SessionMaster({
                                 router.push('/caisse/statut')
                             }}
                             style={{
-                                background: '#FEF3C7',
+                                background: 'var(--color-badge-warning-bg)',
                                 border: 'none',
                                 color: '#78350F',
                                 padding: '6px 12px',
@@ -267,7 +274,7 @@ export default function SessionMaster({
                                 transition: 'background 0.2s'
                             }}
                             onMouseEnter={e => e.currentTarget.style.background = '#FDE68A'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#FEF3C7'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'var(--color-badge-warning-bg)'}
                         >
                             Quitter le mode consultation
                         </button>
@@ -295,15 +302,41 @@ export default function SessionMaster({
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: '2rem'
                             }}>🔒</div>
-                            <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem', fontWeight: 800, color: '#1a1a2e' }}>
+                            <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-text)' }}>
                                 {bilanPreview ? 'Clôturer la journée et la semaine ?' : 'Clôturer la journée ?'}
                             </h2>
-                            <p style={{ margin: '0 0 20px', fontSize: '0.95rem', color: '#666', lineHeight: 1.5 }}>
+                            <p style={{ margin: '0 0 20px', fontSize: '0.95rem', color: 'var(--color-muted)', lineHeight: 1.5 }}>
                                 La caisse sera fermée et aucune vente ne pourra être enregistrée jusqu&apos;à la prochaine ouverture.
                             </p>
 
+                            {dayPreview && (
+                                <dl className="closing-recap" aria-label="Récapitulatif de la journée">
+                                    <div className="closing-recap-row">
+                                        <dt>Ventes de la journée</dt>
+                                        <dd>{fmt(dayPreview.totalRevenue)} <small>{currency}</small></dd>
+                                    </div>
+                                    <div className="closing-recap-row is-key">
+                                        <dt>Espèces encaissées</dt>
+                                        <dd>{fmt(dayPreview.totalCash)} <small>{currency}</small></dd>
+                                    </div>
+                                    <div className="closing-recap-row">
+                                        <dt>Mobile money</dt>
+                                        <dd>{fmt(dayPreview.totalMobileMoney)} <small>{currency}</small></dd>
+                                    </div>
+                                    {dayPreview.totalPending > 0 && (
+                                        <div className="closing-recap-row is-warn">
+                                            <dt>Reste à encaisser (commandes)</dt>
+                                            <dd>{fmt(dayPreview.totalPending)} <small>{currency}</small></dd>
+                                        </div>
+                                    )}
+                                    <p className="closing-recap-hint">
+                                        Comptez les espèces avant de clôturer : elles doivent correspondre à la ligne en gras, fond de caisse exclu.
+                                    </p>
+                                </dl>
+                            )}
+
                             {bilanLoading && (
-                                <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#83746B' }}>
+                                <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
                                     Vérification du bilan de la semaine…
                                 </p>
                             )}
@@ -321,7 +354,7 @@ export default function SessionMaster({
                                         disabled={loading}
                                         style={{
                                             minHeight: '52px', padding: '12px', borderRadius: '12px',
-                                            border: 'none', background: '#815431',
+                                            border: 'none', background: 'var(--color-primary)',
                                             fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
                                             opacity: loading ? 0.7 : 1
                                         }}
@@ -333,7 +366,7 @@ export default function SessionMaster({
                                             onClick={() => setShowConfirm(false)}
                                             style={{
                                                 flex: 1, minHeight: '48px', borderRadius: '12px',
-                                                border: '2px solid #e0e0e0', background: '#fff',
+                                                border: '2px solid var(--color-border)', background: '#fff',
                                                 fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', color: '#444'
                                             }}
                                         >
@@ -344,8 +377,8 @@ export default function SessionMaster({
                                             disabled={loading}
                                             style={{
                                                 flex: 1, minHeight: '48px', borderRadius: '12px',
-                                                border: '2px solid #e0e0e0', background: '#fff',
-                                                fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', color: '#51443C',
+                                                border: '2px solid var(--color-border)', background: '#fff',
+                                                fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', color: 'var(--color-muted)',
                                                 opacity: loading ? 0.7 : 1
                                             }}
                                         >
@@ -358,8 +391,8 @@ export default function SessionMaster({
                                     <button
                                         onClick={() => setShowConfirm(false)}
                                         style={{
-                                            flex: 1, padding: '14px', borderRadius: '12px',
-                                            border: '2px solid #e0e0e0', background: '#fff',
+                                            flex: 1, minHeight: '52px', padding: '14px', borderRadius: '12px',
+                                            border: '2px solid var(--color-border)', background: '#fff',
                                             fontSize: '1rem', fontWeight: 700, cursor: 'pointer', color: '#444'
                                         }}
                                     >
@@ -369,8 +402,8 @@ export default function SessionMaster({
                                         onClick={() => runToggle(false)}
                                         disabled={loading || bilanLoading}
                                         style={{
-                                            flex: 1, padding: '14px', borderRadius: '12px',
-                                            border: 'none', background: '#ea4335',
+                                            flex: 1, minHeight: '52px', padding: '14px', borderRadius: '12px',
+                                            border: 'none', background: 'var(--color-badge-danger-accent)',
                                             fontSize: '1rem', fontWeight: 800, cursor: 'pointer', color: '#fff',
                                             opacity: loading || bilanLoading ? 0.7 : 1
                                         }}

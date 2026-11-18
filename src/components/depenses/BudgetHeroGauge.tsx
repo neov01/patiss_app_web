@@ -48,22 +48,22 @@ export default function BudgetHeroGauge({
   }, [cycle.end_date, cycle.start_date])
 
   // Couleur d'état selon le niveau de consommation
-  let statusColor = '#4B6450' // Sage (Sain)
+  let statusColor = 'var(--color-secondary)' // Sage (Sain)
   let statusBadgeBg = '#E6F4EA'
   let statusBadgeText = '#137333'
   let statusLabel = 'Budget sain'
   let StatusIcon = CheckCircle2
 
   if (isOverBudget) {
-    statusColor = '#BA1A1A' // Danger
+    statusColor = 'var(--color-error)' // Danger
     statusBadgeBg = '#FCE8E6'
     statusBadgeText = '#B31412'
     statusLabel = 'Dépassement de budget'
     StatusIcon = AlertCircle
   } else if (isLowBudget) {
-    statusColor = '#C08A63' // Terracotta warning
-    statusBadgeBg = '#FEF3C7'
-    statusBadgeText = '#92400E'
+    statusColor = 'var(--color-primary-container)' // Terracotta warning
+    statusBadgeBg = 'var(--color-badge-warning-bg)'
+    statusBadgeText = 'var(--color-badge-warning-text)'
     statusLabel = 'Seuil d’alerte (< 20%)'
     StatusIcon = AlertTriangle
   }
@@ -80,9 +80,9 @@ export default function BudgetHeroGauge({
         <div
           role="status"
           style={{
-            backgroundColor: '#FEF3C7',
+            backgroundColor: 'var(--color-badge-warning-bg)',
             border: '1px solid #FDE68A',
-            color: '#92400E',
+            color: 'var(--color-badge-warning-text)',
             borderRadius: '16px',
             padding: '12px 18px',
             display: 'flex',
@@ -90,7 +90,7 @@ export default function BudgetHeroGauge({
             gap: '12px',
           }}
         >
-          <AlertTriangle className="w-5 h-5 shrink-0 text-[#D97706]" />
+          <AlertTriangle className="w-5 h-5 shrink-0 text-[color:var(--color-badge-warning-accent)]" />
           <span className="text-sm font-semibold">
             Le bilan de la semaine dernière n&apos;a pas été fait : la recharge de l&apos;enveloppe n&apos;a pas été enregistrée en caisse.
             La semaine en cours a démarré automatiquement à {formatMoney(Number(cycle.initial_budget))} {currency}.
@@ -113,8 +113,8 @@ export default function BudgetHeroGauge({
           <div className="flex items-center gap-2">
             <span
               style={{
-                backgroundColor: '#F5EEE4',
-                color: '#815431',
+                backgroundColor: 'var(--color-well)',
+                color: 'var(--color-primary)',
                 borderRadius: '9999px',
                 padding: '4px 12px',
                 fontSize: '12px',
@@ -129,7 +129,7 @@ export default function BudgetHeroGauge({
             </span>
             <span
               style={{
-                backgroundColor: '#E0D8CE',
+                backgroundColor: 'var(--color-surface-variant)',
                 color: '#4A3C31',
                 borderRadius: '9999px',
                 padding: '4px 10px',
@@ -163,7 +163,7 @@ export default function BudgetHeroGauge({
         <div className="mt-5 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           {/* Bloc Chiffre Clé */}
           <div className="md:col-span-5">
-            <span className="text-xs uppercase tracking-wider text-[#51443C] font-bold block mb-1">
+            <span className="text-xs uppercase tracking-wider text-[color:var(--color-muted)] font-bold block mb-1">
               Solde disponible dans l'enveloppe
             </span>
             <div className="flex items-baseline gap-2">
@@ -174,21 +174,21 @@ export default function BudgetHeroGauge({
                   fontWeight: 800,
                   lineHeight: '44px',
                   letterSpacing: '-0.02em',
-                  color: isOverBudget ? '#BA1A1A' : '#1A1C1A',
+                  color: isOverBudget ? 'var(--color-error)' : 'var(--color-text)',
                 }}
               >
                 {formatMoney(currentBalance)}
               </span>
-              <span className="text-lg font-bold text-[#815431]">{currency}</span>
+              <span className="text-lg font-bold text-[color:var(--color-primary)]">{currency}</span>
             </div>
-            <p className="text-xs text-[#51443C] mt-1">
+            <p className="text-xs text-[color:var(--color-muted)] mt-1">
               sur une enveloppe allouée de <strong>{formatMoney(totalAllocated)} {currency}</strong>
             </p>
           </div>
 
           {/* Bloc Jauge & Progression */}
           <div className="md:col-span-7 space-y-2.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-[#51443C]">
+            <div className="flex items-center justify-between text-xs font-semibold text-[color:var(--color-muted)]">
               <span>Consommation de la semaine</span>
               <span>
                 <strong>{formatMoney(totalSpent)} {currency}</strong> dépensés ({spentRatio.toFixed(0)}%)
@@ -199,7 +199,7 @@ export default function BudgetHeroGauge({
             <div
               style={{
                 height: '14px',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 position: 'relative',
@@ -218,10 +218,10 @@ export default function BudgetHeroGauge({
             </div>
 
             {/* Repères et indicateurs */}
-            <div className="flex items-center justify-between text-[11px] text-[#51443C] pt-0.5">
+            <div className="flex items-center justify-between text-[11px] text-[color:var(--color-muted)] pt-0.5">
               <span>0 {currency}</span>
               <span className="flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-[#C08A63]" />
+                <Sparkles className="w-3 h-3 text-[color:var(--color-primary-container)]" />
                 Reste {daysRemaining} jour{daysRemaining > 1 ? 's' : ''} avant la clôture du dimanche
               </span>
               <span>{formatMoney(totalAllocated)} {currency}</span>

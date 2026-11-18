@@ -188,8 +188,8 @@ export default function SessionsHistoryClient({
                                                 borderRadius: '99px',
                                                 fontSize: '0.75rem',
                                                 fontWeight: 800,
-                                                background: session.status === 'open' ? '#D1FAE5' : '#F3F4F6',
-                                                color: session.status === 'open' ? '#065F46' : '#4B5563',
+                                                background: session.status === 'open' ? 'var(--color-badge-success-bg)' : 'var(--color-well)',
+                                                color: session.status === 'open' ? 'var(--color-badge-success-text)' : 'var(--color-muted)',
                                             }}>
                                                 {session.status === 'open' ? '🟢 OUVERTE' : '🔏 CLÔTURÉE'}
                                             </span>
@@ -234,7 +234,7 @@ export default function SessionsHistoryClient({
                                             </div>
                                         </div>
                                     ) : (
-                                        <div style={{ marginBottom: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '10px', color: '#059669', fontSize: '0.82rem', fontWeight: 600, fontStyle: 'italic' }}>
+                                        <div style={{ marginBottom: '14px', borderTop: '1px dashed var(--color-border)', paddingTop: '10px', color: 'var(--color-badge-success-accent)', fontSize: '0.82rem', fontWeight: 600, fontStyle: 'italic' }}>
                                             Session en cours d&apos;activité...
                                         </div>
                                     )}
@@ -425,9 +425,9 @@ export default function SessionsHistoryClient({
 
                                     {/* Alertes stocks au moment de la clôture */}
                                     {selectedSession.metrics_snapshot.alertItems && selectedSession.metrics_snapshot.alertItems.length > 0 && (
-                                        <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '24px' }}>
-                                            <h4 style={{ margin: '0 0 8px', fontSize: '0.82rem', color: '#D94F38', fontWeight: 700 }}>⚠️ Alertes Stock lors de la clôture</h4>
-                                            <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.78rem', color: '#991B1B', lineHeight: 1.4 }}>
+                                        <div style={{ background: 'var(--color-badge-danger-bg)', border: '1.5px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '24px' }}>
+                                            <h4 style={{ margin: '0 0 8px', fontSize: '0.82rem', color: 'var(--color-error)', fontWeight: 700 }}>⚠️ Alertes Stock lors de la clôture</h4>
+                                            <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.78rem', color: 'var(--color-badge-danger-text)', lineHeight: 1.4 }}>
                                                 {selectedSession.metrics_snapshot.alertItems.map((item, index) => (
                                                     <li key={index} style={{ marginBottom: '4px' }}>
                                                         {item.name} : <strong>{item.current_stock} {item.unit}</strong> (seuil alertes : {item.alert_threshold})
@@ -438,7 +438,7 @@ export default function SessionsHistoryClient({
                                     )}
                                 </>
                             ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#F3F4F6', padding: '12px 16px', borderRadius: '8px', fontSize: '0.8rem', color: '#4B5563' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-well)', padding: '12px 16px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
                                     <Info size={16} />
                                     Aucun snapshot de métrique disponible pour cette session.
                                 </div>

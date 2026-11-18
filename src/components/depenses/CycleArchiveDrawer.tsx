@@ -46,16 +46,16 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
         className="flex flex-col animate-in slide-in-from-right duration-200"
       >
         {/* En-tête */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[#FDFBF7]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(131,116,107,0.15)] bg-[var(--color-caisse-bg)]">
           <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-[#815431]" />
-            <h3 className="text-base font-bold text-[#1A1C1A] font-display">
+            <History className="w-5 h-5 text-[color:var(--color-primary)]" />
+            <h3 className="text-base font-bold text-[color:var(--color-text)] font-display">
               Archives des Semaines Clôturées
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-[#83746B] hover:text-[#1A1C1A] rounded-full hover:bg-[#F5EEE4]"
+            className="p-2 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] rounded-full hover:bg-[var(--color-well)]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -64,14 +64,14 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
         {/* Corps */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {isLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3 text-[#83746B]">
-              <Loader2 className="w-8 h-8 animate-spin text-[#815431]" />
+            <div className="py-20 flex flex-col items-center justify-center gap-3 text-[color:var(--color-muted)]">
+              <Loader2 className="w-8 h-8 animate-spin text-[color:var(--color-primary)]" />
               <span className="text-xs">Chargement de l'historique...</span>
             </div>
           ) : cycles.length === 0 ? (
-            <div className="py-20 text-center space-y-2 text-[#51443C]">
-              <Calendar className="w-10 h-10 mx-auto text-[#83746B] opacity-50" />
-              <h4 className="font-bold text-sm text-[#1A1C1A]">Aucun cycle archivé</h4>
+            <div className="py-20 text-center space-y-2 text-[color:var(--color-muted)]">
+              <Calendar className="w-10 h-10 mx-auto text-[color:var(--color-muted)] opacity-50" />
+              <h4 className="font-bold text-sm text-[color:var(--color-text)]">Aucun cycle archivé</h4>
               <p className="text-xs max-w-xs mx-auto">
                 Les bilans des semaines passées apparaîtront ici après chaque clôture dominicale.
               </p>
@@ -101,7 +101,7 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
                   <div
                     key={c.id}
                     style={{
-                      backgroundColor: '#FDFBF7',
+                      backgroundColor: 'var(--color-caisse-bg)',
                       borderRadius: '16px',
                       border: '1px solid rgba(131, 116, 107, 0.18)',
                       padding: '16px',
@@ -110,17 +110,17 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
                   >
                     <div className="flex items-center justify-between border-b border-[rgba(131,116,107,0.1)] pb-2">
                       <div>
-                        <h4 className="font-bold text-sm text-[#1A1C1A]">
+                        <h4 className="font-bold text-sm text-[color:var(--color-text)]">
                           Semaine du {start} au {end}
                         </h4>
                         {closedDate && (
-                          <span className="text-[11px] text-[#51443C]">
+                          <span className="text-[11px] text-[color:var(--color-muted)]">
                             Clôturé le {closedDate} {c.profiles?.full_name ? `par ${c.profiles.full_name}` : ''}
                           </span>
                         )}
                       </div>
                       {c.recharge_source === 'non_enregistree' ? (
-                        <span className="text-[11px] font-bold text-[#92400E] bg-[#FEF3C7] px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-bold text-[color:var(--color-badge-warning-text)] bg-[var(--color-badge-warning-bg)] px-2 py-0.5 rounded-full">
                           Bilan non fait
                         </span>
                       ) : c.recharge_source === 'reinitialisation' ? (
@@ -128,7 +128,7 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
                           Réinitialisé
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-[#4B6450] bg-[#E6F4EA] px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-[11px] font-bold text-[color:var(--color-secondary)] bg-[#E6F4EA] px-2 py-0.5 rounded-full flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" /> Clôturé
                         </span>
                       )}
@@ -136,22 +136,22 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
 
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       <div className="bg-[#FFFFFF] p-2 rounded-lg border border-[rgba(131,116,107,0.1)]">
-                        <span className="text-[10px] text-[#51443C] block uppercase font-bold">Alloué</span>
-                        <span className="font-black text-[#1A1C1A]">
+                        <span className="text-[10px] text-[color:var(--color-muted)] block uppercase font-bold">Alloué</span>
+                        <span className="font-black text-[color:var(--color-text)]">
                           {formatMoney(Number(c.total_allocated))} {currency}
                         </span>
                       </div>
 
                       <div className="bg-[#FFFFFF] p-2 rounded-lg border border-[rgba(131,116,107,0.1)]">
-                        <span className="text-[10px] text-[#51443C] block uppercase font-bold">Dépensé</span>
-                        <span className="font-black text-[#991B1B]">
+                        <span className="text-[10px] text-[color:var(--color-muted)] block uppercase font-bold">Dépensé</span>
+                        <span className="font-black text-[color:var(--color-badge-danger-text)]">
                           -{formatMoney(Number(c.total_spent))} {currency}
                         </span>
                       </div>
 
                       <div className="bg-[#FFFFFF] p-2 rounded-lg border border-[rgba(131,116,107,0.1)]">
-                        <span className="text-[10px] text-[#51443C] block uppercase font-bold">Solde final</span>
-                        <span className="font-black text-[#4B6450]">
+                        <span className="text-[10px] text-[color:var(--color-muted)] block uppercase font-bold">Solde final</span>
+                        <span className="font-black text-[color:var(--color-secondary)]">
                           {formatMoney(Number(c.current_balance))} {currency}
                         </span>
                       </div>
@@ -159,15 +159,15 @@ export default function CycleArchiveDrawer({ isOpen, onClose }: Props) {
 
                     {/* Détail de la recharge */}
                     {c.recharge_amount > 0 && (
-                      <div className="flex items-center justify-between text-xs pt-1 text-[#51443C]">
+                      <div className="flex items-center justify-between text-xs pt-1 text-[color:var(--color-muted)]">
                         <span>Recharge effectuée :</span>
-                        <strong className="text-[#815431]">
+                        <strong className="text-[color:var(--color-primary)]">
                           +{formatMoney(Number(c.recharge_amount))} {currency} ({c.recharge_source === 'ventes_hebdo' ? 'Tiroir de caisse' : 'Externe'})
                         </strong>
                       </div>
                     )}
                     {c.recharge_source === 'non_enregistree' && (
-                      <p className="text-[11px] text-[#92400E]">
+                      <p className="text-[11px] text-[color:var(--color-badge-warning-text)]">
                         Semaine basculée automatiquement : aucune recharge enregistrée en caisse.
                       </p>
                     )}

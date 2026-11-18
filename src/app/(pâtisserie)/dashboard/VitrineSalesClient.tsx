@@ -66,7 +66,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
             <div>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px' }}>Vente Rapide (Vitrine)</h2>
                 {products.length === 0 ? (
-                    <p style={{ color: '#6b7280' }}>Aucune recette disponible.</p>
+                    <p style={{ color: 'var(--color-muted)' }}>Aucune recette disponible.</p>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
                         {products.map(product => (
@@ -75,7 +75,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
                                 onClick={() => addToCart(product)}
                                 style={{
                                     background: '#fff',
-                                    border: '1px solid #e5e7eb',
+                                    border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
                                     padding: '16px',
                                     textAlign: 'center',
@@ -90,7 +90,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
                                 onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                             >
-                                <div style={{ fontWeight: 600, color: '#374151' }}>{product.name}</div>
+                                <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{product.name}</div>
                                 <div style={{ color: '#2563EB', fontWeight: 700 }}>{product.selling_price.toLocaleString('fr-FR')} {currency}</div>
                             </button>
                         ))}
@@ -99,29 +99,29 @@ export default function VitrineSalesClient({ products, currency }: { products: P
             </div>
 
             {/* Ticket de caisse / Panier */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ padding: '16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ padding: '16px', background: 'var(--color-well)', borderBottom: '1px solid var(--color-border)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingCart size={18} />
                     Panier en cours
                 </div>
                 
                 <div style={{ padding: '16px', flex: 1, overflowY: 'auto' }}>
                     {cart.length === 0 ? (
-                        <div style={{ color: '#9ca3af', textAlign: 'center', marginTop: '40px' }}>Le panier est vide</div>
+                        <div style={{ color: 'var(--color-muted)', textAlign: 'center', marginTop: '40px' }}>Le panier est vide</div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {cart.map(item => (
                                 <div key={item.product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
                                         <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{item.product.name}</div>
-                                        <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
                                             {item.product.selling_price} {currency} / u
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', background: '#f3f4f6', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--color-well)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
                                         <button 
                                             onClick={() => removeFromCart(item.product.id)}
-                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #e5e7eb' }}
+                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--color-border)' }}
                                         >
                                             <Minus size={16} />
                                         </button>
@@ -148,7 +148,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
 
                                         <button 
                                             onClick={() => addToCart(item.product)}
-                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: '1px solid #e5e7eb' }}
+                                            style={{ width: '36px', height: '36px', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: '1px solid var(--color-border)' }}
                                         >
                                             <Plus size={16} />
                                         </button>
@@ -159,7 +159,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
                     )}
                 </div>
 
-                <div style={{ padding: '20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                <div style={{ padding: '20px', borderTop: '1px solid var(--color-border)', background: 'var(--color-well)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '1.25rem' }}>
                         <span style={{ fontWeight: 600 }}>Total :</span>
                         <span style={{ fontWeight: 800, color: '#111827' }}>{totalAmount.toLocaleString('fr-FR')} {currency}</span>

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { closeSingleSession } from './session-utils'
+import { calculateCaisseMetrics, type CaisseTransactionInput } from '@/lib/domain/caisse-metrics'
 import { AuthContextError, requireOrgRole } from '@/lib/auth/organization-context'
 
 function getErrorMessage(err: unknown) {
@@ -84,5 +85,67 @@ export async function closeCurrentSession() {
     } catch (err: unknown) {
         const status = err instanceof AuthContextError ? err.status : 500
         return { success: false, error: status === 403 ? 'Seul un gérant ou un vendeur peut clôturer la caisse' : getErrorMessage(err) }
+    }
+}
+
+export type SessionClosingPreview = {
+    openedAt: string
+    totalRevenue: number
+    totalCash: number
+    totalMobileMoney: number
+    transactionCount: number
+    totalPending: number
+}
+
+/**
+ * Récapitulatif de la journée affiché avant la clôture. Lecture seule : mêmes
+ * métriques que la clôture, mais calculées avec le client de l'utilisateur
+ * (RLS) et sans aucune écriture.
+ */
+export async function getSessionClosingPreviewAction(): Promise<
+    { success: true; preview: SessionClosingPreview } | { success: false; error: string }
+> {
+    try {
+        const { supabase, organizationId } = await requireOrgRole(['gerant', 'super_admin', 'vendeur'])
+
+        const { data: session, error } = await supabase
+            .from('sales_sessions')
+            .select('id, opened_at')
+            .eq('organization_id', organizationId)
+            .eq('status', 'open')
+            .maybeSingle()
+        if (error) return { success: false, error: error.message }
+        if (!session?.opened_at) return { success: false, error: 'Aucune session ouverte' }
+
+        const [{ data: transactions, error: txError }, { data: orders, error: orderError }] = await Promise.all([
+            supabase
+                .from('transactions')
+                .select('amount, payment_method, payment_details, label_type')
+                .eq('organization_id', organizationId)
+                .is('deleted_at', null)
+                .gte('created_at', session.opened_at),
+            supabase
+                .from('orders')
+                .select('id, total_amount, deposit_amount, status')
+                .eq('organization_id', organizationId)
+                .is('deleted_at', null)
+                .gte('created_at', session.opened_at),
+        ])
+        if (txError || orderError) return { success: false, error: (txError || orderError)!.message }
+
+        const metrics = calculateCaisseMetrics((transactions ?? []) as unknown as CaisseTransactionInput[], orders ?? [])
+        return {
+            success: true,
+            preview: {
+                openedAt: session.opened_at,
+                totalRevenue: metrics.totalRevenue,
+                totalCash: metrics.totalCash,
+                totalMobileMoney: metrics.totalMobileMoney,
+                transactionCount: (transactions ?? []).length,
+                totalPending: metrics.totalPending,
+            },
+        }
+    } catch (err: unknown) {
+        return { success: false, error: getErrorMessage(err) }
     }
 }

@@ -81,7 +81,7 @@ export default function RefundModal({ isOpen, onClose, onSuccess, currency, rece
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <RotateCcw size={20} color="var(--color-error, #D94F38)" />
+            <RotateCcw size={20} color="var(--color-error, var(--color-error))" />
             <h3 id="refund-title" style={{ fontWeight: 800, fontSize: '1rem', margin: 0 }}>Remboursement</h3>
           </div>
           <button onClick={handleClose} aria-label="Fermer" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -118,7 +118,7 @@ export default function RefundModal({ isOpen, onClose, onSuccess, currency, rece
           {/* Montant */}
           <div>
             <label htmlFor="refund-amount" style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '0.875rem' }}>
-              Montant à rembourser {selectedTx && <span style={{ color: '#666', fontWeight: 400 }}>(max : {maxAmount.toLocaleString('fr-FR')} {currency})</span>}
+              Montant à rembourser {selectedTx && <span style={{ color: 'var(--color-muted)', fontWeight: 400 }}>(max : {maxAmount.toLocaleString('fr-FR')} {currency})</span>}
             </label>
             <input
               id="refund-amount"
@@ -146,7 +146,7 @@ export default function RefundModal({ isOpen, onClose, onSuccess, currency, rece
           {/* Raison */}
           <div>
             <label htmlFor="refund-reason" style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '0.875rem' }}>
-              Raison du remboursement <span style={{ color: '#D94F38' }}>*</span>
+              Raison du remboursement <span style={{ color: 'var(--color-error)' }}>*</span>
             </label>
             <textarea
               id="refund-reason"
@@ -162,7 +162,7 @@ export default function RefundModal({ isOpen, onClose, onSuccess, currency, rece
 
           {/* Erreur */}
           {error && (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', background: 'rgba(217,79,56,0.08)', border: '1px solid rgba(217,79,56,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#D94F38', fontSize: '0.875rem' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', background: 'rgba(217,79,56,0.08)', border: '1px solid rgba(217,79,56,0.3)', borderRadius: '8px', padding: '10px 14px', color: 'var(--color-error)', fontSize: '0.875rem' }}>
               <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
               {error}
             </div>
@@ -177,7 +177,7 @@ export default function RefundModal({ isOpen, onClose, onSuccess, currency, rece
               type="submit"
               disabled={loading}
               className="btn"
-              style={{ flex: 1, background: '#D94F38', color: 'white', opacity: loading ? 0.6 : 1 }}
+              style={{ flex: 1, background: 'var(--color-error)', color: 'white', opacity: loading ? 0.6 : 1 }}
             >
               {loading ? 'Traitement…' : 'Valider le remboursement'}
             </button>

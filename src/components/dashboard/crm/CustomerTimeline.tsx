@@ -12,28 +12,28 @@ interface CustomerTimelineProps {
 }
 
 const STATUS_LABELS: Record<string, { label: string; bg: string; text: string }> = {
-  confirmed: { label: "⏳ Confirmée", bg: "#FEF3C7", text: "#92400E" },
-  in_preparation: { label: "👨‍🍳 En préparation", bg: "#DBEAFE", text: "#1E40AF" },
-  ready: { label: "✅ Prête", bg: "#D1FAE5", text: "#065F46" },
+  confirmed: { label: "⏳ Confirmée", bg: "var(--color-badge-warning-bg)", text: "var(--color-badge-warning-text)" },
+  in_preparation: { label: "👨‍🍳 En préparation", bg: "var(--color-badge-production-bg)", text: "var(--color-badge-production-text)" },
+  ready: { label: "✅ Prête", bg: "var(--color-badge-success-bg)", text: "var(--color-badge-success-text)" },
   awaiting_pickup: { label: "📦 Attente retrait", bg: "#FFE4E6", text: "#9F1239" },
-  delivered: { label: "✔ Livrée / Retirée", bg: "#F3F4F6", text: "#374151" },
-  cancelled: { label: "✖ Annulée", bg: "#FEE2E2", text: "#991B1B" },
+  delivered: { label: "✔ Livrée / Retirée", bg: "var(--color-well)", text: "var(--color-text)" },
+  cancelled: { label: "✖ Annulée", bg: "var(--color-badge-danger-bg)", text: "var(--color-badge-danger-text)" },
   // Rétrocompatibilité
-  pending: { label: "⏳ Confirmée", bg: "#FEF3C7", text: "#92400E" },
-  production: { label: "👨‍🍳 En préparation", bg: "#DBEAFE", text: "#1E40AF" },
-  completed: { label: "✔ Livrée / Retirée", bg: "#F3F4F6", text: "#374151" },
+  pending: { label: "⏳ Confirmée", bg: "var(--color-badge-warning-bg)", text: "var(--color-badge-warning-text)" },
+  production: { label: "👨‍🍳 En préparation", bg: "var(--color-badge-production-bg)", text: "var(--color-badge-production-text)" },
+  completed: { label: "✔ Livrée / Retirée", bg: "var(--color-well)", text: "var(--color-text)" },
 };
 
 const PAYMENT_STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: LucideIcon }> = {
-  unpaid: { label: "Impayé", bg: "#FEE2E2", text: "#B91C1C", icon: Wallet },
-  deposit_paid: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "#815431", icon: Wallet },
-  partial: { label: "Partiel", bg: "rgba(217, 119, 6, 0.08)", text: "#D97706", icon: Wallet },
-  paid: { label: "Soldé", bg: "#D1FAE5", text: "#065F46", icon: CheckCircle2 },
-  overpaid: { label: "Trop-perçu", bg: "#FEF3C7", text: "#92400E", icon: AlertTriangle },
+  unpaid: { label: "Impayé", bg: "var(--color-badge-danger-bg)", text: "var(--color-error)", icon: Wallet },
+  deposit_paid: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "var(--color-primary)", icon: Wallet },
+  partial: { label: "Partiel", bg: "rgba(217, 119, 6, 0.08)", text: "var(--color-badge-warning-accent)", icon: Wallet },
+  paid: { label: "Soldé", bg: "var(--color-badge-success-bg)", text: "var(--color-badge-success-text)", icon: CheckCircle2 },
+  overpaid: { label: "Trop-perçu", bg: "var(--color-badge-warning-bg)", text: "var(--color-badge-warning-text)", icon: AlertTriangle },
   // Rétrocompatibilité
-  EN_ATTENTE: { label: "Impayé", bg: "#FEE2E2", text: "#B91C1C", icon: Wallet },
-  PARTIEL: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "#815431", icon: Wallet },
-  SOLDEE: { label: "Soldé", bg: "#D1FAE5", text: "#065F46", icon: CheckCircle2 },
+  EN_ATTENTE: { label: "Impayé", bg: "var(--color-badge-danger-bg)", text: "var(--color-error)", icon: Wallet },
+  PARTIEL: { label: "Acompte", bg: "rgba(129, 84, 49, 0.08)", text: "var(--color-primary)", icon: Wallet },
+  SOLDEE: { label: "Soldé", bg: "var(--color-badge-success-bg)", text: "var(--color-badge-success-text)", icon: CheckCircle2 },
 };
 
 export default function CustomerTimeline({ orders, formatCurrency }: CustomerTimelineProps) {
@@ -63,11 +63,11 @@ export default function CustomerTimeline({ orders, formatCurrency }: CustomerTim
 
           {orders.map((order) => (
             <div key={order.id} className="relative flex items-start gap-6 group">
-              <div className="absolute left-[14px] top-1.5 w-3 h-3 rounded-full bg-[#DC5F4A] ring-4 ring-[#DC5F4A]/10 z-10 group-hover:scale-125 transition-transform" />
+              <div className="absolute left-[14px] top-1.5 w-3 h-3 rounded-full bg-[var(--color-primary)] ring-4 ring-[color:var(--color-primary)]/10 z-10 group-hover:scale-125 transition-transform" />
               <div className="flex-1 bg-white p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all ml-10 shadow-sm">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
-                    <ShoppingBag size={14} className="text-[#DC5F4A]" />
+                    <ShoppingBag size={14} className="text-[color:var(--color-primary)]" />
                     <span className="text-sm font-black text-slate-800">
                       Commande #{order.order_number || order.id.substring(0, 8)}
                     </span>

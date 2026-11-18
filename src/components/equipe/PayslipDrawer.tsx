@@ -149,12 +149,12 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                     {data.primes.map(p => (
                       <div key={p.id} style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.7rem', background: '#D1FAE5', color: '#065F46', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>PRIME</span>
-                          <span style={{ fontSize: '0.85rem', color: '#065F46', fontWeight: 500 }}>{p.label}</span>
+                          <span style={{ fontSize: '0.7rem', background: 'var(--color-badge-success-bg)', color: 'var(--color-badge-success-text)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>PRIME</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-badge-success-text)', fontWeight: 500 }}>{p.label}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, color: '#059669', fontSize: '0.9rem' }}>+ {Number(p.amount).toLocaleString('fr-FR')} {currency}</span>
-                          <button type="button" onClick={() => handleDeleteEvent(p.id, p.label)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--color-badge-success-accent)', fontSize: '0.9rem' }}>+ {Number(p.amount).toLocaleString('fr-FR')} {currency}</span>
+                          <button type="button" onClick={() => handleDeleteEvent(p.id, p.label)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}>
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -167,14 +167,14 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                 {data.retenues.length > 0 && (
                   <div style={{ borderBottom: '1px solid var(--color-border)' }}>
                     {data.retenues.map(r => (
-                      <div key={r.id} style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FEF2F2' }}>
+                      <div key={r.id} style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-badge-danger-bg)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.7rem', background: '#FEE2E2', color: '#991B1B', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>RETENUE</span>
-                          <span style={{ fontSize: '0.85rem', color: '#DC2626', fontWeight: 500 }}>{r.label}</span>
+                          <span style={{ fontSize: '0.7rem', background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>RETENUE</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--color-badge-danger-accent)', fontWeight: 500 }}>{r.label}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.9rem' }}>− {Number(r.amount).toLocaleString('fr-FR')} {currency}</span>
-                          <button type="button" onClick={() => handleDeleteEvent(r.id, r.label)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '4px' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--color-badge-danger-accent)', fontSize: '0.9rem' }}>− {Number(r.amount).toLocaleString('fr-FR')} {currency}</span>
+                          <button type="button" onClick={() => handleDeleteEvent(r.id, r.label)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: '4px' }}>
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -186,7 +186,7 @@ export default function PayslipDrawer({ open, onClose, employeeId, employeeName,
                 {/* Net à payer */}
                 <div style={{ padding: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-text)' }}>
                   <span style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net à payer</span>
-                  <span style={{ fontWeight: 900, color: '#FDE8DB', fontSize: '1.25rem' }}>
+                  <span style={{ fontWeight: 900, color: 'var(--color-caisse-border)', fontSize: '1.25rem' }}>
                     {Number(data.net).toLocaleString('fr-FR')} {currency}
                   </span>
                 </div>

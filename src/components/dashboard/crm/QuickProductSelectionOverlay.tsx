@@ -48,7 +48,7 @@ export default function QuickProductSelectionOverlay({
     <div className="absolute inset-0 z-50 bg-white flex flex-col">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-[#DC5F4A]/10 p-2 rounded-xl text-[#DC5F4A]">
+              <div className="bg-[var(--color-primary)]/10 p-2 rounded-xl text-[color:var(--color-primary)]">
                 <ShoppingCart size={20} />
               </div>
               <div>
@@ -77,7 +77,7 @@ export default function QuickProductSelectionOverlay({
                 placeholder="Rechercher un produit (Pain, Gâteau, Boisson...)"
                 value={searchProduct}
                 onChange={(e) => setSearchProduct(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:border-[#DC5F4A]/20 transition-all shadow-sm"
+                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:border-[color:var(--color-primary)]/20 transition-all shadow-sm"
               />
             </div>
 
@@ -87,9 +87,9 @@ export default function QuickProductSelectionOverlay({
                   key={product.id}
                   onClick={() => handleProductClick(product)}
                   disabled={isPending}
-                  className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-[#DC5F4A] hover:shadow-md transition-all text-left flex flex-col group disabled:opacity-50"
+                  className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-[color:var(--color-primary)] hover:shadow-md transition-all text-left flex flex-col group disabled:opacity-50"
                 >
-                  <div className="relative w-full aspect-square rounded-xl bg-slate-50 mb-3 flex items-center justify-center text-[#DC5F4A]/20 group-hover:text-[#DC5F4A]/40 transition-colors overflow-hidden">
+                  <div className="relative w-full aspect-square rounded-xl bg-slate-50 mb-3 flex items-center justify-center text-[color:var(--color-primary)]/20 group-hover:text-[color:var(--color-primary)]/40 transition-colors overflow-hidden">
                     {product.image_url ? (
                       <Image
                         src={product.image_url}
@@ -106,7 +106,7 @@ export default function QuickProductSelectionOverlay({
                   <p className="text-sm font-black text-slate-800 line-clamp-1">
                     {product.name}
                   </p>
-                  <p className="text-xs font-bold text-[#DC5F4A] mt-1">
+                  <p className="text-xs font-bold text-[color:var(--color-primary)] mt-1">
                     {formatCurrency(product.selling_price)}
                   </p>
                 </button>

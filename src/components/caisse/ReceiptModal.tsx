@@ -108,17 +108,17 @@ export default function ReceiptModal({ receipt, onClose }: Props) {
         </div>
 
         {/* Contenu du reçu (utilisé pour l'impression) */}
-        <div ref={printRef} style={{ fontFamily: "'Courier New', monospace", fontSize: '13px', lineHeight: '1.5', border: '1px dashed #ccc', padding: '16px', borderRadius: '8px' }}>
+        <div ref={printRef} style={{ fontFamily: "'Courier New', monospace", fontSize: '13px', lineHeight: '1.5', border: '1px dashed var(--color-border)', padding: '16px', borderRadius: '8px' }}>
           {/* En-tête boutique */}
           <div className="center bold" style={{ textAlign: 'center', fontWeight: 700, fontSize: '15px' }}>{receipt.orgName}</div>
           {receipt.orgAddress && (
-            <div className="center" style={{ textAlign: 'center', fontSize: '11px', color: '#555' }}>{receipt.orgAddress}</div>
+            <div className="center" style={{ textAlign: 'center', fontSize: '11px', color: 'var(--color-muted)' }}>{receipt.orgAddress}</div>
           )}
           <div style={{ textAlign: 'center', marginTop: '4px' }}>
             <span style={{ border: '1px solid #000', padding: '1px 6px', fontSize: '11px' }}>{formatLabel(receipt.labelType)}</span>
           </div>
 
-          <div style={{ borderTop: '1px dashed #999', margin: '8px 0' }} />
+          <div style={{ borderTop: '1px dashed var(--color-muted)', margin: '8px 0' }} />
 
           {/* Infos transaction */}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
@@ -127,7 +127,7 @@ export default function ReceiptModal({ receipt, onClose }: Props) {
           </div>
           <div style={{ fontSize: '11px' }}>Client : <strong>{receipt.clientName}</strong></div>
 
-          <div style={{ borderTop: '1px dashed #999', margin: '8px 0' }} />
+          <div style={{ borderTop: '1px dashed var(--color-muted)', margin: '8px 0' }} />
 
           {/* Lignes articles */}
           {receipt.items.map((item, i) => (
@@ -140,7 +140,7 @@ export default function ReceiptModal({ receipt, onClose }: Props) {
             </div>
           ))}
 
-          <div style={{ borderTop: '1px dashed #999', margin: '8px 0' }} />
+          <div style={{ borderTop: '1px dashed var(--color-muted)', margin: '8px 0' }} />
 
           {/* Totaux */}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '14px' }}>
@@ -161,15 +161,15 @@ export default function ReceiptModal({ receipt, onClose }: Props) {
           )}
 
           {receipt.paymentDetails && Object.keys(receipt.paymentDetails).length <= 1 && (
-            <div style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>
               Règlement : {receipt.paymentMethod}
             </div>
           )}
 
-          <div style={{ borderTop: '1px dashed #999', margin: '8px 0' }} />
+          <div style={{ borderTop: '1px dashed var(--color-muted)', margin: '8px 0' }} />
 
           {/* Pied de reçu */}
-          <div style={{ textAlign: 'center', fontSize: '11px', color: '#555' }}>
+          <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--color-muted)' }}>
             Merci pour votre confiance !<br />
             À bientôt chez {receipt.orgName}
           </div>

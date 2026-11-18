@@ -10,10 +10,10 @@ const REASON_LABELS: Record<string, string> = {
     adjustment: '⚖ Ajustement',
 }
 const REASON_COLORS: Record<string, string> = {
-    production: '#DBEAFE',
-    waste: '#FEE2E2',
-    purchase: '#D1FAE5',
-    adjustment: '#FEF3C7',
+    production: 'var(--color-badge-production-bg)',
+    waste: 'var(--color-badge-danger-bg)',
+    purchase: 'var(--color-badge-success-bg)',
+    adjustment: 'var(--color-badge-warning-bg)',
 }
 
 interface Log {
@@ -119,9 +119,9 @@ export default function InventaireClient({ logs, lowStockIngredients }: Props) {
                     borderRadius: '14px', padding: '12px 18px', marginBottom: '20px',
                     display: 'flex', alignItems: 'flex-start', gap: '12px',
                 }}>
-                    <AlertTriangle size={20} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <AlertTriangle size={20} color="var(--color-badge-warning-accent)" style={{ flexShrink: 0, marginTop: '2px' }} />
                     <div>
-                        <p style={{ margin: 0, fontWeight: 700, color: '#92400E', fontSize: '0.875rem' }}>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--color-badge-warning-text)', fontSize: '0.875rem' }}>
                             {lowStockIngredients.length} ingrédient{lowStockIngredients.length > 1 ? 's' : ''} en rupture imminente
                         </p>
                         <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#B45309' }}>
@@ -244,11 +244,11 @@ export default function InventaireClient({ logs, lowStockIngredients }: Props) {
                                             {log.ingredients?.name ?? '—'}
                                         </td>
                                         <td style={{ padding: '10px 16px' }}>
-                                            <span style={{ padding: '3px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600, background: REASON_COLORS[log.reason] ?? '#F3F4F6' }}>
+                                            <span style={{ padding: '3px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 600, background: REASON_COLORS[log.reason] ?? 'var(--color-well)' }}>
                                                 {REASON_LABELS[log.reason] ?? log.reason}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '10px 16px', fontWeight: 700, color: log.quantity_change >= 0 ? '#4C9E6A' : '#D94F38', fontSize: '0.9rem' }}>
+                                        <td style={{ padding: '10px 16px', fontWeight: 700, color: log.quantity_change >= 0 ? 'var(--color-success)' : 'var(--color-error)', fontSize: '0.9rem' }}>
                                             {log.quantity_change >= 0 ? '+' : ''}{log.quantity_change} {log.ingredients?.unit ?? ''}
                                         </td>
                                         <td style={{ padding: '10px 16px', fontSize: '0.8rem', color: 'var(--color-muted)' }}>

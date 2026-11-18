@@ -219,7 +219,7 @@ export default function DatePicker({
                                 cursor: disabled ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.15s',
                                 background: selected
-                                    ? 'linear-gradient(135deg, var(--color-rose-dark), #C08A63)'
+                                    ? 'linear-gradient(135deg, var(--color-rose-dark), var(--color-primary-container))'
                                     : 'transparent',
                                 color: selected
                                     ? '#fff'
@@ -271,7 +271,7 @@ export default function DatePicker({
                     alignItems: 'center',
                     gap: '10px',
                     padding: '10px 14px',
-                    background: hasError ? '#FFF5F5' : 'var(--color-cream)',
+                    background: hasError ? 'var(--color-badge-danger-bg)' : 'var(--color-cream)',
                     border: hasError ? '1.5px solid var(--color-error)' : '1.5px solid var(--color-border)',
                     borderRadius: '12px',
                     fontSize: '0.9rem',

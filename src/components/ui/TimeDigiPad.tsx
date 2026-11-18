@@ -244,7 +244,7 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
                                     ? 'var(--color-cream)'
                                     : '#FAFAFA',
                             color: key === 'C'
-                                ? '#D94F38'
+                                ? 'var(--color-error)'
                                 : key === '⌫'
                                     ? 'var(--color-muted)'
                                     : 'var(--color-text)',
@@ -274,7 +274,7 @@ export default function TimeDigiPad({ value, onChange, placeholder = 'Heure de r
 
             {isComplete && (
                 <div style={{ marginTop: '9px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#4C9E6A', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>
                         ✓ Heure enregistrée
                     </span>
                 </div>

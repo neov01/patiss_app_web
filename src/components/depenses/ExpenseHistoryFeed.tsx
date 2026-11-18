@@ -139,7 +139,7 @@ export default function ExpenseHistoryFeed({
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Recherche */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#83746B] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[color:var(--color-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Rechercher une dépense ou un auteur..."
@@ -147,20 +147,20 @@ export default function ExpenseHistoryFeed({
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 height: '40px',
-                backgroundColor: '#F5EEE4',
+                backgroundColor: 'var(--color-well)',
                 borderRadius: '10px',
                 border: 'none',
                 paddingLeft: '36px',
                 paddingRight: '12px',
                 fontSize: '13px',
-                color: '#1A1C1A',
+                color: 'var(--color-text)',
                 width: '100%',
               }}
             />
           </div>
 
           {/* Compteur d'éléments */}
-          <div className="text-xs font-bold text-[#51443C] shrink-0 text-right">
+          <div className="text-xs font-bold text-[color:var(--color-muted)] shrink-0 text-right">
             {filteredItems.length} opération{filteredItems.length > 1 ? 's' : ''} trouvée{filteredItems.length > 1 ? 's' : ''}
           </div>
         </div>
@@ -173,8 +173,8 @@ export default function ExpenseHistoryFeed({
               padding: '6px 14px',
               borderRadius: '9999px',
               fontWeight: 700,
-              backgroundColor: selectedCategory === 'all' ? '#4B6450' : '#F5EEE4',
-              color: selectedCategory === 'all' ? '#FFFFFF' : '#51443C',
+              backgroundColor: selectedCategory === 'all' ? 'var(--color-secondary)' : 'var(--color-well)',
+              color: selectedCategory === 'all' ? '#FFFFFF' : 'var(--color-muted)',
               border: 'none',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -194,8 +194,8 @@ export default function ExpenseHistoryFeed({
                   padding: '6px 12px',
                   borderRadius: '9999px',
                   fontWeight: 600,
-                  backgroundColor: isSelected ? '#815431' : '#F5EEE4',
-                  color: isSelected ? '#FFFFFF' : '#51443C',
+                  backgroundColor: isSelected ? 'var(--color-primary)' : 'var(--color-well)',
+                  color: isSelected ? '#FFFFFF' : 'var(--color-muted)',
                   border: 'none',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -220,9 +220,9 @@ export default function ExpenseHistoryFeed({
           }}
           className="space-y-2"
         >
-          <Inbox className="w-10 h-10 text-[#83746B] mx-auto opacity-50" />
-          <h3 className="text-base font-bold text-[#1A1C1A]">Aucune dépense enregistrée</h3>
-          <p className="text-xs text-[#51443C] max-w-sm mx-auto">
+          <Inbox className="w-10 h-10 text-[color:var(--color-muted)] mx-auto opacity-50" />
+          <h3 className="text-base font-bold text-[color:var(--color-text)]">Aucune dépense enregistrée</h3>
+          <p className="text-xs text-[color:var(--color-muted)] max-w-sm mx-auto">
             Utilisez le bouton « Nouvelle dépense » ci-dessus pour saisir les achats d'ingrédients, emballages ou courses de fonctionnement.
           </p>
         </div>
@@ -241,11 +241,11 @@ export default function ExpenseHistoryFeed({
               <div key={group.date} className="space-y-2.5">
                 {/* En-tête de jour */}
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#51443C]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[color:var(--color-muted)]">
                     {group.label}
                   </span>
                   {dayExpensesTotal > 0 && (
-                    <span className="text-xs font-semibold text-[#815431]">
+                    <span className="text-xs font-semibold text-[color:var(--color-primary)]">
                       Total jour : -{formatMoney(dayExpensesTotal)} {currency}
                     </span>
                   )}
@@ -279,8 +279,8 @@ export default function ExpenseHistoryFeed({
                           <div className="flex items-center gap-3">
                             <div
                               style={{
-                                backgroundColor: '#CDEAD0',
-                                color: '#4B6450',
+                                backgroundColor: 'var(--color-secondary-container)',
+                                color: 'var(--color-secondary)',
                                 borderRadius: '12px',
                                 padding: '10px',
                               }}
@@ -289,32 +289,32 @@ export default function ExpenseHistoryFeed({
                             </div>
                             <div>
                               <div className="flex items-center gap-2 mb-0.5">
-                                <span className="bg-[#4B6450] text-white text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full">
+                                <span className="bg-[var(--color-secondary)] text-white text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full">
                                   Rallonge caisse
                                 </span>
-                                <span className="text-[11px] text-[#51443C] font-medium">
+                                <span className="text-[11px] text-[color:var(--color-muted)] font-medium">
                                   {item.date.toLocaleTimeString('fr-FR', {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                   })}
                                 </span>
                                 {item.data.profiles?.full_name && (
-                                  <span className="text-[11px] text-[#51443C]">
+                                  <span className="text-[11px] text-[color:var(--color-muted)]">
                                     par {item.data.profiles.full_name}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm font-bold text-[#1A1C1A]">
+                              <p className="text-sm font-bold text-[color:var(--color-text)]">
                                 {item.data.reason}
                               </p>
-                              <span className="text-[11px] text-[#4B6450] italic">
+                              <span className="text-[11px] text-[color:var(--color-secondary)] italic">
                                 Source : {item.data.source === 'caisse_du_jour' ? 'Tiroir-caisse des ventes (débit vérifié)' : 'Apport externe gérant'}
                               </span>
                             </div>
                           </div>
 
                           <div className="text-right shrink-0">
-                            <div className="text-base font-black text-[#4B6450] tracking-tight font-display">
+                            <div className="text-base font-black text-[color:var(--color-secondary)] tracking-tight font-display">
                               +{formatMoney(Number(item.data.amount))} <span className="text-xs font-bold">{currency}</span>
                             </div>
                           </div>

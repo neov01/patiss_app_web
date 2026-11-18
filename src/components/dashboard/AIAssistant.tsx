@@ -194,7 +194,7 @@ export default function AIAssistant({ currency, organizationId, userRole = 'vend
                                     display: 'flex', alignItems: 'center', gap: '8px',
                                     width: '100%', padding: '10px 12px', border: 'none',
                                     background: 'none', cursor: 'pointer', borderRadius: '8px',
-                                    fontSize: '0.875rem', color: '#D94F38', fontWeight: 600,
+                                    fontSize: '0.875rem', color: 'var(--color-error)', fontWeight: 600,
                                 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = '#FFF1F0')}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}

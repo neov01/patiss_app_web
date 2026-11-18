@@ -87,7 +87,7 @@ export default function SetupPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(145deg, #FDF8F3 0%, #FDE8E0 100%)',
+            background: 'linear-gradient(145deg, var(--color-caisse-bg) 0%, #FDE8E0 100%)',
             padding: '24px',
         }}>
             {/* Logo */}
@@ -99,7 +99,7 @@ export default function SetupPage() {
                     width: '72px',
                     height: '72px',
                     borderRadius: '24px',
-                    background: 'linear-gradient(135deg, #1E40AF, #4C9E6A)',
+                    background: 'linear-gradient(135deg, var(--color-badge-production-text), var(--color-success))',
                     marginBottom: '16px',
                     boxShadow: '0 8px 32px rgba(30,64,175,0.35)',
                 }}>
@@ -117,14 +117,14 @@ export default function SetupPage() {
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', alignItems: 'center' }}>
                 <div style={{
                     width: '32px', height: '32px', borderRadius: '50%',
-                    background: step === 'auth' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : '#4C9E6A',
+                    background: step === 'auth' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : 'var(--color-success)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'white', fontSize: '0.8rem', fontWeight: 700,
                 }}>{step !== 'auth' ? '✓' : '1'}</div>
-                <div style={{ width: '40px', height: '2px', background: step === 'auth' ? 'var(--color-border)' : '#4C9E6A' }} />
+                <div style={{ width: '40px', height: '2px', background: step === 'auth' ? 'var(--color-border)' : 'var(--color-success)' }} />
                 <div style={{
                     width: '32px', height: '32px', borderRadius: '50%',
-                    background: step === 'org' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : step === 'done' ? '#4C9E6A' : 'var(--color-border)',
+                    background: step === 'org' ? 'linear-gradient(135deg, var(--color-rose-dark), #C78A4A)' : step === 'done' ? 'var(--color-success)' : 'var(--color-border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: step === 'auth' ? 'var(--color-muted)' : 'white', fontSize: '0.8rem', fontWeight: 700,
                 }}>{step === 'done' ? '✓' : '2'}</div>
@@ -132,13 +132,13 @@ export default function SetupPage() {
 
             {/* Security notice */}
             <div style={{
-                background: '#EFF6FF', border: '1.5px solid #BFDBFE',
+                background: 'var(--color-badge-crm-bg)', border: '1.5px solid #BFDBFE',
                 borderRadius: 'var(--radius-md)', padding: '10px 16px',
                 display: 'flex', alignItems: 'center', gap: '10px',
                 marginBottom: '20px', maxWidth: '420px', width: '100%',
             }}>
-                <ShieldCheck size={16} color="#1E40AF" />
-                <span style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 500 }}>
+                <ShieldCheck size={16} color="var(--color-badge-production-text)" />
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-badge-production-text)', fontWeight: 500 }}>
                     🔒 Vos identifiants sont envoyés directement à Supabase (chiffrés). Rien n&apos;est stocké localement.
                 </span>
             </div>
@@ -257,19 +257,19 @@ export default function SetupPage() {
                 <div className="card animate-scale-in" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
                     <div style={{
                         width: '72px', height: '72px', borderRadius: '50%',
-                        background: '#D1FAE5', display: 'inline-flex',
+                        background: 'var(--color-badge-success-bg)', display: 'inline-flex',
                         alignItems: 'center', justifyContent: 'center', marginBottom: '16px',
                     }}>
-                        <ShieldCheck size={36} color="#065F46" />
+                        <ShieldCheck size={36} color="var(--color-badge-success-text)" />
                     </div>
-                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: '#065F46' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: 'var(--color-badge-success-text)' }}>
                         Super Admin configuré ! 🎉
                     </h2>
                     <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', margin: 0 }}>
                         Redirection vers le dashboard…
                     </p>
                     <div style={{ marginTop: '16px' }}>
-                        <Loader2 size={24} className="animate-spin" style={{ color: '#4C9E6A' }} />
+                        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-success)' }} />
                     </div>
                 </div>
             )}

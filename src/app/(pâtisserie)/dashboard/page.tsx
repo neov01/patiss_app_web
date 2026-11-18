@@ -206,7 +206,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                             title="Retraits du jour"
                             value={`${completedPickupsCount} / ${plannedPickupsCount}`}
                             subtitle="commandes récupérées"
-                            icon={ShoppingBag} iconColor="#10B981" accent="#D1FAE5"
+                            icon={ShoppingBag} iconColor="var(--color-badge-success-accent)" accent="var(--color-badge-success-bg)"
                             trend={completedPickupsCount === plannedPickupsCount && plannedPickupsCount > 0 ? 'up' : 'neutral'}
                         />
                         <StatCard
@@ -214,8 +214,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                             value={overdueCount}
                             subtitle={overdueCount > 0 ? "commandes non récupérées" : "Aucun retard"}
                             icon={Clock} 
-                            iconColor={overdueCount > 0 ? '#D94F38' : '#4C9E6A'} 
-                            accent={overdueCount > 0 ? '#FEE2E2' : '#D1FAE5'}
+                            iconColor={overdueCount > 0 ? 'var(--color-error)' : 'var(--color-success)'} 
+                            accent={overdueCount > 0 ? 'var(--color-badge-danger-bg)' : 'var(--color-badge-success-bg)'}
                             trend={overdueCount > 0 ? 'down' : 'neutral'}
                         />
                         <StatCard
@@ -223,26 +223,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                             value={alertCount}
                             subtitle={alertCount > 0 ? `${alertCount} ingrédient(s) sous le seuil` : 'Tout est OK'}
                             icon={AlertTriangle}
-                            iconColor={alertCount > 0 ? '#D94F38' : '#4C9E6A'}
-                            accent={alertCount > 0 ? '#FEE2E2' : '#D1FAE5'}
+                            iconColor={alertCount > 0 ? 'var(--color-error)' : 'var(--color-success)'}
+                            accent={alertCount > 0 ? 'var(--color-badge-danger-bg)' : 'var(--color-badge-success-bg)'}
                             trend={alertCount > 0 ? 'down' : 'neutral'}
                         />
                         <StatCard
                             title="Pertes"
                             value={`${wasteTotal.toFixed(1)}`}
                             subtitle={`kg enregistrés (${periodLabel})`}
-                            icon={TrendingUp} iconColor="#9CB8A0" accent="#D1FAE5"
+                            icon={TrendingUp} iconColor="#9CB8A0" accent="var(--color-badge-success-bg)"
                         />
                     </div>
 
                     {alertCount > 0 && (
                         <div className="animate-fade-in" style={{
-                            background: '#FEF2F2', border: '1.5px solid #FECACA',
+                            background: 'var(--color-badge-danger-bg)', border: '1.5px solid #FECACA',
                             borderRadius: 'var(--radius-md)', padding: '12px 16px',
                             display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px',
                         }}>
-                            <AlertTriangle size={18} color="#D94F38" />
-                            <span style={{ fontSize: '0.875rem', color: '#991B1B', fontWeight: 500 }}>
+                            <AlertTriangle size={18} color="var(--color-error)" />
+                            <span style={{ fontSize: '0.875rem', color: 'var(--color-badge-danger-text)', fontWeight: 500 }}>
                                 {alertCount} ingrédient{alertCount > 1 ? 's' : ''} sous le seuil d&apos;alerte.{' '}
                                 <Link href="/ingredients" prefetch={true} style={{ fontWeight: 700, textDecoration: 'underline' }}>Voir l&apos;inventaire →</Link>
                             </span>
@@ -330,28 +330,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '280px', paddingRight: '4px' }}>
                                     {todayOrders.map((o) => {
                                         // Calculer le style et label de statut
-                                        let statusColor = '#92400E'
-                                        let statusBg = '#FEF3C7'
+                                        let statusColor = 'var(--color-badge-warning-text)'
+                                        let statusBg = 'var(--color-badge-warning-bg)'
                                         let statusText = 'En attente'
                                         if (o.status === 'production' || o.status === 'in_preparation') {
-                                            statusColor = '#1E40AF'
-                                            statusBg = '#DBEAFE'
+                                            statusColor = 'var(--color-badge-production-text)'
+                                            statusBg = 'var(--color-badge-production-bg)'
                                             statusText = 'En cours'
                                         } else if (o.status === 'ready' || o.status === 'awaiting_pickup') {
-                                            statusColor = '#065F46'
-                                            statusBg = '#D1FAE5'
+                                            statusColor = 'var(--color-badge-success-text)'
+                                            statusBg = 'var(--color-badge-success-bg)'
                                             statusText = 'Prête'
                                         } else if (o.status === 'completed' || o.status === 'delivered') {
-                                            statusColor = '#374151'
-                                            statusBg = '#F3F4F6'
+                                            statusColor = 'var(--color-text)'
+                                            statusBg = 'var(--color-well)'
                                             statusText = 'Retirée'
                                         } else if (o.status === 'cancelled') {
-                                            statusColor = '#991B1B'
-                                            statusBg = '#FEE2E2'
+                                            statusColor = 'var(--color-badge-danger-text)'
+                                            statusBg = 'var(--color-badge-danger-bg)'
                                             statusText = 'Annulée'
                                         } else if (o.status === 'confirmed' || o.status === 'pending') {
-                                            statusColor = '#92400E'
-                                            statusBg = '#FEF3C7'
+                                            statusColor = 'var(--color-badge-warning-text)'
+                                            statusBg = 'var(--color-badge-warning-bg)'
                                             statusText = 'En attente'
                                         }
 
@@ -409,7 +409,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <>
                     <div className="metrics-carousel" style={{ display: 'flex', gap: '16px', marginBottom: '28px', overflowX: 'auto', paddingBottom: '12px', scrollSnapType: 'x mandatory' }}>
                         <StatCard title={`Commandes (${periodLabel})`} value={orders.length} icon={ShoppingBag} iconColor="var(--color-rose-dark)" accent="#E8B4A0" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
-                        <StatCard title="En attente" value={pendingCount} icon={Clock} iconColor="#E6A817" accent="#FEF3C7" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
+                        <StatCard title="En attente" value={pendingCount} icon={Clock} iconColor="#E6A817" accent="var(--color-badge-warning-bg)" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
                     </div>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                         <Link href="/commandes" prefetch={true} className="btn-secondary">
@@ -427,8 +427,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             {roleSlug === 'patissier' && (
                 <>
                     <div className="metrics-carousel" style={{ display: 'flex', gap: '16px', marginBottom: '28px', overflowX: 'auto', paddingBottom: '12px', scrollSnapType: 'x mandatory' }}>
-                        <StatCard title="À produire" value={pendingCount} icon={ChefHat} iconColor="#9CB8A0" accent="#D1FAE5" subtitle="commandes à traiter" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
-                        <StatCard title="Alertes stock" value={alertCount} icon={AlertTriangle} iconColor={alertCount > 0 ? '#D94F38' : '#4C9E6A'} accent={alertCount > 0 ? '#FEE2E2' : '#D1FAE5'} style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
+                        <StatCard title="À produire" value={pendingCount} icon={ChefHat} iconColor="#9CB8A0" accent="var(--color-badge-success-bg)" subtitle="commandes à traiter" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
+                        <StatCard title="Alertes stock" value={alertCount} icon={AlertTriangle} iconColor={alertCount > 0 ? 'var(--color-error)' : 'var(--color-success)'} accent={alertCount > 0 ? 'var(--color-badge-danger-bg)' : 'var(--color-badge-success-bg)'} style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
                     </div>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                         <Link href="/inventaire" prefetch={true} className="btn-primary">

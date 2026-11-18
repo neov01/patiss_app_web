@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import ProductPlate from '@/components/ui/ProductPlate'
 import { Search, Edit, Trash2, Loader2, Package, Archive, RotateCcw } from 'lucide-react'
 import { deleteProduct, toggleProductActive } from '@/lib/actions/products'
 import { toast } from 'sonner'
 import ProductModal from './ProductModal'
-import { PRODUCT_CATEGORIES, CATEGORY_ICONS } from '@/lib/constants/catalogue'
+import { PRODUCT_CATEGORIES } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -121,7 +121,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
         {/* Sélecteur de vue (Actifs / Archivés) */}
         <div style={{ 
           display: 'flex', 
-          background: 'var(--color-well, #F5EEE4)', 
+          background: 'var(--color-well, var(--color-well))', 
           padding: '4px', 
           borderRadius: '9999px', 
           border: '1.5px solid var(--color-border)',
@@ -181,7 +181,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
               fontWeight: 700,
               transition: 'all 0.2s',
               cursor: 'pointer',
-              border: activeCategory === cat ? 'none' : '1.5px solid var(--color-border, #E5E7EB)',
+              border: activeCategory === cat ? 'none' : '1.5px solid var(--color-border, var(--color-border))',
               background: activeCategory === cat ? 'var(--color-rose-dark, var(--color-rose-dark))' : '#fff',
               color: activeCategory === cat ? '#fff' : 'var(--color-muted, var(--color-muted))',
               boxShadow: activeCategory === cat ? '0 4px 12px rgba(196,131,106,0.3)' : 'none',
@@ -207,145 +207,82 @@ export default function CatalogueClient({ products, currency, availableIngredien
           Aucun produit ne correspond à votre recherche.
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-          gap: '20px'
-        }}>
+        <div className="product-grid">
           {filteredProducts.map(product => {
             const isOutOfStock = product.trackStock && (product.currentStock === 0 || product.currentStock === undefined)
             const isDeleting = deletingId === product.id
+            const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation() }
 
             return (
-              <div 
-                key={product.id} 
-                className="card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  padding: '24px',
-                  position: 'relative',
-                  opacity: isDeleting ? 0.5 : 1,
-                  transition: 'all 0.2s'
-                }}
+              <div
+                key={product.id}
+                className="product-tile is-static"
+                style={{ opacity: isDeleting ? 0.5 : 1 }}
               >
-                {/* Actions (Edit / Delete / Archive) */}
-                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '4px' }}>
-                  {viewMode === 'active' ? (
-                    <>
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setEditingProduct(product)
-                        }}
-                        style={{ background: 'var(--color-cream)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-muted)' }}
-                        title="Modifier"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          await handleToggleActive(product.id, false)
-                        }}
-                        disabled={archivingId === product.id}
-                        style={{ background: 'var(--color-well)', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--color-rose-dark)' }}
-                        title="Archiver"
-                      >
-                        {archivingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          await handleToggleActive(product.id, true)
-                        }}
-                        disabled={archivingId === product.id}
-                        style={{ background: '#ECFDF5', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#10B981' }}
-                        title="Restaurer"
-                      >
-                        {archivingId === product.id ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setProductToDelete({ id: product.id, name: product.name })
-                        }}
-                        disabled={isDeleting}
-                        style={{ background: '#FEF2F2', border: 'none', width: '32px', height: '32px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#D94F38' }}
-                        title="Supprimer définitivement"
-                      >
-                        {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                      </button>
-                    </>
-                  )}
-                </div>
+                <ProductPlate name={product.name} imageUrl={product.image_url}>
+                  {/* Actions (Modifier / Archiver / Restaurer / Supprimer) */}
+                  <div className="product-tile-actions">
+                    {viewMode === 'active' ? (
+                      <>
+                        <button
+                          type="button"
+                          className="product-tile-action"
+                          onClick={(e) => { stop(e); setEditingProduct(product) }}
+                          title="Modifier"
+                          aria-label={`Modifier ${product.name}`}
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          className="product-tile-action"
+                          onClick={async (e) => { stop(e); await handleToggleActive(product.id, false) }}
+                          disabled={archivingId === product.id}
+                          title="Archiver"
+                          aria-label={`Archiver ${product.name}`}
+                        >
+                          {archivingId === product.id ? <Loader2 size={18} className="animate-spin" /> : <Archive size={18} />}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="product-tile-action is-ok"
+                          onClick={async (e) => { stop(e); await handleToggleActive(product.id, true) }}
+                          disabled={archivingId === product.id}
+                          title="Restaurer"
+                          aria-label={`Restaurer ${product.name}`}
+                        >
+                          {archivingId === product.id ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                        </button>
+                        <button
+                          type="button"
+                          className="product-tile-action is-danger"
+                          onClick={(e) => { stop(e); setProductToDelete({ id: product.id, name: product.name }) }}
+                          disabled={isDeleting}
+                          title="Supprimer définitivement"
+                          aria-label={`Supprimer définitivement ${product.name}`}
+                        >
+                          {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </ProductPlate>
 
-                {/* Icône ou Photo du produit */}
-                <div style={{
-                  position: 'relative',
-                  width: '72px',
-                  height: '72px',
-                  borderRadius: '36px',
-                  background: product.image_url ? 'transparent' : 'var(--color-blush)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.75rem',
-                  marginBottom: '16px',
-                  border: '2px solid var(--color-border)',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  {product.image_url ? (
-                    <Image
-                      src={product.image_url}
-                      alt={product.name}
-                      fill
-                      unoptimized
-                      sizes="80px"
-                      style={{ objectFit: 'cover' }}
-                    />
-                  ) : (
-                    product.type === 'maison' ? CATEGORY_ICONS[product.category] || '🥐' : '📦'
+                <div className="product-tile-body">
+                  <span className="product-tile-name">{product.name}</span>
+                  {product.trackStock && (
+                    <span className={`product-tile-stock${isOutOfStock ? '' : ' is-ok'}`}>
+                      {isOutOfStock ? 'Rupture' : `${product.currentStock ?? 0} en stock`}
+                    </span>
                   )}
-                </div>
-                
-                {/* Infos du produit */}
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 4px' }}>{product.name}</h3>
-                <p style={{ fontSize: '1.15rem', fontWeight: 900, color: 'var(--color-rose-dark)', margin: '0 0 12px' }}>
-                  {Number(product.sellingPrice).toLocaleString('fr-FR')} {currency}
-                </p>
-                
-                {/* Badge de Stock / Rupture */}
-                {product.trackStock && (
-                  <span style={{
-                    background: isOutOfStock ? '#FEF3C7' : '#ECFDF5',
-                    color: isOutOfStock ? '#92400E' : '#065F46',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    padding: '6px 14px',
-                    borderRadius: '99px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    border: '1px solid',
-                    borderColor: isOutOfStock ? '#FDE68A' : '#A7F3D0'
-                  }}>
-                    {isOutOfStock ? 'Rupture' : `${product.currentStock ?? 0} en stock`}
+                  <span className="product-tile-price">
+                    {Number(product.sellingPrice).toLocaleString('fr-FR')}
+                    <span className="product-tile-cur">{currency}</span>
                   </span>
-                )}
+                </div>
               </div>
             )
           })}
@@ -375,7 +312,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
             borderRadius: '24px', padding: '32px', textAlign: 'center',
             boxShadow: '0 20px 60px rgba(45,27,14,0.15)'
           }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#D94F38' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '32px', background: 'var(--color-badge-danger-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-error)' }}>
               <Trash2 size={32} />
             </div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: '12px' }}>Supprimer le produit ?</h3>
@@ -385,13 +322,13 @@ export default function CatalogueClient({ products, currency, availableIngredien
             <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 onClick={() => setProductToDelete(null)}
-                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid #FDE8DB', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1.5px solid var(--color-caisse-border)', background: 'white', color: 'var(--color-muted)', fontWeight: 700, cursor: 'pointer' }}
               >
                 Annuler
               </button>
               <button 
                 onClick={handleDelete}
-                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: '#D94F38', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '14px', borderRadius: '12px', border: 'none', background: 'var(--color-error)', color: 'white', fontWeight: 700, cursor: 'pointer' }}
               >
                 Supprimer
               </button>

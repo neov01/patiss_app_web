@@ -154,7 +154,7 @@ export default function LoginPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(145deg, #FDF8F3 0%, #FDE8E0 100%)',
+            background: 'linear-gradient(145deg, var(--color-caisse-bg) 0%, #FDE8E0 100%)',
             padding: '24px',
             position: 'relative',
             overflow: 'hidden'
@@ -275,7 +275,7 @@ export default function LoginPage() {
                         <div style={{
                             padding: '12px 16px',
                             borderRadius: 'var(--radius-sm)',
-                            backgroundColor: '#FFF5F5',
+                            backgroundColor: 'var(--color-badge-danger-bg)',
                             border: '1.5px solid var(--color-error)',
                             color: 'var(--color-error)',
                             fontSize: '0.85rem',
