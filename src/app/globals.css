@@ -38,6 +38,51 @@
   --color-badge-danger-bg:            #FEE2E2;
   --color-badge-danger-text:          #991B1B;
   --color-badge-danger-accent:        #DC2626;
+
+  /* ── Palette Tailwind réalignée sur la charte « Atelier gourmand » ──
+     Les classes slate-*, gray-* et rose-* (CRM, clients) tombaient sur des gris
+     bleutés froids. On les redéfinit ici en neutres chauds : tout composant qui
+     les utilise suit la charte sans être modifié. slate-400 reste ≥ 4,5:1 sur blanc. */
+  --color-slate-50:  #FAF7F2;
+  --color-slate-100: #F5EEE4;
+  --color-slate-200: #E6D8CA;
+  --color-slate-300: #D5C3B8;
+  --color-slate-400: #7A6B62;
+  --color-slate-500: #6B5B52;
+  --color-slate-600: #51443C;
+  --color-slate-700: #3F342D;
+  --color-slate-800: #2A2420;
+  --color-slate-900: #1A1C1A;
+
+  --color-gray-50:  #FAF7F2;
+  --color-gray-100: #F5EEE4;
+  --color-gray-200: #E6D8CA;
+  --color-gray-300: #D5C3B8;
+  --color-gray-400: #7A6B62;
+  --color-gray-500: #6B5B52;
+  --color-gray-600: #51443C;
+  --color-gray-700: #3F342D;
+  --color-gray-800: #2A2420;
+  --color-gray-900: #1A1C1A;
+
+  /* rose-* → rampe terracotta (primary = rose-600) */
+  --color-rose-50:  #FBF3EC;
+  --color-rose-100: #F4E4D6;
+  --color-rose-200: #E8C9AE;
+  --color-rose-300: #D9A67F;
+  --color-rose-400: #C08A63;
+  --color-rose-500: #A06A45;
+  --color-rose-600: #815431;
+  --color-rose-700: #663D1C;
+
+  /* emerald-* → rampe sauge (succès), cohérente avec --color-secondary */
+  --color-emerald-50:  #F1F7F2;
+  --color-emerald-100: #CDEAD0;
+  --color-emerald-200: #B1CEB5;
+  --color-emerald-500: #5F8266;
+  --color-emerald-600: #4B6450;
+  --color-emerald-700: #3D5442;
+  --color-emerald-800: #344C39;
 }
 
 :root {
