@@ -471,7 +471,7 @@ export async function createVitrineSale(input: unknown) {
         const { error } = await (supabase as unknown as CreateOrderRpcClient).rpc('create_order_atomic', {
             p_order: {
                 id: formData.id ?? null,
-                order_number: `VIT-${Date.now()}`,
+                // order_number volontairement absent : attribué par la base
                 customer_id: null,
                 customer_name: 'Client Vitrine',
                 customer_contact: null,
@@ -506,7 +506,27 @@ export async function createVitrineSale(input: unknown) {
             p_metrics: null,
         })
 
-        if (error) return { error: error.message || 'Erreur lors de la vente vitrine' }
+        if (error) {
+            const isDuplicate = error.message?.includes('duplicate key') ||
+                                (error as { code?: string }).code === '23505'
+            if (isDuplicate) {
+                // Comme createOrder : un 23505 n'est un succès que pour un rejeu
+                // du même id, et seulement si la vente existe dans l'organisation.
+                if (formData.id) {
+                    const { data: existing, error: lookupError } = await supabase
+                        .from('orders')
+                        .select('id')
+                        .eq('id', formData.id)
+                        .eq('organization_id', context.organizationId)
+                        .maybeSingle()
+                    if (!lookupError && existing) {
+                        return { success: true }
+                    }
+                }
+                return { error: "La vente vitrine n'a pas été enregistrée (conflit de doublon). Veuillez réessayer." }
+            }
+            return { error: error.message || 'Erreur lors de la vente vitrine' }
+        }
 
         revalidatePath('/dashboard')
         revalidatePath('/commandes')

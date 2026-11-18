@@ -119,8 +119,20 @@ export async function encaisserTransaction(payload: EncaisserPayload) {
             const isDuplicate = atomicError.message?.includes('duplicate key') || 
                                 (atomicError as { code?: string }).code === '23505'
             if (isDuplicate) {
-                // Déjà traité en base, on considère cela comme un succès
-                return { success: true }
+                // Un 23505 n'est un succès que s'il s'agit d'un rejeu du même id
+                // (idempotence) : la vente doit alors exister dans l'organisation.
+                // Sinon, rien n'a été enregistré : on remonte une erreur claire
+                // au lieu d'un faux succès qui ferait perdre la vente.
+                const { data: existing, error: lookupError } = await supabase
+                    .from('transactions')
+                    .select('id')
+                    .eq('id', transactionId)
+                    .eq('organization_id', orgId)
+                    .maybeSingle()
+                if (!lookupError && existing) {
+                    return { success: true }
+                }
+                return { error: "La vente n'a pas été enregistrée (conflit de doublon). Veuillez réessayer." }
             }
             const isStockError = atomicError.message?.includes('Stock insuffisant')
             return { error: isStockError ? atomicError.message : "Erreur lors de l'encaissement" }

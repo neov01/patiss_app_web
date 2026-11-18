@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createVitrineSale } from '@/lib/actions/orders'
 import { toast } from 'sonner'
 import { Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react'
@@ -15,6 +15,15 @@ type Product = {
 export default function VitrineSalesClient({ products, currency }: { products: Product[], currency: string }) {
     const [cart, setCart] = useState<{ product: Product, quantity: number }[]>([])
     const [loading, setLoading] = useState(false)
+    // Clé d'idempotence : un id par panier. Un nouvel essai du même panier
+    // (réseau coupé, réponse perdue) renvoie le même id, donc pas de vente en double.
+    const saleIdRef = useRef<string | null>(null)
+    const submittingRef = useRef(false)
+
+    // Tout changement du panier en fait une nouvelle vente : nouvel id.
+    useEffect(() => {
+        saleIdRef.current = null
+    }, [cart])
 
     const addToCart = (product: Product) => {
         setCart(prev => {
@@ -39,24 +48,33 @@ export default function VitrineSalesClient({ products, currency }: { products: P
     const totalAmount = cart.reduce((sum, item) => sum + (item.product.selling_price * item.quantity), 0)
 
     const handleCheckout = async () => {
-        if (cart.length === 0) return
-        
-        setLoading(true)
-        const res = await createVitrineSale({
-            total_amount: totalAmount,
-            items: cart.map(item => ({
-                product_id: item.product.id,
-                quantity: item.quantity,
-                unit_price: item.product.selling_price
-            }))
-        })
-        setLoading(false)
+        if (cart.length === 0 || submittingRef.current) return
 
-        if (res.error) {
-            toast.error(res.error)
-        } else {
-            toast.success('Vente encaissée avec succès !')
-            setCart([])
+        if (!saleIdRef.current) saleIdRef.current = crypto.randomUUID()
+        submittingRef.current = true
+        setLoading(true)
+        try {
+            const res = await createVitrineSale({
+                id: saleIdRef.current,
+                total_amount: totalAmount,
+                items: cart.map(item => ({
+                    product_id: item.product.id,
+                    quantity: item.quantity,
+                    unit_price: item.product.selling_price
+                }))
+            })
+
+            if (res.error) {
+                toast.error(res.error)
+            } else {
+                toast.success('Vente encaissée avec succès !')
+                setCart([])
+            }
+        } catch {
+            toast.error("La vente n'a pas pu être confirmée. Réessayez : elle ne sera pas comptée deux fois.")
+        } finally {
+            submittingRef.current = false
+            setLoading(false)
         }
     }
 
@@ -168,7 +186,7 @@ export default function VitrineSalesClient({ products, currency }: { products: P
                         onClick={handleCheckout}
                         disabled={cart.length === 0 || loading}
                         className="btn-primary" 
-                        style={{ width: '100%', height: '48px', opacity: cart.length === 0 ? 0.5 : 1 }}
+                        style={{ width: '100%', height: '48px', opacity: cart.length === 0 || loading ? 0.5 : 1 }}
                     >
                         {loading ? <Loader2 className="animate-spin" size={20} /> : 'Encaisser'}
                     </button>
