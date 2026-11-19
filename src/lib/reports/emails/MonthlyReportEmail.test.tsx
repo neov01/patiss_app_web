@@ -7,6 +7,7 @@ import { renderMonthlyReportEmail } from './render'
 describe('MonthlyReportEmail', () => {
   it('affiche le CA, les comparaisons et tous les blocs', async () => {
     const html = await renderMonthlyReportEmail(monthlyFixture)
+    expect(html).toContain('CA du mois d&#x27;octobre')
     expect(html).toContain('Récapitulatif du mois')
     expect(html).toContain('Octobre 2026 · 31 jours')
     expect(html).toContain('vs septembre')
@@ -42,6 +43,11 @@ describe('MonthlyReportEmail', () => {
     })
     expect(html).not.toContain('vs septembre (')
     expect(html).toContain('—')
+  })
+
+  it('accorde le libellé du CA selon le mois', async () => {
+    const html = await renderMonthlyReportEmail({ ...monthlyFixture, month: '2026-05' })
+    expect(html).toContain('CA du mois de mai')
   })
 
   it('compose le préheader et l’objet', () => {

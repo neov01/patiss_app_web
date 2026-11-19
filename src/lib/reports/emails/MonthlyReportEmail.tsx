@@ -56,7 +56,7 @@ export function MonthlyReportEmail({ data: d }: { data: MonthlyReportData }) {
       subtitle={`${capitalize(monthLabel(d.month))} · ${d.openDays} jour${d.openDays > 1 ? 's' : ''} d'ouverture`}
       preheader={monthlyPreheader(d)} currency={c} appUrl={d.appUrl}>
       <Hero
-        label={`CA de ${monthLabel(d.month)}`}
+        label={`CA du mois ${/^[aeiouéèh]/i.test(monthName(d.month)) ? "d'" : 'de '}${monthName(d.month)}`}
         amount={formatMoney(d.revenue, c)}
         deltas={[
           { current: d.revenue, reference: d.revenuePrev, label: `${vsPrevious} (${formatMoney(d.revenuePrev, c)})` },
