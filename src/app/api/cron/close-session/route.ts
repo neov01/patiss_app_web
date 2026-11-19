@@ -47,3 +47,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         details: results
     })
 }
+
+// Vercel appelle les crons en GET : on applique exactement la même logique que POST.
+export async function GET(req: NextRequest): Promise<NextResponse> {
+    return POST(req)
+}
