@@ -19,7 +19,7 @@ export function monthLabel(monthKey: string): string {
 }
 
 function signed(pct: number): string {
-  return pct >= 0 ? `+${pct} %` : `−${Math.abs(pct)} %`
+  return pct >= 0 ? `+${pct} %` : `−${Math.abs(pct)} %`
 }
 
 /** Constats chiffrés du bloc « En bref » ; aucune suggestion inventée. */
@@ -58,7 +58,7 @@ export function buildMonthlyInsights(d: InsightInput): string[] {
     const weakest = open.reduce((min, entry) => (entry.avg < min.avg ? entry : min))
     const gap = mean > 0 ? (mean - weakest.avg) / mean : 0
     if (gap >= 0.25) {
-      insights.push(`Les ${WEEKDAY_PLURAL[weakest.i]} restent les plus calmes (${Math.round(gap * 100)} % de moins que la moyenne).`)
+      insights.push(`Les ${WEEKDAY_PLURAL[weakest.i]} restent les plus calmes (${Math.round(gap * 100)} % de moins que la moyenne).`)
     }
   }
 

@@ -4,8 +4,10 @@ const DATE_SHORT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'sh
 const TIME = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
 const WEEKDAY = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', timeZone: 'UTC' })
 
-// Une espace normale (et non l'espace fine insécable de Intl) : certaines polices
-// grasses l'affichent mal dans les messageries. Les montants sont en white-space: nowrap.
+// Les espaces de groupement des milliers restent des espaces normales (et non l'espace
+// fine insécable de Intl) : certaines polices grasses l'affichent mal dans les messageries.
+// L'unité (FCFA, %) est accrochée au nombre par une espace insécable (U+00A0) : elle ne
+// passe jamais seule à la ligne. Les montants sont aussi en white-space: nowrap.
 function normalizeSpaces(value: string): string {
   return value.replace(/\s/g, ' ')
 }

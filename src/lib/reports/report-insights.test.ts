@@ -43,12 +43,12 @@ describe('buildMonthlyInsights', () => {
         { name: 'Croissant', quantity: 900, amount: 90_000 },
       ],
     }))
-    expect(first).toBe('Le CA progresse de +25 % par rapport à septembre, porté par Forêt-Noire et Fraisier.')
+    expect(first).toBe('Le CA progresse de +25 % par rapport à septembre, porté par Forêt-Noire et Fraisier.')
   })
 
   it('annonce un recul sans citer de produit', () => {
     const [first] = buildMonthlyInsights(input({ revenue: 600_000 }))
-    expect(first).toBe('Le CA recule de −25 % par rapport à septembre.')
+    expect(first).toBe('Le CA recule de −25 % par rapport à septembre.')
   })
 
   it("n'écrit rien sur le CA sans mois de référence", () => {
@@ -58,13 +58,13 @@ describe('buildMonthlyInsights', () => {
   it('commente le solde net quand les dépenses des deux mois sont connues', () => {
     const insights = buildMonthlyInsights(input({ expenses: { total: 200_000, totalPrev: 200_000 } }))
     // net : 800 000 contre 600 000 → +33 %
-    expect(insights).toContain('Le solde net (CA − dépenses) progresse de +33 % par rapport à septembre.')
+    expect(insights).toContain('Le solde net (CA − dépenses) progresse de +33 % par rapport à septembre.')
   })
 
   it('signale le jour le plus calme si l’écart dépasse 25 %', () => {
     const insights = buildMonthlyInsights(input({ weekdayAverages: [100, 300, 300, 300, 300, 500, null] }))
     // moyenne 300, lundi à 100 → 67 % de moins
-    expect(insights).toContain('Les lundis restent les plus calmes (67 % de moins que la moyenne).')
+    expect(insights).toContain('Les lundis restent les plus calmes (67 % de moins que la moyenne).')
   })
 
   it("ne signale pas de jour calme avec moins de 5 jours ouverts", () => {
