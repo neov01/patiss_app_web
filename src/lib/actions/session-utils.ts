@@ -86,20 +86,27 @@ export async function closeSingleSession(
     }
 
     // 2. CALCUL DES MÉTRIQUES
-    // Récupération des transactions depuis l'ouverture de la session
+    // Fin de la fenêtre de clôture : rien de daté après « maintenant » n'appartient à la session.
+    const closingWindowEnd = new Date().toISOString()
+
+    // Récupération des transactions depuis l'ouverture de la session.
+    // Les imports historiques (commandes papier) ne sont pas passés par cette caisse.
     const { data: periodTransactions } = await supabaseAdmin
         .from('transactions')
         .select('amount, payment_method, payment_details, label_type')
         .eq('organization_id', orgId)
         .is('deleted_at', null)
+        .eq('is_historical', false)
         .gte('created_at', sessionStart)
+        .lte('created_at', closingWindowEnd)
 
-    // Récupération des commandes depuis l'ouverture de la session
+    // Récupération des commandes depuis l'ouverture de la session (hors imports historiques)
     const { data: periodOrders } = await supabaseAdmin
         .from('orders')
         .select('id, total_amount, deposit_amount, status')
         .eq('organization_id', orgId)
         .is('deleted_at', null)
+        .eq('is_historical', false)
         .gte('created_at', sessionStart)
 
     const transactions = periodTransactions ?? []
