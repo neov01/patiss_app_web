@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { closeSingleSession } from '@/lib/actions/session-utils'
 
+export const maxDuration = 60
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
     const cronSecret = process.env.CRON_SECRET;
     
