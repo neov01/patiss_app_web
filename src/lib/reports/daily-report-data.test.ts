@@ -89,11 +89,20 @@ describe('loadDailyReportData', () => {
   it('filtre chaque requête sur l’organisation', async () => {
     const fake = fakeWith()
     await loadDailyReportData(fake.client as unknown as SupabaseClient, CTX)
-    for (const call of [...callsTo(fake.calls, 'transactions'), ...callsTo(fake.calls, 'orders')]) {
+    const orgScoped = [
+      ...callsTo(fake.calls, 'transactions'),
+      ...callsTo(fake.calls, 'orders'),
+      ...callsTo(fake.calls, 'profiles'),
+    ]
+    expect(orgScoped.length).toBeGreaterThan(0)
+    for (const call of orgScoped) {
       expect(hasOp(call, 'eq', ['organization_id', 'org-1'])).toBe(true)
     }
-    for (const call of callsTo(fake.calls, 'transaction_items')) {
+    const items = callsTo(fake.calls, 'transaction_items')
+    expect(items.length).toBeGreaterThan(0)
+    for (const call of items) {
       expect(hasOp(call, 'eq', ['transactions.organization_id', 'org-1'])).toBe(true)
+      expect(hasOp(call, 'eq', ['transactions.is_historical', false])).toBe(true)
     }
   })
 

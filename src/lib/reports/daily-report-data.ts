@@ -79,17 +79,23 @@ async function loadTomorrow(admin: SupabaseClient, orgId: string, now: Date): Pr
   }
 }
 
-async function loadProfile(admin: SupabaseClient, id: string): Promise<{ name: string; role: string } | null> {
-  const { data } = await admin.from('profiles').select('full_name, role_slug').eq('id', id).maybeSingle()
+async function loadProfile(admin: SupabaseClient, orgId: string, id: string): Promise<{ name: string; role: string } | null> {
+  const { data, error } = await admin
+    .from('profiles')
+    .select('full_name, role_slug')
+    .eq('id', id)
+    .eq('organization_id', orgId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
   if (!data) return null
   const profile = data as ProfileSummary
   return { name: profile.full_name || 'Utilisateur', role: roleLabel(profile.role_slug) }
 }
 
-async function loadPeople(admin: SupabaseClient, ctx: DailyReportContext) {
+async function loadPeople(admin: SupabaseClient, orgId: string, ctx: DailyReportContext) {
   const [opener, closer] = await Promise.all([
-    ctx.openedBy ? loadProfile(admin, ctx.openedBy).catch(() => null) : Promise.resolve(null),
-    ctx.closedBy ? loadProfile(admin, ctx.closedBy).catch(() => null) : Promise.resolve(null),
+    ctx.openedBy ? loadProfile(admin, orgId, ctx.openedBy).catch(() => null) : Promise.resolve(null),
+    ctx.closedBy ? loadProfile(admin, orgId, ctx.closedBy).catch(() => null) : Promise.resolve(null),
   ])
   return {
     openerName: opener?.name ?? 'Non spécifié',
@@ -154,7 +160,7 @@ export async function loadDailyReportData(admin: SupabaseClient, ctx: DailyRepor
         .order('id', { ascending: true })
         .range(from, to))),
     optional('retraits de demain', orgId, () => loadTomorrow(admin, orgId, now)),
-    loadPeople(admin, ctx),
+    loadPeople(admin, orgId, ctx),
     optional('équipe', orgId, () => loadTeam(admin, orgId, ctx.openedAt)),
   ])
 
