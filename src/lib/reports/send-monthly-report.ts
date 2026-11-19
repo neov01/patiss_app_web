@@ -28,7 +28,10 @@ export async function sendMonthlyReport(args: {
   if (!data) return { orgId: org.id, sent: false, reason: 'no-activity' }
 
   const to = overrideRecipient ?? (await resolveReportRecipient(admin, org.id))
-  if (!to) return { orgId: org.id, sent: false, reason: 'no-recipient' }
+  if (!to) {
+    console.warn('[monthly-report] aucun destinataire pour le récap', { orgId: org.id })
+    return { orgId: org.id, sent: false, reason: 'no-recipient' }
+  }
   if (!resend) return { orgId: org.id, sent: false, reason: 'resend-not-configured' }
 
   const html = await renderMonthlyReportEmail(data)

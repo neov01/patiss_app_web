@@ -188,6 +188,7 @@ export async function closeSingleSession(
     // La session est déjà clôturée : aucune erreur ci-dessous ne doit remonter.
     const recipient = await resolveReportRecipient(supabaseAdmin, orgId).catch(() => null)
     if (!recipient) {
+        console.warn('[daily-report] aucun destinataire pour le rapport', { orgId })
         return { sessionId, success: true, emailSent: false, reason: 'No manager email found' }
     }
     if (!resend) {

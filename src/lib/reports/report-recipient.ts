@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * REPORT_DEV_EMAIL dans les autres environnements. null si aucun destinataire valable.
  */
 export async function resolveReportRecipient(admin: SupabaseClient, orgId: string): Promise<string | null> {
-  const { data: manager } = await admin
+  const { data: manager, error } = await admin
     .from('profiles')
     .select('id')
     .eq('organization_id', orgId)
@@ -13,6 +13,10 @@ export async function resolveReportRecipient(admin: SupabaseClient, orgId: strin
     .eq('is_active', true)
     .limit(1)
     .maybeSingle()
+  if (error) {
+    console.error('[report-recipient] lecture du gérant impossible', { orgId })
+    return null
+  }
   if (!manager?.id) return null
 
   const { data } = await admin.auth.admin.getUserById(manager.id)
