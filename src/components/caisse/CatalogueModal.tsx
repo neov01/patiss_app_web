@@ -223,7 +223,7 @@ export default function CatalogueModal({
                                         className={`product-tile${isOutOfStock ? ' is-out' : ''}`}
                                         aria-label={`Ajouter ${product.name} au panier, ${Number(product.selling_price).toLocaleString('fr-FR')} ${currency}`}
                                     >
-                                        <ProductPlate name={product.name} imageUrl={product.image_url} />
+                                        <ProductPlate name={product.name} imageUrl={product.image_url} category={product.category} />
                                         <div className="product-tile-body">
                                             <span className="product-tile-name">{product.name}</span>
                                             {product.current_stock !== null && (

@@ -10,10 +10,10 @@ import CumulativeRevenueChart from '@/components/dashboard/charts/CumulativeReve
 import PaymentDonut from '@/components/dashboard/charts/PaymentDonut'
 import HourlySalesBars from '@/components/dashboard/charts/HourlySalesBars'
 import TopProductsList from '@/components/dashboard/charts/TopProductsList'
-import { ShoppingBag, Banknote, Receipt, TrendingDown, AlertTriangle, Clock, ChefHat, ArrowUpRight } from 'lucide-react'
+import { ShoppingBag, Banknote, Receipt, TrendingDown, AlertTriangle, ChefHat } from 'lucide-react'
+import TodayPickupsCard from '@/components/dashboard/TodayPickupsCard'
 import Link from 'next/link'
 import ProductionPlan from './ProductionPlan'
-import VitrineSales from './VitrineSales'
 import { loadManagerCharts } from './load-manager-charts'
 import { Suspense } from 'react'
 import SessionPill from '@/components/layout/SessionPill'
@@ -81,6 +81,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
     const roleSlug = profile.role_slug?.toLowerCase() || ''
     const isManager = roleSlug === 'gerant' || roleSlug === 'super_admin'
+    // Le vendeur (dont le mode kiosque) voit le même tableau de bord complet que le gérant.
+    const showFullDashboard = isManager || roleSlug === 'vendeur'
 
     const period = resolvedSearchParams.period === 'week' || resolvedSearchParams.period === 'month' ? resolvedSearchParams.period : 'day'
     const startDate = computeStartDate(period)
@@ -103,7 +105,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         filteredOrdersQuery,
         supabase.from('ingredients').select('name, current_stock, alert_threshold').eq('organization_id', profile.organization_id!),
         period === 'day' && !clientFilter ? getDailyStats(profile.organization_id!) : Promise.resolve({ ca_encaisse: null }),
-        isManager ? loadManagerCharts(supabase, profile.organization_id!, startDate, now) : Promise.resolve(null),
+        showFullDashboard ? loadManagerCharts(supabase, profile.organization_id!, startDate, now) : Promise.resolve(null),
     ])
 
     const orders = ordersRes.data ?? []
@@ -160,13 +162,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         {now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                         {org ? ` · ${org.name}` : ''}
                     </p>
-                    {isManager && (
+                    {showFullDashboard && (
                         <p style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '6px 0 0', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)' }}>
                             <span aria-hidden="true" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)' }} />
                             Actualisé toutes les 30 s · dernière mise à jour à {updatedAt}
                         </p>
                     )}
-                    {isManager && <DashboardAutoRefresh />}
+                    {showFullDashboard && <DashboardAutoRefresh />}
                 </div>
                 {/* Pill session + Bouton Nouvelle Commande — visibles pour les rôles autorisés */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -177,8 +179,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 </div>
             </div>
 
-            {/* ── Gérant ── */}
-            {isManager && charts && (
+            {/* ── Gérant et vendeur (dont mode kiosque) : tableau de bord complet ── */}
+            {showFullDashboard && charts && (
                 <>
                     <div style={{ marginBottom: '16px' }}>
                         <DashboardPeriodFilter period={period} client={clientFilter} />
@@ -249,115 +251,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         </ChartCard>
                     </div>
 
-                    {/* Retraits & Livraisons du jour */}
-                    <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text)', margin: 0 }}>
-                                    Retraits & Livraisons
-                                </h3>
-                                <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', margin: '4px 0 0' }}>
-                                    Commandes prévues aujourd&apos;hui ({now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })})
-                                </p>
-                            </div>
-                            <Link href="/commandes" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '2px', padding: '4px 8px', borderRadius: '6px', background: 'var(--color-well)' }}>
-                                Tout voir <ArrowUpRight size={12} />
-                            </Link>
-                        </div>
+                    <TodayPickupsCard orders={todayOrders} currency={currency} now={now} />
 
-                        {todayOrders.length === 0 ? (
-                            <p style={{ fontSize: '0.875rem', color: 'var(--color-muted)', margin: 0 }}>
-                                Aucun retrait ou livraison prévu aujourd&apos;hui.
-                            </p>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '280px', paddingRight: '4px' }}>
-                                {todayOrders.map((o) => {
-                                    // Calculer le style et label de statut
-                                    let statusColor = 'var(--color-badge-warning-text)'
-                                    let statusBg = 'var(--color-badge-warning-bg)'
-                                    let statusText = 'En attente'
-                                    if (o.status === 'production' || o.status === 'in_preparation') {
-                                        statusColor = 'var(--color-badge-production-text)'
-                                        statusBg = 'var(--color-badge-production-bg)'
-                                        statusText = 'En cours'
-                                    } else if (o.status === 'ready' || o.status === 'awaiting_pickup') {
-                                        statusColor = 'var(--color-badge-success-text)'
-                                        statusBg = 'var(--color-badge-success-bg)'
-                                        statusText = 'Prête'
-                                    } else if (o.status === 'completed' || o.status === 'delivered') {
-                                        statusColor = 'var(--color-text)'
-                                        statusBg = 'var(--color-well)'
-                                        statusText = 'Retirée'
-                                    } else if (o.status === 'cancelled') {
-                                        statusColor = 'var(--color-badge-danger-text)'
-                                        statusBg = 'var(--color-badge-danger-bg)'
-                                        statusText = 'Annulée'
-                                    }
-
-                                    // Formatter l'heure de retrait (pickup_date)
-                                    let timeStr = 'Non définie'
-                                    if (o.pickup_date) {
-                                        const d = new Date(o.pickup_date)
-                                        if (!Number.isNaN(d.getTime())) {
-                                            timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-                                        }
-                                    }
-
-                                    return (
-                                        <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--color-well)', borderRadius: 'var(--radius-sm)', gap: '12px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', fontWeight: 600 }}>
-                                                        {o.order_number || `#${o.id.substring(0, 6)}`}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: o.reception_type === 'livraison' ? '#E0F2FE' : '#F3E8FF', color: o.reception_type === 'livraison' ? '#0369A1' : '#6B21A8', textTransform: 'capitalize' }}>
-                                                        {o.reception_type || 'Retrait'}
-                                                    </span>
-                                                </div>
-                                                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    {o.customer_name}
-                                                </span>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                                                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)', fontVariantNumeric: 'tabular-nums' }}>
-                                                        {o.total_amount.toLocaleString('fr-FR')} {currency}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 500 }}>
-                                                        à {timeStr}
-                                                    </span>
-                                                </div>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: statusColor, background: statusBg, padding: '4px 8px', borderRadius: '9999px', minWidth: '70px', textAlign: 'center' }}>
-                                                    {statusText}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <AIAssistant currency={currency} organizationId={profile.organization_id!} />
-                </>
-            )}
-
-            {/* ── Vendeur ── */}
-            {roleSlug === 'vendeur' && (
-                <>
-                    <div className="metrics-carousel" style={{ display: 'flex', gap: '16px', marginBottom: '28px', overflowX: 'auto', paddingBottom: '12px', scrollSnapType: 'x mandatory' }}>
-                        <StatCard title={`Commandes (${periodLabel})`} value={orders.length} icon={ShoppingBag} iconColor="var(--color-rose-dark)" accent="#E8B4A0" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
-                        <StatCard title="En attente" value={pendingCount} icon={Clock} iconColor="#E6A817" accent="var(--color-badge-warning-bg)" style={{ minWidth: '240px', flex: '0 0 auto', scrollSnapAlign: 'start' }} />
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <Link href="/commandes" prefetch={true} className="btn-secondary">
-                            Voir toutes les commandes
-                        </Link>
-                    </div>
-
-                    <Suspense fallback={<div style={{ padding: '20px', textAlign: 'center' }}>Chargement de la vitrine...</div>}>
-                        <VitrineSales organizationId={profile.organization_id!} currency={currency} />
-                    </Suspense>
+                    <AIAssistant currency={currency} organizationId={profile.organization_id!} userRole={roleSlug} />
                 </>
             )}
 

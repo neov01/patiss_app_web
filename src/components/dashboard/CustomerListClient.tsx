@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import {
-  Search, Trophy, AlertTriangle, UserCheck, Star, Users,
+  Search, Trophy, AlertTriangle, UserCheck, Star, Users, Cake,
   Crown, MessageSquare, Plus, Download,
   Calendar, XCircle,
   ChevronRight,
   Check, ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { fr } from "date-fns/locale";
 import CustomerIntelligenceModal from "./CustomerIntelligenceModal";
 import CustomerCreateModal from "./CustomerCreateModal";
@@ -95,7 +95,7 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
       const matchSegment = filterSegment === "Tous" || c.rfm_segment === filterSegment;
 
       let matchQuickFilter = true;
-      if (activeQuickFilter === "🎂 Anniversaire") {
+      if (activeQuickFilter === "anniversaire") {
         if (!c.birth_date) {
           matchQuickFilter = false;
         } else {
@@ -104,9 +104,9 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
           const currentMonth = new Date().getMonth();
           matchQuickFilter = birthMonth === currentMonth;
         }
-      } else if (activeQuickFilter === "⚠️ Risque") {
+      } else if (activeQuickFilter === "risque") {
         matchQuickFilter = c.rfm_segment === "À Risque";
-      } else if (activeQuickFilter === "⭐ VIP") {
+      } else if (activeQuickFilter === "vip") {
         matchQuickFilter = c.rfm_segment === "Champion";
       }
 
@@ -135,9 +135,9 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
 
   const segments = ["Tous", "Champion", "Fidèle", "Prometteur", "Occasionnel", "À Risque", "Perdu"];
   const quickFilters = [
-    { label: "🎂 Anniversaire ce mois", id: "🎂 Anniversaire", color: "text-rose-600 border-rose-200 bg-rose-50" },
-    { label: "⚠️ Risque de départ", id: "⚠️ Risque", color: "text-amber-600 border-amber-200 bg-amber-50" },
-    { label: "⭐ VIP", id: "⭐ VIP", color: "text-indigo-600 border-indigo-200 bg-indigo-50" },
+    { label: "Anniversaire ce mois", id: "anniversaire", icon: Cake, color: "text-rose-600 border-rose-200 bg-rose-50" },
+    { label: "Risque de départ", id: "risque", icon: AlertTriangle, color: "text-amber-600 border-amber-200 bg-amber-50" },
+    { label: "VIP", id: "vip", icon: Star, color: "text-indigo-600 border-indigo-200 bg-indigo-50" },
   ];
 
   const toggleSelectAll = () => {
@@ -205,68 +205,30 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Total Clients</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">{initialCustomers.length}</p>
-            </div>
-            <div className="bg-slate-50 p-2 rounded-xl text-slate-400 border border-slate-100">
-              <Users size={20} />
-            </div>
-          </div>
-          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.withPurchases} avec au moins un achat</p>
+      {/* Indicateurs : une bande compacte, la liste des clients remonte */}
+      <dl className="crm-metrics">
+        <div className="crm-metric">
+          <dt><Users size={14} aria-hidden="true" /> Clients</dt>
+          <dd>{initialCustomers.length}<small>{kpi.withPurchases} avec un achat</small></dd>
         </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Champions</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
-                {initialCustomers.filter(c => c.rfm_segment === "Champion").length}
-              </p>
-            </div>
-            <div className="bg-emerald-50 p-2 rounded-xl text-emerald-500 border border-emerald-100">
-              <Trophy size={20} />
-            </div>
-          </div>
-          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.championPct}% de la clientèle</p>
+        <div className="crm-metric">
+          <dt><Trophy size={14} aria-hidden="true" /> Champions</dt>
+          <dd>{initialCustomers.filter(c => c.rfm_segment === "Champion").length}<small>{kpi.championPct} % de la clientèle</small></dd>
         </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">À Risque</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
-                {initialCustomers.filter(c => c.rfm_segment === "À Risque").length}
-              </p>
-            </div>
-            <div className="bg-amber-50 p-2 rounded-xl text-amber-500 border border-amber-100">
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">{kpi.atRiskPct}% de la clientèle</p>
+        <div className="crm-metric">
+          <dt><AlertTriangle size={14} aria-hidden="true" /> À risque</dt>
+          <dd className={initialCustomers.filter(c => c.rfm_segment === "À Risque").length > 0 ? 'is-warn' : undefined}>{initialCustomers.filter(c => c.rfm_segment === "À Risque").length}<small>{kpi.atRiskPct} % de la clientèle</small></dd>
         </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Valeur Moy. Vie</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
-                {initialCustomers.length > 0 
-                  ? Math.round(initialCustomers.reduce((acc, c) => acc + c.monetary, 0) / initialCustomers.length).toLocaleString('fr-FR')
-                  : 0} <span className="text-sm font-bold text-slate-400">CFA</span>
-              </p>
-            </div>
-            <div className="bg-indigo-50 p-2 rounded-xl text-indigo-500 border border-indigo-100">
-              <Crown size={20} />
-            </div>
-          </div>
-          <p className="mt-4 text-xs font-semibold text-slate-600 bg-slate-100 w-fit px-2 py-0.5 rounded-full">Cumul : {kpi.totalSpent.toLocaleString('fr-FR')} CFA</p>
+        <div className="crm-metric">
+          <dt><Crown size={14} aria-hidden="true" /> Valeur moyenne</dt>
+          <dd className="money">
+            {initialCustomers.length > 0
+              ? Math.round(kpi.totalSpent / initialCustomers.length).toLocaleString('fr-FR')
+              : 0}<span className="money-cur">CFA</span>
+            <small>Cumul {kpi.totalSpent.toLocaleString('fr-FR')} CFA</small>
+          </dd>
         </div>
-      </div>
+      </dl>
 
       {/* Filters & Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
@@ -305,13 +267,14 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
               <button
                 key={qf.id}
                 onClick={() => setActiveQuickFilter(activeQuickFilter === qf.id ? null : qf.id)}
+                aria-pressed={activeQuickFilter === qf.id}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${
                   activeQuickFilter === qf.id
                     ? "ring-2 ring-offset-1 ring-slate-200 scale-105"
                     : "opacity-70 hover:opacity-100"
                 } ${qf.color}`}
               >
-                {activeQuickFilter === qf.id && <Check size={12} />}
+                {activeQuickFilter === qf.id ? <Check size={12} aria-hidden="true" /> : <qf.icon size={12} aria-hidden="true" />}
                 {qf.label}
               </button>
             ))}
@@ -398,11 +361,15 @@ export default function CustomerListClient({ initialCustomers }: { initialCustom
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500" onClick={() => setSelectedCustomer(c)}>
                       <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-slate-300" />
-                        {c.last_purchase_at 
-                          ? format(new Date(c.last_purchase_at), "d MMM yyyy", { locale: fr })
-                          : "Jamais"
-                        }
+                        <Calendar size={14} className="text-slate-400" aria-hidden="true" />
+                        {c.last_purchase_at ? (
+                          <time
+                            dateTime={c.last_purchase_at}
+                            title={format(new Date(c.last_purchase_at), "d MMMM yyyy", { locale: fr })}
+                          >
+                            {formatDistanceToNowStrict(new Date(c.last_purchase_at), { locale: fr, addSuffix: true })}
+                          </time>
+                        ) : "Jamais"}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">

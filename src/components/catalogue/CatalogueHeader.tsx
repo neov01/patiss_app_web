@@ -47,7 +47,7 @@ export default function CatalogueHeader({ products, availableIngredients }: Cata
           Catalogue Produits
         </h1>
         <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginTop: '4px', fontWeight: 500 }}>
-          {products?.length ?? 0} produits enregistrés · Gérer l&apos;offre unifiée
+          {`${products?.length ?? 0} produit${(products?.length ?? 0) > 1 ? 's' : ''} enregistré${(products?.length ?? 0) > 1 ? 's' : ''}`} · Gérer l&apos;offre unifiée
         </p>
       </div>
 

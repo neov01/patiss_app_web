@@ -11,6 +11,9 @@ import { PRODUCT_CATEGORIES } from '@/lib/constants/catalogue'
 import { useProductFilter } from '@/hooks/useProductFilter'
 import { useQueryClient } from '@tanstack/react-query'
 
+// Seuil d'alerte visuelle « stock bas » sur les tuiles du catalogue.
+const LOW_STOCK_THRESHOLD = 5
+
 export interface CatalogueProduct {
   id: string
   name: string
@@ -210,6 +213,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
         <div className="product-grid">
           {filteredProducts.map(product => {
             const isOutOfStock = product.trackStock && (product.currentStock === 0 || product.currentStock === undefined)
+            const isLowStock = product.trackStock && !isOutOfStock && (product.currentStock ?? 0) <= LOW_STOCK_THRESHOLD
             const isDeleting = deletingId === product.id
             const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation() }
 
@@ -219,7 +223,7 @@ export default function CatalogueClient({ products, currency, availableIngredien
                 className="product-tile is-static"
                 style={{ opacity: isDeleting ? 0.5 : 1 }}
               >
-                <ProductPlate name={product.name} imageUrl={product.image_url}>
+                <ProductPlate name={product.name} imageUrl={product.image_url} category={product.category}>
                   {/* Actions (Modifier / Archiver / Restaurer / Supprimer) */}
                   <div className="product-tile-actions">
                     {viewMode === 'active' ? (
@@ -274,11 +278,11 @@ export default function CatalogueClient({ products, currency, availableIngredien
                 <div className="product-tile-body">
                   <span className="product-tile-name">{product.name}</span>
                   {product.trackStock && (
-                    <span className={`product-tile-stock${isOutOfStock ? '' : ' is-ok'}`}>
-                      {isOutOfStock ? 'Rupture' : `${product.currentStock ?? 0} en stock`}
+                    <span className={`product-tile-stock ${isOutOfStock ? 'is-out' : isLowStock ? 'is-low' : 'is-ok'}`}>
+                      {isOutOfStock ? 'Rupture' : isLowStock ? `Stock bas · ${product.currentStock}` : `${product.currentStock ?? 0} en stock`}
                     </span>
                   )}
-                  <span className="product-tile-price">
+                  <span className="product-tile-price is-money">
                     {Number(product.sellingPrice).toLocaleString('fr-FR')}
                     <span className="product-tile-cur">{currency}</span>
                   </span>

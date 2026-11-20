@@ -337,10 +337,12 @@ export default async function CaissePage() {
     // Best-sellers fetched in parallel above
 
     const imageById = new Map((dbProducts || []).map(p => [p.id, p.image_url as string | null]))
+    const categoryById = new Map((dbProducts || []).map(p => [p.id, (p.category as string | null) ?? '']))
     const bestSellers = parseBestSellers(rpcBestSellers).map((b) => ({
         id: b.id,
         name: b.name,
         image_url: imageById.get(b.id) ?? null,
+        category: categoryById.get(b.id) ?? '',
         selling_price: Number(b.selling_price),
         stock_qty: b.stock_qty,
         quantity: Number(b.total_sold)
