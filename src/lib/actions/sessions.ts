@@ -117,18 +117,24 @@ export async function getSessionClosingPreviewAction(): Promise<
         if (error) return { success: false, error: error.message }
         if (!session?.opened_at) return { success: false, error: 'Aucune session ouverte' }
 
+        // Mêmes périmètres que la clôture : pas d'imports historiques, rien de daté après « maintenant ».
+        const closingWindowEnd = new Date().toISOString()
+
         const [{ data: transactions, error: txError }, { data: orders, error: orderError }] = await Promise.all([
             supabase
                 .from('transactions')
                 .select('amount, payment_method, payment_details, label_type')
                 .eq('organization_id', organizationId)
                 .is('deleted_at', null)
-                .gte('created_at', session.opened_at),
+                .eq('is_historical', false)
+                .gte('created_at', session.opened_at)
+                .lte('created_at', closingWindowEnd),
             supabase
                 .from('orders')
                 .select('id, total_amount, deposit_amount, status')
                 .eq('organization_id', organizationId)
                 .is('deleted_at', null)
+                .eq('is_historical', false)
                 .gte('created_at', session.opened_at),
         ])
         if (txError || orderError) return { success: false, error: (txError || orderError)!.message }
