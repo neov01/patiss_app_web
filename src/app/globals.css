@@ -114,6 +114,18 @@
   --color-warning:  #C08A63;
   --color-error:    #BA1A1A;
 
+  /* ── Sidebar — terracotta profond (famille de --color-primary) ── */
+  --sidebar-bg:      #6E4629;
+  --sidebar-raised:  #59371F; /* poches plus sombres : profil */
+  --sidebar-line:    #8C6142;
+  --sidebar-text:    #F7EADF; /* 6.9:1 sur --sidebar-bg */
+  --sidebar-muted:   #EFDCCB; /* 6.1:1 sur --sidebar-bg */
+  --sidebar-cream:   #FFFFFF;
+  --sidebar-success: #CDEAD0;
+  --sidebar-warning: #FFE2B3;
+  --sidebar-danger:  #FFDAD6;
+  --sidebar-motif:   #FFFFFF; /* motifs blancs, fond assombri pour compenser */
+
   /* ── Rose/Terracotta accents (Legacy/Custom support) ── */
   --color-rose:       var(--color-primary-container); /* Terracotta Pressed pour le survol de la barre de défilement */
   --color-rose-dark:  var(--color-primary); /* Argile/Terracotta pour les focus et surbrillances */
@@ -311,36 +323,127 @@ h1, h2, h3, h4, .font-display {
   box-shadow: var(--shadow-lg);
 }
 
-/* ── Sidebar ── */
+/* ── Sidebar (terracotta) ── */
+.sidebar-section {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sidebar-muted);
+  padding: 18px 18px 6px;
+}
 .sidebar-link {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 18px;
   border-radius: 9999px;
-  color: var(--color-muted);
+  color: var(--sidebar-text);
   font-size: 0.95rem;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   min-height: 48px;
   position: relative;
 }
 .sidebar-link:hover {
-  background: rgba(129, 84, 49, 0.05);
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-cream);
 }
 .sidebar-link.active {
-  background: rgba(75, 100, 80, 0.08) !important;
-  color: var(--color-secondary) !important;
-  font-weight: 600;
+  background: var(--sidebar-cream);
+  color: var(--color-primary);
+  font-weight: 700;
 }
-
+.sidebar-link.active .sidebar-icon {
+  color: var(--color-primary);
+}
+.sidebar-ganache :focus-visible {
+  outline: 2px solid var(--sidebar-cream);
+  outline-offset: 2px;
+}
 .sidebar-icon {
+  flex-shrink: 0;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-link:hover .sidebar-icon {
   transform: translateX(3px);
+}
+.sidebar-kiosk {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-cream);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-kiosk:hover:not(:disabled) {
+  background: var(--sidebar-cream);
+  color: var(--color-primary);
+}
+.sidebar-kiosk:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--sidebar-raised);
+  border: 1px solid var(--sidebar-line);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-profile:hover {
+  background: #4D2F1A;
+}
+.sidebar-ghost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--sidebar-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sidebar-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-cream);
+}
+.sidebar-logout:hover {
+  background: rgba(255, 218, 214, 0.14);
+  color: var(--sidebar-danger);
+}
+.sidebar-ghost:hover .logout-icon {
+  transform: translateX(-3px);
+}
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-line) transparent;
+}
+.sidebar-ganache ::selection {
+  background: var(--sidebar-cream);
+  color: var(--color-primary);
 }
 
 .logout-icon {
@@ -384,12 +487,25 @@ h1, h2, h3, h4, .font-display {
   display: grid;
   place-items: center;
   aspect-ratio: 4 / 3;
-  background-image: repeating-linear-gradient(115deg, rgba(129, 84, 49, 0.035) 0 2px, transparent 2px 7px);
 }
 .product-tile-plate[data-tone="0"] { background-color: #F1E3D5; color: #815431; }
 .product-tile-plate[data-tone="1"] { background-color: #CDEAD0; color: #3D5442; }
 .product-tile-plate[data-tone="2"] { background-color: #E0D8CE; color: #51443C; }
 .product-tile-plate[data-tone="3"] { background-color: #DCEAEC; color: #2F6671; }
+/* Plaques par catégorie (sans photo) : teinte douce + icône de la famille */
+.product-tile-plate[data-tone="cake"] { background-color: #F1E3D5; color: #815431; }
+.product-tile-plate[data-tone="viennoiserie"] { background-color: #FEF3C7; color: #92400E; }
+.product-tile-plate[data-tone="petit-four"] { background-color: #E0D8CE; color: #51443C; }
+.product-tile-plate[data-tone="boisson"] { background-color: #DCEAEC; color: #2F6671; }
+.product-tile-plate[data-tone="autre"] { background-color: #E8EFE8; color: #4B6450; }
+.product-tile-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.55);
+}
 .product-tile-initial {
   font-family: Manrope, Inter, system-ui, sans-serif;
   font-weight: 800;
@@ -433,6 +549,7 @@ h1, h2, h3, h4, .font-display {
   color: #1A1C1A;
   font-variant-numeric: tabular-nums;
 }
+.product-tile-price.is-money { color: var(--color-primary); }
 .product-tile-cur { font: 700 12px/16px Inter, system-ui, sans-serif; letter-spacing: 0.02em; color: #51443C; }
 .product-tile-stock {
   align-self: flex-start;
@@ -548,6 +665,10 @@ h1, h2, h3, h4, .font-display {
 .product-tile-action.is-danger { color: #991B1B; }
 .product-tile-stock.is-ok { background: #CDEAD0; color: #3D5442; }
 .product-tile-stock.is-ok::before { background: #4B6450; }
+.product-tile-stock.is-low { background: #FEF3C7; color: #92400E; }
+.product-tile-stock.is-low::before { background: #B45309; }
+.product-tile-stock.is-out { background: #FFDAD6; color: #93000A; }
+.product-tile-stock.is-out::before { background: #BA1A1A; }
 
 .product-tile.is-out { opacity: 0.6; cursor: not-allowed; }
 .product-tile.is-out:hover { transform: none; box-shadow: 0 2px 8px rgba(45, 27, 14, 0.06); }
@@ -565,3 +686,85 @@ h1, h2, h3, h4, .font-display {
 .closing-recap-row.is-key dd { font-size: 22px; line-height: 26px; color: #815431; }
 .closing-recap-row.is-warn dd { color: #92400E; }
 .closing-recap-hint { margin: 8px 0 0; font: 400 13px/18px Inter, system-ui, sans-serif; color: #51443C; }
+
+/* ── Montants : chiffres Manrope alignés, devise discrète ── */
+.money {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--color-primary);
+}
+.money-cur { font: 700 0.72em/1 var(--font-sans); letter-spacing: 0.02em; color: var(--color-muted); margin-left: 3px; }
+
+/* ── Retour tactile discret sur les cartes cliquables ── */
+.press { transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1); }
+.press:active { transform: scale(0.985); }
+@media (prefers-reduced-motion: reduce) {
+  .press { transition: none; }
+  .press:active { transform: none; }
+}
+
+/* ── Caisse : indicateurs du jour en une ligne compacte ── */
+.caisse-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 24px;
+  background: var(--color-well);
+  border: 1px solid #E6D8CA;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.caisse-metric { padding: 12px 16px; min-width: 0; }
+.caisse-metric + .caisse-metric { border-left: 1px solid #E6D8CA; }
+.caisse-metric dt { font: 600 12px/16px var(--font-sans); color: var(--color-muted); margin: 0 0 4px; }
+.caisse-metric dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font: 800 22px/26px var(--font-display);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.caisse-metric dd.money { color: var(--color-primary); gap: 0; }
+.caisse-metric dd.is-ready { color: var(--color-badge-success-text); }
+.caisse-metric dd small { font: 600 12px/16px var(--font-sans); color: var(--color-muted); }
+@media (max-width: 640px) {
+  .caisse-metric { padding: 10px 12px; }
+  .caisse-metric dd { font-size: 18px; line-height: 22px; }
+  .caisse-metric dd small { display: none; }
+}
+
+/* ── Clients : bande d'indicateurs compacte ── */
+.crm-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  background: var(--color-lift);
+  border: 1px solid #E6D8CA;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.crm-metric { padding: 14px 18px; min-width: 0; }
+.crm-metric + .crm-metric { border-left: 1px solid #E6D8CA; }
+.crm-metric dt { display: flex; align-items: center; gap: 6px; font: 600 12px/16px var(--font-sans); color: var(--color-muted); margin: 0 0 6px; }
+.crm-metric dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font: 800 24px/28px var(--font-display);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.crm-metric dd.money { color: var(--color-primary); }
+.crm-metric dd.is-warn { color: var(--color-badge-warning-text); }
+.crm-metric dd small { flex-basis: 100%; font: 600 12px/16px var(--font-sans); color: var(--color-muted); }
+@media (max-width: 900px) {
+  .crm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crm-metric:nth-child(3) { border-left: none; }
+  .crm-metric:nth-child(n+3) { border-top: 1px solid #E6D8CA; }
+}

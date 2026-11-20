@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import {
-    LayoutDashboard, ShoppingBag, BookOpen, Package,
-    ClipboardList, Bot, LogOut, Menu, X, CakeSlice, Users, Lock, Store, Wallet
+    LayoutDashboard, ShoppingBag, BookOpen, Wheat, Contact, ShieldCheck,
+    ClipboardList, Bot, LogOut, Menu, X, Users, Lock, Store, Wallet
 } from 'lucide-react'
+import PastryMotifs from './PastryMotifs'
 import { createClient } from '@/lib/supabase/client'
 import { logoutKiosk } from '@/lib/actions/auth'
 import { toast } from 'sonner'
@@ -23,19 +24,21 @@ interface Props {
 }
 
 const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'gerant', 'vendeur', 'patissier'] },
-    { href: '/caisse', label: 'Caisse', icon: Store, roles: ['super_admin', 'gerant', 'vendeur'] },
-    { href: '/depenses', label: 'Dépenses', icon: Wallet, roles: ['super_admin', 'gerant', 'vendeur'] },
-    { href: '/commandes', label: 'Commandes', icon: ShoppingBag, roles: ['super_admin', 'gerant', 'vendeur'] },
-    { href: '/dashboard/clients', label: 'Clients', icon: Users, roles: ['super_admin', 'gerant', 'vendeur'] },
-    { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, roles: ['super_admin', 'gerant', 'patissier', 'vendeur'] },
-    { href: '/ingredients', label: 'Ingrédients', icon: Package, roles: ['super_admin', 'gerant', 'patissier'] },
-    { href: '/inventaire', label: 'Inventaire', icon: ClipboardList, roles: ['super_admin', 'gerant', 'patissier'] },
-    { href: '/ai-assistant', label: 'Comptable IA', icon: Bot, roles: ['super_admin', 'gerant'] },
-    { href: '/equipe', label: 'Mon Équipe', icon: Users, roles: ['super_admin', 'gerant'] },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, group: null, roles: ['super_admin', 'gerant', 'vendeur', 'patissier'] },
+    { href: '/caisse', label: 'Caisse', icon: Store, group: 'Vente', roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/commandes', label: 'Commandes', icon: ShoppingBag, group: 'Vente', roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/dashboard/clients', label: 'Clients', icon: Contact, group: 'Vente', roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/catalogue', label: 'Catalogue Produits', icon: BookOpen, group: 'Atelier', roles: ['super_admin', 'gerant', 'patissier', 'vendeur'] },
+    { href: '/ingredients', label: 'Ingrédients', icon: Wheat, group: 'Atelier', roles: ['super_admin', 'gerant', 'patissier'] },
+    { href: '/inventaire', label: 'Inventaire', icon: ClipboardList, group: 'Atelier', roles: ['super_admin', 'gerant', 'patissier'] },
+    { href: '/depenses', label: 'Dépenses', icon: Wallet, group: 'Gestion', roles: ['super_admin', 'gerant', 'vendeur'] },
+    { href: '/ai-assistant', label: 'Comptable IA', icon: Bot, group: 'Gestion', roles: ['super_admin', 'gerant'] },
+    { href: '/equipe', label: 'Mon Équipe', icon: Users, group: 'Gestion', roles: ['super_admin', 'gerant'] },
     // Section Admin réservée au Super Admin SaaS
-    { href: '/admin', label: 'Admin', icon: LayoutDashboard, roles: ['super_admin'] },
+    { href: '/admin', label: 'Admin', icon: ShieldCheck, group: 'Gestion', roles: ['super_admin'] },
 ]
+
+const NETWORK_LABEL = { online: 'En ligne', unstable: 'Connexion instable', offline: 'Hors ligne' } as const
 
 export default function DashboardSidebar({ profile, adminProfile, organization, isKiosk, onNetworkStatus }: Props) {
     const pathname = usePathname()
@@ -100,107 +103,66 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
 
     const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
+    const statusColor = networkStatus === 'online' ? 'var(--sidebar-success)' : networkStatus === 'unstable' ? 'var(--sidebar-warning)' : 'var(--sidebar-danger)'
+
+    // Regroupe les liens visibles par section, en conservant l'ordre déclaré
+    const groups: { title: string | null; items: typeof filtered }[] = []
+    for (const item of filtered) {
+        const last = groups[groups.length - 1]
+        if (last && last.title === item.group) last.items.push(item)
+        else groups.push({ title: item.group, items: [item] })
+    }
+
     const SidebarContent = () => (
-        <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '20px 12px' }}>
+        <nav aria-label="Navigation principale" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '20px 12px' }}>
             {/* Logo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 12px', marginBottom: '32px' }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: '42px', height: '42px', borderRadius: '14px',
-                    background: 'linear-gradient(135deg, var(--color-primary-container), var(--color-primary))',
-                    boxShadow: '0 4px 12px rgba(129, 84, 49, 0.2)',
-                    flexShrink: 0,
-                }}>
-                    <CakeSlice size={22} color="white" strokeWidth={1.5} />
-                </div>
-                <div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.1, fontFamily: 'var(--font-display)', letterSpacing: '-0.03em' }}>Pâtiss&apos;App</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                        <div style={{
-                            width: '6px', height: '6px', borderRadius: '50%',
-                            background: networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)',
-                            boxShadow: `0 0 8px ${networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)'}`,
-                            flexShrink: 0
-                        }} />
-                        <span style={{ fontSize: '0.7rem', color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{organization?.name || 'Artisanat Digital'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 12px 20px', marginBottom: '8px', borderBottom: '1px solid var(--sidebar-line)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src="/brand/logo.png"
+                    alt=""
+                    width={44}
+                    height={44}
+                    style={{ width: '44px', height: '44px', borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+                />
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--sidebar-cream)', lineHeight: 1.15, fontFamily: 'var(--font-display)', letterSpacing: '-0.02em' }}>Pâtiss&apos;App</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--sidebar-muted)', fontWeight: 600, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {organization?.name || 'Artisanat Digital'}
                     </div>
                 </div>
             </div>
 
             {/* Nav links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                {filtered.map(item => {
-                    const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-                    return (
-                        <Link key={item.href} href={item.href} prefetch={true}
-                            className={`sidebar-link${active ? ' active' : ''}`}
-                            onClick={() => setOpen(false)}
-                            style={{ 
-                                background: active ? 'rgba(75, 100, 80, 0.08)' : 'transparent',
-                                color: active ? 'var(--color-secondary)' : 'var(--color-muted)',
-                                padding: '12px 20px',
-                                paddingLeft: active ? '24px' : '20px',
-                                borderRadius: '99px',
-                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
-                            }}
-                        >
-                            {active && (
-                                <span style={{
-                                    position: 'absolute',
-                                    left: '8px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    width: '3px',
-                                    height: '16px',
-                                    borderRadius: '2px',
-                                    background: 'var(--color-secondary)',
-                                }} />
-                            )}
-                            <item.icon size={20} strokeWidth={active ? 2.2 : 1.75} className="sidebar-icon" />
-                            <span style={{ fontWeight: active ? 700 : 500 }}>{item.label}</span>
-                        </Link>
-                    )
-                })}
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                {groups.map((group, gi) => (
+                    <div key={group.title ?? `g${gi}`} role="group" aria-label={group.title ?? undefined} style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: gi === 0 ? '8px' : '0' }}>
+                        {group.title && <div className="sidebar-section">{group.title}</div>}
+                        {group.items.map(item => {
+                            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                            return (
+                                <Link key={item.href} href={item.href} prefetch={true}
+                                    className={`sidebar-link${active ? ' active' : ''}`}
+                                    aria-current={active ? 'page' : undefined}
+                                    onClick={() => setOpen(false)}
+                                >
+                                    <item.icon size={20} strokeWidth={active ? 2.2 : 1.75} className="sidebar-icon" />
+                                    <span>{item.label}</span>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                ))}
 
                 {profile.role_slug === 'gerant' && profile.organization_id && (
-                    <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px dashed rgba(131, 116, 107, 0.25)' }}>
+                    <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
                         <button
                             onClick={handleSwitchToKiosk}
                             disabled={isSwitchingToKiosk}
-                            className="group"
-                            style={{ 
-                                width: '100%',
-                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))', 
-                                color: 'white', 
-                                padding: '16px',
-                                borderRadius: '20px',
-                                fontWeight: 800,
-                                border: 'none',
-                                cursor: isSwitchingToKiosk ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '10px',
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: '0 8px 16px rgba(129, 84, 49, 0.15)',
-                                opacity: isSwitchingToKiosk ? 0.7 : 1
-                            }}
-                            onMouseEnter={e => {
-                                if (!isSwitchingToKiosk) {
-                                    e.currentTarget.style.transform = 'translateY(-2px)'
-                                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(129, 84, 49, 0.25)'
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                if (!isSwitchingToKiosk) {
-                                    e.currentTarget.style.transform = 'none'
-                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(129, 84, 49, 0.15)'
-                                }
-                            }}
+                            className="sidebar-kiosk"
                         >
                             <Store size={20} strokeWidth={2} />
-                            <span style={{ fontSize: '0.9rem' }}>{isSwitchingToKiosk ? 'Mode Kiosque...' : 'Ouvrir le Kiosque'}</span>
+                            <span>{isSwitchingToKiosk ? 'Mode Kiosque...' : 'Ouvrir le Kiosque'}</span>
                         </button>
                     </div>
                 )}
@@ -209,123 +171,65 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             {/* Escape Hatch Banner if Impersonating */}
             {adminProfile && adminProfile.id !== profile.id && (
                 <div style={{
-                    margin: '12px 8px', padding: '12px', background: 'var(--color-well)',
-                    border: '1.5px solid var(--color-border)', borderRadius: '16px',
+                    margin: '12px 0 0', padding: '12px', background: 'var(--sidebar-raised)',
+                    border: '1px solid var(--sidebar-line)', borderRadius: 'var(--radius-lg)',
                 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--sidebar-cream)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Lock size={12} /> MODE KIOSQUE
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            width: '100%', padding: '8px', background: 'var(--color-lift)', border: '1.5px solid var(--color-border)',
-                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text)',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                        }}
-                    >
+                    <button onClick={handleLogout} className="sidebar-ghost" style={{ width: '100%', justifyContent: 'center', border: '1px solid var(--sidebar-line)', borderRadius: 'var(--radius-sm)' }}>
                         Retour Admin
                     </button>
                 </div>
             )}
 
             {/* Profile + Logout */}
-            <div style={{ borderTop: '1px dashed rgba(131, 116, 107, 0.25)', paddingTop: '16px', marginTop: '16px' }}>
+            <div style={{ borderTop: '1px solid var(--sidebar-line)', paddingTop: '16px', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <button
                     onClick={() => setIsProfileModalOpen(true)}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', 
-                        borderRadius: 'var(--radius-md)', marginBottom: '12px', width: '100%',
-                        background: 'rgba(255, 255, 255, 0.35)', 
-                        border: '1px solid rgba(255, 255, 255, 0.5)', 
-                        cursor: 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', 
-                        textAlign: 'left',
-                        outline: 'none',
-                        boxShadow: '0 2px 8px rgba(45,27,14,0.02)'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.65)'
-                        e.currentTarget.style.transform = 'translateY(-1px)'
-                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)'
-                        e.currentTarget.style.transform = 'none'
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(45,27,14,0.02)'
-                    }}
+                    className="sidebar-profile"
                     title="Modifier mon profil"
                 >
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
                         {profile.avatar_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img 
-                                src={profile.avatar_url} 
-                                alt="Avatar" 
-                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${profile.theme_color ?? '#E8B4A0'}` }} 
+                            <img
+                                src={profile.avatar_url}
+                                alt=""
+                                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${profile.theme_color ?? 'var(--color-primary-container)'}` }}
                             />
                         ) : (
                             <div style={{
                                 width: '36px', height: '36px', borderRadius: '50%',
-                                background: profile.theme_color ?? '#E8B4A0', display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem', color: '#fff', flexShrink: 0,
+                                background: profile.theme_color ?? 'var(--color-primary-container)', display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', fontWeight: 700, fontSize: '0.875rem', color: '#fff',
                             }}>
                                 {initials(profile.full_name)}
                             </div>
                         )}
-                        <span style={{
-                            position: 'absolute', bottom: '-2px', right: '-2px',
-                            width: '10px', height: '10px', borderRadius: '50%',
-                            background: networkStatus === 'online' ? 'var(--color-success)' : networkStatus === 'unstable' ? 'var(--color-warning)' : 'var(--color-error)',
-                            border: '2.5px solid var(--color-lift)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                        }} />
+                        <span
+                            role="img"
+                            aria-label={`Réseau : ${NETWORK_LABEL[networkStatus]}`}
+                            title={`Réseau : ${NETWORK_LABEL[networkStatus]}`}
+                            style={{
+                                position: 'absolute', bottom: '-2px', right: '-2px',
+                                width: '12px', height: '12px', borderRadius: '50%',
+                                background: statusColor,
+                                border: '2.5px solid var(--sidebar-raised)',
+                            }}
+                        />
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--sidebar-cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {profile.full_name}
                         </div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: '2px' }}>
-                            <span style={{
-                                fontSize: '0.65rem',
-                                color: 'var(--color-primary)',
-                                background: 'rgba(129, 84, 49, 0.08)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.02em'
-                            }}>
-                                {profile.role_slug === 'gerant' ? 'Gérant' : profile.role_slug}
-                            </span>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--sidebar-muted)', fontWeight: 600, marginTop: '1px' }}>
+                            {profile.role_slug === 'gerant' ? 'Gérant' : profile.role_slug}
+                            {networkStatus !== 'online' && <span style={{ color: statusColor }}> · {NETWORK_LABEL[networkStatus]}</span>}
                         </div>
                     </div>
                 </button>
-                <button 
-                    onClick={handleLogout} 
-                    className="btn-ghost" 
-                    style={{ 
-                        width: '100%', 
-                        justifyContent: 'flex-start', 
-                        color: 'var(--color-muted)',
-                        padding: '10px 14px',
-                        borderRadius: '99px',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        cursor: 'pointer',
-                        background: 'transparent',
-                        border: 'none'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.color = 'var(--color-error)'
-                        e.currentTarget.style.background = 'rgba(186, 26, 26, 0.06)'
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.color = 'var(--color-muted)'
-                        e.currentTarget.style.background = 'transparent'
-                    }}
-                >
+                <button onClick={handleLogout} className="sidebar-ghost sidebar-logout">
                     <LogOut size={16} className="logout-icon" />
                     <span>Déconnexion</span>
                 </button>
@@ -338,15 +242,15 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
             {/* Desktop sidebar */}
             <aside style={{
                 width: '260px', flexShrink: 0,
-                background: 'rgba(245, 238, 228, 0.8)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                borderRight: '1px solid rgba(131, 116, 107, 0.15)',
-                position: 'sticky', top: 0, height: '100dvh', overflowY: 'auto',
+                background: 'var(--sidebar-bg)',
+                color: 'var(--sidebar-cream)',
+                position: 'sticky', top: 0, height: '100dvh', overflow: 'hidden',
                 display: 'none',
-                padding: '12px',
-            }} className="sidebar-desktop">
-                <SidebarContent />
+            }} className="sidebar-desktop sidebar-ganache">
+                <PastryMotifs color="var(--sidebar-motif)" />
+                <div className="sidebar-scroll" style={{ position: 'relative', height: '100%', overflowY: 'auto', padding: '12px' }}>
+                    <SidebarContent />
+                </div>
             </aside>
 
             {/* Mobile Bottom Navigation Bar */}
@@ -384,16 +288,21 @@ export default function DashboardSidebar({ profile, adminProfile, organization, 
                 <div style={{ position: 'fixed', inset: 0, zIndex: 50 }}>
                     <div onClick={() => setOpen(false)}
                         style={{ position: 'absolute', inset: 0, background: 'rgba(45,27,14,0.4)', backdropFilter: 'blur(4px)' }} />
-                    <div style={{
+                    <div className="sidebar-ganache" style={{
                         position: 'absolute', top: 0, left: 0, bottom: 0, width: '260px',
-                        background: 'white', animation: 'slideUp 0.25s ease',
+                        background: 'var(--sidebar-bg)', color: 'var(--sidebar-cream)',
+                        overflow: 'hidden', animation: 'slideUp 0.25s ease',
                     }}>
+                        <PastryMotifs color="var(--sidebar-motif)" />
                         <button onClick={() => setOpen(false)}
-                            style={{ position: 'absolute', top: '12px', right: '12px' }}
-                            className="btn-ghost">
+                            aria-label="Fermer le menu"
+                            className="sidebar-ghost"
+                            style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 2, width: '44px', height: '44px', minHeight: '44px', padding: 0, justifyContent: 'center' }}>
                             <X size={20} />
                         </button>
-                        <SidebarContent />
+                        <div className="sidebar-scroll" style={{ position: 'relative', height: '100%', overflowY: 'auto' }}>
+                            <SidebarContent />
+                        </div>
                     </div>
                 </div>
             )}

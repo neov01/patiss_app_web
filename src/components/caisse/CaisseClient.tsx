@@ -39,7 +39,10 @@ import {
     DoorClosed,
     ArrowLeft,
     SearchIcon,
-    Copy
+    Copy,
+    ShoppingCart,
+    History,
+    ShieldCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CatalogueModal from './CatalogueModal'
@@ -114,7 +117,14 @@ export default function CaisseClient({
     const [montantRemisStr, setMontantRemisStr] = useState('')
     
     const [modalCatalogueOpen, setModalCatalogueOpen] = useState(false)
-    const [caisseMode, setCaisseMode] = useState<'commande' | 'vitrine'>('commande')
+    // Vendeur : la vitrine est le geste le plus fréquent → mode par défaut,
+    // sauf si une commande est à encaisser (lien « Encaisser » ou commandes prêtes).
+    const initialSearchParams = useSearchParams()
+    const [caisseMode, setCaisseMode] = useState<'commande' | 'vitrine'>(() => {
+        if (roleSlug !== 'vendeur' || initialSearchParams.get('order')) return 'commande'
+        const hasReady = (initialOrders ?? []).some((o: { status?: string }) => o.status === 'ready' || o.status === 'awaiting_pickup')
+        return hasReady ? 'commande' : 'vitrine'
+    })
     const [searchClient, setSearchClient] = useState('')
     const { execute, isPending: isSubmitting, renderFeedback } = useActionFeedback()
     
@@ -143,6 +153,7 @@ export default function CaisseClient({
     const [isPending, startTransition] = useTransition()
     
     const [readyOrders, setReadyOrders] = useState(initialOrders)
+    const readyCountLive = readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length
 
     // Offline support
     const { isOffline, saveTransactionOffline, refreshProductCache, refreshReadyOrdersCache, cachedProducts, isStoragePersistent, requestPersistence } = useOffline()
@@ -166,6 +177,7 @@ export default function CaisseClient({
                     selling_price: p.selling_price,
                     stock_qty: p.current_stock ?? 0,
                     image_url: p.image_url ?? null,
+                    category: p.category ?? '',
                     quantity: 0
                 })
             }
@@ -491,7 +503,7 @@ export default function CaisseClient({
                                     color: 'var(--color-muted)',
                                 }}
                             >
-                                🛒 Enregistrer une vente
+                                <ShoppingCart size={15} aria-hidden="true" /> Enregistrer une vente
                             </button>
                             <button
                                 onClick={() => setCaisseTab('historique')}
@@ -511,7 +523,7 @@ export default function CaisseClient({
                                     boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
                                 }}
                             >
-                                📜 Historique des sessions
+                                <History size={15} aria-hidden="true" /> Historique des sessions
                             </button>
                         </div>
                     </div>
@@ -556,7 +568,7 @@ export default function CaisseClient({
                                             boxShadow: '0 2px 8px rgba(45, 27, 14, 0.08)',
                                         }}
                                     >
-                                        🛒 Enregistrer une vente
+                                        <ShoppingCart size={15} aria-hidden="true" /> Enregistrer une vente
                                     </button>
                                     <button
                                         onClick={() => setCaisseTab('historique')}
@@ -575,7 +587,7 @@ export default function CaisseClient({
                                             color: 'var(--color-muted)',
                                         }}
                                     >
-                                        📜 Historique des sessions
+                                        <History size={15} aria-hidden="true" /> Historique des sessions
                                     </button>
                                 </div>
                             </div>
@@ -609,12 +621,12 @@ export default function CaisseClient({
                                 onClick={requestPersistence}
                                 title="Le stockage local n'est pas sécurisé contre la purge automatique du système. Cliquez pour sécuriser."
                                 style={{
-                                    padding: '6px 12px', minHeight: '40px', whiteSpace: 'nowrap', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
-                                    background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', border: '1px solid var(--color-badge-danger-accent)',
+                                    padding: '6px 12px', minHeight: '44px', whiteSpace: 'nowrap', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
+                                    background: 'transparent', color: 'var(--color-badge-warning-text)', border: '1px dashed var(--color-badge-warning-accent)',
                                     display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'
                                 }}
                             >
-                                🔒 Sécuriser le stockage
+                                <ShieldCheck size={15} aria-hidden="true" /> Sécuriser le stockage
                             </button>
                         )}
                         <SessionPill />
@@ -649,26 +661,21 @@ export default function CaisseClient({
                     </button>
                 </div>
 
-                {/* 2. METRIQUES */}
-                <div className="metrics-container" style={{ display: 'flex', gap: '16px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', scrollSnapType: 'x mandatory' }}>
-                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>{"Ventes aujourd'hui"}</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text)' }}>{initialCmdCount + initialVitrineCount}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-primary)', marginTop: '4px' }}>
-                            {initialCmdCount} commandes · {initialVitrineCount} vitrine
-                        </div>
+                {/* 2. METRIQUES : une ligne compacte, le geste de vente passe avant */}
+                <dl className="caisse-metrics">
+                    <div className="caisse-metric">
+                        <dt>{"Ventes aujourd'hui"}</dt>
+                        <dd>{initialCmdCount + initialVitrineCount}<small>{initialCmdCount} cmd · {initialVitrineCount} vitrine</small></dd>
                     </div>
-                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>Recettes du jour</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-text)' }}>
-                            {initialCA.toLocaleString('fr-FR')} {currency}
-                        </div>
+                    <div className="caisse-metric">
+                        <dt>Recettes du jour</dt>
+                        <dd className="money">{initialCA.toLocaleString('fr-FR')}<span className="money-cur">{currency}</span></dd>
                     </div>
-                    <div className="card" style={{ padding: '20px', minWidth: '160px', flex: 1, scrollSnapAlign: 'start' }}>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--color-muted)', fontWeight: 600, marginBottom: '8px' }}>Commandes prêtes</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-badge-success-accent)' }}>{readyOrders.filter(o => o.status === 'ready' || o.status === 'awaiting_pickup').length}</div>
+                    <div className="caisse-metric">
+                        <dt>Commandes prêtes</dt>
+                        <dd className={readyCountLive > 0 ? 'is-ready' : undefined}>{readyCountLive}</dd>
                     </div>
-                </div>
+                </dl>
 
                 {caisseMode === 'commande' && <>{/* 3.1 COMMANDES PRÊTES */}
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -780,13 +787,13 @@ export default function CaisseClient({
                                 selling_price: bs.selling_price,
                                 stock_qty: stockQty,
                             })}>
-                                <ProductPlate name={bs.name} imageUrl={bs.image_url}>
+                                <ProductPlate name={bs.name} imageUrl={bs.image_url} category={bs.category}>
                                     {inCart > 0 && <span className="product-tile-qty">×{inCart}</span>}
                                 </ProductPlate>
                                 <div className="product-tile-body">
                                     <span className="product-tile-name">{bs.name}</span>
                                     {stockQty < 3 && <span className="product-tile-stock">Plus que {stockQty}</span>}
-                                    <span className="product-tile-price">{bs.selling_price.toLocaleString('fr-FR')}<span className="product-tile-cur">{currency}</span></span>
+                                    <span className="product-tile-price is-money">{bs.selling_price.toLocaleString('fr-FR')}<span className="product-tile-cur">{currency}</span></span>
                                 </div>
                             </button>
                         )
@@ -1113,7 +1120,7 @@ export default function CaisseClient({
                                             onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
                                             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                                         >
-                                            ✕
+                                            <X size={18} aria-hidden="true" />
                                         </button>
                                     </div>
 

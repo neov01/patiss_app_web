@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useActionFeedback } from '@/hooks/useActionFeedback'
-import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search, SlidersHorizontal, X, Eye } from 'lucide-react'
+import { ShoppingBag, Plus, Trash2, AlertTriangle, Wallet, Loader2, BadgeCheck, CheckCircle2, Search, SlidersHorizontal, X, Eye, Phone, Clock, CalendarDays, Star, Siren, ListTodo, History, Zap, ArchiveRestore, Upload, CreditCard, User } from 'lucide-react'
 import { updateOrderStatus, softDeleteOrder, getHistoricalOrders, getVitrineSales, deleteVitrineSale } from '@/lib/actions/orders'
 import NewOrderModal from './NewOrderModal'
 import OrderDrawer, { type OrderPayment } from './OrderDrawer'
@@ -85,6 +85,13 @@ const STATUS_LABELS: Record<string, { label: string; next: string; color: string
     pending: { label: '⏳ Confirmée', next: 'in_preparation', color: 'var(--color-badge-warning-bg)', bg: 'var(--color-badge-warning-bg)', text: 'var(--color-badge-warning-text)' },
     production: { label: '👨‍🍳 En préparation', next: 'ready', color: 'var(--color-badge-production-bg)', bg: 'var(--color-badge-production-bg)', text: 'var(--color-badge-production-text)' },
     completed: { label: '✔ Livrée / Retirée', next: '', color: 'var(--color-well)', bg: 'var(--color-well)', text: 'var(--color-text)' },
+}
+
+// Libellé de statut sans l'emoji de tête (les emojis restent dans STATUS_LABELS
+// car d'autres écrans s'en servent ; l'interface affiche une pastille textuelle).
+function statusText(label: string) {
+    const [first, ...rest] = label.split(' ')
+    return /\p{L}/u.test(first) ? label : rest.join(' ')
 }
 
 const ACTIVE_STATUSES = ['confirmed', 'in_preparation', 'ready', 'awaiting_pickup', 'pending', 'production']
@@ -616,7 +623,7 @@ export default function OrdersClient({
                             className="btn-secondary" 
                             style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', fontSize: '0.85rem', padding: '0 16px' }}
                         >
-                            📥 Saisie Historique
+                            <Upload size={16} aria-hidden="true" /> Saisie Historique
                         </button>
                     )}
                     <button 
@@ -675,7 +682,7 @@ export default function OrdersClient({
                     {/* Section Actives */}
                     <div>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            ⚡ Commandes actives ({searchActiveOrders.length})
+                            <ListTodo size={18} aria-hidden="true" /> Commandes actives ({searchActiveOrders.length})
                             {searchServerLoading && <Loader2 size={16} className="animate-spin" />}
                         </h2>
                         {searchActiveOrders.length === 0 ? (
@@ -692,7 +699,7 @@ export default function OrdersClient({
                     {/* Section Historique */}
                     <div>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '12px', color: 'var(--color-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            📜 Historique des commandes ({searchPastOrders.length})
+                            <History size={18} aria-hidden="true" /> Historique des commandes ({searchPastOrders.length})
                             {searchServerLoading && <Loader2 size={16} className="animate-spin" />}
                         </h2>
                         {searchServerLoading && searchPastOrders.length === 0 ? (
@@ -733,7 +740,7 @@ export default function OrdersClient({
                                 gap: '8px'
                             }}
                         >
-                            ⚡ À traiter
+                            <ListTodo size={18} aria-hidden="true" /> À traiter
                             <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '99px', background: activeTab === 'todo' ? 'var(--color-primary)' : 'var(--color-surface-variant)', color: activeTab === 'todo' ? 'white' : 'var(--color-text)', fontWeight: 800 }}>
                                 {counts.todo}
                             </span>
@@ -755,7 +762,7 @@ export default function OrdersClient({
                                 gap: '8px'
                             }}
                         >
-                            📜 Historique
+                            <History size={18} aria-hidden="true" /> Historique
                             <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '99px', background: activeTab === 'history' ? 'var(--color-secondary)' : 'var(--color-surface-variant)', color: activeTab === 'history' ? 'white' : 'var(--color-text)', fontWeight: 800 }}>
                                 {counts.history}
                             </span>
@@ -777,7 +784,7 @@ export default function OrdersClient({
                                 gap: '8px'
                             }}
                         >
-                            ⚡ Ventes Rapides
+                            <Zap size={18} aria-hidden="true" /> Ventes Rapides
                             <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '99px', background: activeTab === 'vitrine' ? 'var(--color-primary)' : 'var(--color-surface-variant)', color: activeTab === 'vitrine' ? 'white' : 'var(--color-text)', fontWeight: 800 }}>
                                 {counts.vitrine}
                             </span>
@@ -787,11 +794,11 @@ export default function OrdersClient({
                                 onClick={() => router.push('/commandes/audit')}
                                 style={{
                                     marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px',
-                                    padding: '8px 14px', borderRadius: '999px', border: '1.5px solid var(--color-border)',
+                                    padding: '8px 14px', minHeight: '44px', borderRadius: '999px', border: '1.5px solid var(--color-border)',
                                     background: '#fff', color: 'var(--color-muted)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
                                 }}
                             >
-                                🗂️ Historique des suppressions
+                                <ArchiveRestore size={16} aria-hidden="true" /> Historique des suppressions
                             </button>
                         )}
                     </div>
@@ -1484,22 +1491,27 @@ export default function OrdersClient({
         const isToday = pickupDate.toDateString() === new Date().toDateString()
         const isDeleting = deletingId === order.id
 
-        let cardBorder = '1.5px solid var(--color-border)'
+        // Bordure fine : la priorité est portée par sa pastille (texte + icône), pas par l'épaisseur.
+        let cardBorder = '1px solid var(--color-border)'
         if (order.priority === 'urgent') {
-            cardBorder = '4px solid var(--color-error)'
+            cardBorder = '1.5px solid var(--color-error)'
         } else if (order.priority === 'vip') {
-            cardBorder = '4px solid var(--color-gold)'
+            cardBorder = '1.5px solid var(--color-gold)'
         } else if (order.status === 'ready') {
             cardBorder = '1.5px solid var(--color-success)'
         }
 
+        // Commande remise au client mais pas soldée : un seul statut explicite.
+        const pStatusRaw = order.payment_status || 'unpaid'
+        const isHandedOver = order.status === 'delivered' || order.status === 'completed'
+        const retiredUnpaid = isHandedOver && !PAID_STATUSES.has(pStatusRaw)
+
         return (
-            <div key={order.id} className="card" 
+            <div key={order.id} className="card press" 
                 onClick={() => setSelectedOrder(order)}
                 style={{ 
                     border: cardBorder,
                     opacity: isDeleting ? 0.5 : 1,
-                    transition: 'all 0.2s',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1512,15 +1524,21 @@ export default function OrdersClient({
                     {/* Badge de priorité / tag client */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-text)' }}>{order.customer_name}</span>
-                        <span style={{ background: s.bg, color: s.text, fontSize: '0.7rem', fontWeight: 800, padding: '4px 10px', borderRadius: '99px' }}>
-                            {s.label}
-                        </span>
+                        {retiredUnpaid ? (
+                            <span style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', fontSize: '0.75rem', fontWeight: 800, padding: '4px 10px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Wallet size={12} aria-hidden="true" /> Retirée · reste à payer
+                            </span>
+                        ) : (
+                            <span style={{ background: s.bg, color: s.text, fontSize: '0.75rem', fontWeight: 800, padding: '4px 10px', borderRadius: '99px' }}>
+                                {statusText(s.label)}
+                            </span>
+                        )}
                         
-                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-accent)', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
-                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', fontWeight: 800, fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Siren size={11} aria-hidden="true" /> Urgent</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Star size={11} aria-hidden="true" /> VIP</span>}
 
-                        {(() => {
-                            const pStatus = order.payment_status || 'unpaid'
+                        {!retiredUnpaid && (() => {
+                            const pStatus = pStatusRaw
                             const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
                             const Icon = conf.icon
                             let details = ''
@@ -1536,12 +1554,12 @@ export default function OrdersClient({
                         })()}
                         
                         {order.customer_id && <span className="badge" style={{ background: 'var(--color-badge-crm-bg)', color: 'var(--color-badge-crm-text)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><BadgeCheck size={11} /> CRM</span>}
-                        {isToday && <span className="badge" style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)' }}>📅 Aujourd&apos;hui</span>}
+                        {isToday && <span className="badge" style={{ background: 'var(--color-secondary-container)', color: 'var(--color-secondary)' }}><CalendarDays size={11} aria-hidden="true" style={{ marginRight: 3 }} />Aujourd&apos;hui</span>}
                     </div>
 
                     {/* Contact et heure de retrait */}
                     <div style={{ display: 'flex', gap: '16px', color: 'var(--color-muted)', fontSize: '0.8rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {order.customer_contact && <span>📞 {order.customer_contact}</span>}
+                        {order.customer_contact && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={13} aria-hidden="true" /> {order.customer_contact}</span>}
                         <span style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
@@ -1549,7 +1567,7 @@ export default function OrdersClient({
                             color: (pickupDate && !isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) ? 'var(--color-error)' : 'inherit', 
                             fontWeight: (pickupDate && !isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) ? 700 : 400 
                         }}>
-                            🕐 Retrait : {pickupDate ? formatPickupDate(pickupDate) : 'Non définie'}
+                            <Clock size={13} aria-hidden="true" /> Retrait : {pickupDate ? formatPickupDate(pickupDate) : 'Non définie'}
                             {(!isNaN(pickupDate.getTime()) && order.status !== 'completed' && order.status !== 'cancelled' && pickupDate.getTime() - Date.now() < 2 * 60 * 60 * 1000 && pickupDate.getTime() > Date.now()) && <AlertTriangle size={14} />}
                         </span>
                     </div>
@@ -1569,11 +1587,11 @@ export default function OrdersClient({
                 {/* Montant et Actions principales */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '12px', marginTop: '4px' }}>
                     <div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-text)' }}>
-                            {Number(order.total_amount).toLocaleString('fr-FR')} {currency}
+                        <div className="money" style={{ fontSize: '1.3rem' }}>
+                            {Number(order.total_amount).toLocaleString('fr-FR')}<span className="money-cur">{currency}</span>
                         </div>
                         {Number(order.balance || 0) > 0 && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: retiredUnpaid ? 700 : 500, color: retiredUnpaid ? 'var(--color-badge-danger-text)' : 'var(--color-muted)' }}>
                                 Reste : {Number(order.balance).toLocaleString('fr-FR')} {currency}
                             </div>
                         )}
@@ -1609,7 +1627,9 @@ export default function OrdersClient({
                                 setOrderToDelete({ id: order.id, name: order.customer_name })
                             }} 
                             className="btn-secondary" disabled={isPending || isDeleting}
-                            style={{ color: 'var(--color-error)', minHeight: '36px', padding: '0 10px', background: 'transparent', border: 'none' }}>
+                            aria-label={`Supprimer la commande de ${order.customer_name}`}
+                            title="Supprimer (confirmation demandée)"
+                            style={{ color: 'var(--color-badge-danger-text)', minHeight: '44px', minWidth: '44px', padding: '0 10px', background: 'transparent', border: 'none' }}>
                             {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                         </button>
                     </div>
@@ -1672,10 +1692,10 @@ export default function OrdersClient({
                     
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ background: s.bg, color: s.text, fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '99px' }}>
-                            {s.label}
+                            {statusText(s.label)}
                         </span>
-                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-accent)', fontWeight: 800, fontSize: '0.7rem' }}>🚨 URGENT</span>}
-                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem' }}>⭐ VIP</span>}
+                        {order.priority === 'urgent' && <span className="badge" style={{ background: 'var(--color-badge-danger-bg)', color: 'var(--color-badge-danger-text)', fontWeight: 800, fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Siren size={11} aria-hidden="true" /> Urgent</span>}
+                        {order.priority === 'vip' && <span className="badge" style={{ background: 'var(--color-badge-warning-bg)', color: 'var(--color-badge-warning-text)', fontWeight: 800, fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Star size={11} aria-hidden="true" /> VIP</span>}
                         {(() => {
                             const pStatus = order.payment_status || 'unpaid'
                             const conf = PAYMENT_STATUS_CONFIG[pStatus] || PAYMENT_STATUS_CONFIG.unpaid
@@ -1691,8 +1711,8 @@ export default function OrdersClient({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-muted)', fontSize: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px' }}>
                         <div>
-                            {order.customer_contact && <div style={{ marginBottom: '2px' }}>📞 {order.customer_contact}</div>}
-                            <div>📅 {formatPickupDate(pickupDate)}</div>
+                            {order.customer_contact && <div style={{ marginBottom: '2px', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={12} aria-hidden="true" /> {order.customer_contact}</div>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={12} aria-hidden="true" /> {formatPickupDate(pickupDate)}</div>
                         </div>
                         <button className="btn-secondary" style={{ minHeight: '32px', height: '32px', padding: '0 12px', fontSize: '0.75rem' }}>
                             Voir détail
@@ -1836,7 +1856,7 @@ export default function OrdersClient({
                             Ref: {shortId}
                         </span>
                         <span className="badge" style={{ background: 'var(--color-well)', color: 'var(--color-text)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            💳 {tx.payment_method?.toUpperCase()}
+                            <CreditCard size={11} aria-hidden="true" /> {tx.payment_method?.toUpperCase()}
                         </span>
                     </div>
 
@@ -1852,8 +1872,8 @@ export default function OrdersClient({
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--color-muted)', fontSize: '0.75rem', borderTop: '1px solid var(--color-border)', paddingTop: '10px', marginTop: '2px' }}>
                         <div>
-                            <div>📅 {formattedDate}</div>
-                            {tx.creator_profile && <div style={{ marginTop: '2px' }}>👤 {tx.creator_profile.full_name} ({tx.creator_profile.role_slug})</div>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><CalendarDays size={12} aria-hidden="true" /> {formattedDate}</div>
+                            {tx.creator_profile && <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: 4 }}><User size={12} aria-hidden="true" /> {tx.creator_profile.full_name} ({tx.creator_profile.role_slug})</div>}
                         </div>
                         {(roleSlug === 'gerant' || roleSlug === 'super_admin') && (
                             <button 
@@ -1897,8 +1917,8 @@ export default function OrdersClient({
 
                     {/* Mode Paiement */}
                     <div style={{ flex: 1.5 }}>
-                        <span className="badge" style={{ background: 'var(--color-well)', color: 'var(--color-text)', fontWeight: 700 }}>
-                            💳 {tx.payment_method?.toUpperCase()}
+                        <span className="badge" style={{ background: 'var(--color-well)', color: 'var(--color-text)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <CreditCard size={11} aria-hidden="true" /> {tx.payment_method?.toUpperCase()}
                         </span>
                     </div>
 

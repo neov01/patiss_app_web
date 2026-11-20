@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, DoorOpen, DoorClosed } from 'lucide-react'
+import { Loader2, DoorOpen, DoorClosed, Lock } from 'lucide-react'
 import { useSession } from '@/components/layout/SessionMaster'
 
 /**
@@ -60,9 +60,11 @@ export default function SessionPill() {
                     onClick={handleToggle}
                     disabled={loading || (isOpen && !canCloseSession)}
                     style={{
-                        background: isOpen ? 'var(--color-badge-danger-accent)' : 'var(--color-secondary)',
-                        color: 'white',
-                        border: 'none',
+                        // Clôturer : action sensible mais pas une alarme → bouton neutre, texte rouge foncé.
+                        background: isOpen ? 'var(--color-lift)' : 'var(--color-secondary)',
+                        color: isOpen ? 'var(--color-badge-danger-text)' : 'white',
+                        border: isOpen ? '1.5px solid var(--color-badge-danger-bg)' : 'none',
+                        boxShadow: isOpen ? '0 1px 2px rgba(45, 27, 14, 0.08)' : 'none',
                         padding: '0 18px',
                         minWidth: '96px',
                         justifyContent: 'center',
@@ -83,7 +85,8 @@ export default function SessionPill() {
                     onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
                 >
-                    {loading && <Loader2 size={11} className="animate-spin" />}
+                    {loading && <Loader2 size={14} className="animate-spin" />}
+                    {!loading && isOpen && canCloseSession && <Lock size={14} aria-hidden="true" />}
                     {isOpen
                         ? (canCloseSession ? 'Clôturer' : 'Réservé')
                         : 'Ouvrir'
