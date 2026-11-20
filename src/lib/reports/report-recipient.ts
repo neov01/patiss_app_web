@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { REPORT_FALLBACK_EMAIL } from './constants'
 
 /**
  * Destinataire des rapports d'une organisation : l'e-mail du gérant actif en production,
- * REPORT_DEV_EMAIL dans les autres environnements. null si aucun destinataire valable.
+ * REPORT_DEV_EMAIL (ou REPORT_FALLBACK_EMAIL) dans les autres environnements. null si aucun destinataire valable.
  */
 export async function resolveReportRecipient(admin: SupabaseClient, orgId: string): Promise<string | null> {
   const { data: manager, error } = await admin
@@ -24,5 +25,5 @@ export async function resolveReportRecipient(admin: SupabaseClient, orgId: strin
   if (!managerEmail) return null
 
   if (process.env.ENVIRONMENT === 'production') return managerEmail
-  return process.env.REPORT_DEV_EMAIL?.trim() || null
+  return process.env.REPORT_DEV_EMAIL?.trim() || REPORT_FALLBACK_EMAIL
 }

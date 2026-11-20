@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { callsTo, createSupabaseFake, hasOp } from '@/test/supabase-fake'
 import { resolveReportRecipient } from './report-recipient'
+import { REPORT_FALLBACK_EMAIL } from './constants'
 
 const manager = () => ({ data: { id: 'manager-1' }, error: null })
 
@@ -25,11 +26,11 @@ describe('resolveReportRecipient', () => {
     expect(await resolveReportRecipient(fake.client as unknown as SupabaseClient, 'org-1')).toBe('dev@test.local')
   })
 
-  it('renvoie null sans REPORT_DEV_EMAIL hors production', async () => {
+  it('renvoie l\'adresse de secours sans REPORT_DEV_EMAIL hors production', async () => {
     vi.stubEnv('ENVIRONMENT', 'development')
     vi.stubEnv('REPORT_DEV_EMAIL', '')
     const fake = createSupabaseFake({ profiles: manager })
-    expect(await resolveReportRecipient(fake.client as unknown as SupabaseClient, 'org-1')).toBeNull()
+    expect(await resolveReportRecipient(fake.client as unknown as SupabaseClient, 'org-1')).toBe(REPORT_FALLBACK_EMAIL)
   })
 
   it('renvoie null sans gérant actif', async () => {
